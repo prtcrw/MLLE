@@ -1,50 +1,86 @@
-/* Style for the menu icon */
+html, body {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  font-family: 'Inter', sans-serif;
+  font-size: 0.75rem;
+  line-height: 1.5;
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  margin-bottom: 0.5rem;
+}
+
+p, a, button {
+  font-size: 0.75rem;
+}
+
+a {
+  text-decoration: none;
+  color: #007bff; /* Example link color */
+}
+
+button {
+  padding: 0.5rem 1rem;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.menu-container {
+  position: relative; /* Ensure it’s positioned relative for absolute positioning of the menu icon */
+  padding: 0 10px;
+}
+
 .menu-icon {
-  position: fixed;
-  top: 10px;
-  left: 10px;
-  font-size: 24px;
+  font-size: 16px;
   background: none;
   border: none;
   cursor: pointer;
-  z-index: 1001; /* Ensure the icon stays on top */
+  box-shadow: 2px 0 5px rgba(0, 0, 0, 0.3);
+  margin: 16px 0 0 8px;
 }
 
-/* Style for the menu */
-.menu {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 250px;
-  height: 100%;
-  background-color: white;
-  box-shadow: 2px 0 5px rgba(0, 0, 0, 0.5);
-  z-index: 1000;
-  padding: 20px;
+.menu-icon.hidden {
+  opacity: 0;
+  display: none; /* Hide the icon */
+  pointer-events: none; /* Prevent interaction when hidden */
 }
 
-/* Overlay to blur the background and detect clicks outside the menu */
-.menu-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background: rgba(0, 0, 0, 0.5);
-  backdrop-filter: blur(5px);
-  z-index: 999;
+.menu-content {
+  width: 0;
+  transition: width 0.3s ease-in-out;
+  height: 100vh; /* Full height */
+  overflow: hidden; /* Hide content when width is 0 */
+  padding: 14px;
+  opacity: 0;
+}
+
+.menu-content.open {
+  width: 250px; /* Set the desired width */
+  opacity: 100;
+}
+
+.menu-content.open ~ .menu-icon {
+  display: none; /* Hide the icon */
 }
 
 .menu-header {
   display: flex;
-  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
 }
 
 .menu-title {
-  flex-grow: 1;
+  font-size: 20px;
+  margin: 0;
 }
 
-/* Style for the close button */
 .close-button {
   font-size: 24px;
   background: none;
@@ -52,22 +88,48 @@
   cursor: pointer;
 }
 
-/* Style for the submenu (level 2) */
+.menu-content ul {
+  list-style: none;
+  padding: 0;
+}
+
+.menu-content li {
+  margin-bottom: 10px;
+}
+
+.menu-content a {
+  text-decoration: none;
+  color: #333; /* Adjust color as needed */
+}
+
 .submenu {
   margin-left: 20px; /* Indent level 2 items */
   list-style-type: none; /* Remove default bullet points */
 }
 
-/* Add padding to dashboard content */
-.dashboard-content {
-  padding-top: 50px; /* Adjust this value to fit your design */
-  padding-left: 20px; /* Optional: Add space from the left */
+.dashboard {
+  display: flex;
+  flex-direction: row;
+  height: 100vh; /* Full height */
 }
 
-/* Breadcrumb */
+.dashboard-content {
+  display: flex;
+  flex-direction: column;
+  flex-grow: 1; /* Make content fill available space */
+  overflow-y: auto; /* Enable vertical scrolling */
+  transition: margin-left 0.3s ease-in-out;
+  margin-left: 0; /* Default no margin */
+  padding: 0 16px; /* Add padding as needed */
+}
+
+.menu-content.open ~ .dashboard-content {
+  margin-left: 250px; /* Adjust based on menu width */
+}
+
 .breadcrumb {
   background-color: transparent;
-  padding: 10px 0;
+  padding: 14px 0;
   margin-bottom: 20px;
   list-style: none;
   display: flex;
@@ -89,7 +151,6 @@
   color: gray;
 }
 
-/* Basic styling for table and pagination */
 table {
   width: 100%;
   border-collapse: collapse;
@@ -107,8 +168,4 @@ th, td {
 
 thead {
   background-color: #f4f4f4;
-}
-
-button {
-  margin: 5px;
 }
