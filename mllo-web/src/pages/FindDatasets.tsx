@@ -24,7 +24,6 @@ const FindDatasets: React.FC = () => {
         // Example: Fetch or filter data based on searchFilter and selectedCheckboxes
         // Simulate data fetching
         const fetchedDatasets = [
-            // Example data, replace with actual data fetching logic
             {
                 datasetName: 'Dataset A',
                 datasetUsedFor: 'Training Data',
