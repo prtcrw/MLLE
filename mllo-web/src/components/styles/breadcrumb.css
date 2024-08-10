@@ -1,0 +1,21 @@
+.breadcrumb {
+    background-color: transparent;
+    list-style: none;
+    display: flex;
+    padding-left: 0;
+}
+
+.breadcrumb-item + .breadcrumb-item::before {
+    content: ">";
+    padding: 0 5px;
+    color: gray;
+}
+
+.breadcrumb-item a {
+    text-decoration: none;
+    color: blue;
+}
+
+.breadcrumb-item.active {
+    color: gray;
+}

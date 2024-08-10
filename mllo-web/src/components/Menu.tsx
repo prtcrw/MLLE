@@ -1,43 +1,35 @@
-import React, {useState} from 'react';
-import {Link} from 'react-router-dom';
+import React from 'react';
+import './styles/menu.css'
+import Submenu from './Submenu.tsx';
+import {Link} from "react-router-dom";
 
-const Menu: React.FC = () => {
-    const [isMenuOpen, setIsMenuOpen] = useState(false);
-
-    const toggleMenu = () => {
-        setIsMenuOpen(!isMenuOpen);
+const Menu: React.FC<{ isMenuOpen: boolean; toggleMenu: () => void }> = ({isMenuOpen, toggleMenu}) => {
+    const handleSubmenuClick = (event: React.MouseEvent) => {
+        event.stopPropagation();
     };
 
-    const handleMenuClick = (event: React.MouseEvent) => {
-        event.stopPropagation(); // Stop click events from closing the menu
-    };
+    const submenuItems = [
+        {label: 'Find Models', path: '/find-models'},
+        {label: 'Find Pipelines', path: '/find-pipelines'},
+        {label: 'Find Datasets', path: '/find-datasets'},
+        {label: 'Plot Performance', path: '/plot-performance'},
+        {label: 'Analyze Deployed Models', path: '/analyze-deployed-models'},
+        {label: 'Compare Pipelines', path: '/compare-pipelines'}
+    ];
 
     return (
-        <div className="menu-container">
-            <button onClick={toggleMenu} className={`menu-icon ${isMenuOpen ? 'hidden' : ''}`}>
-                ☰
-            </button>
-            <div
-                className={`menu-content ${isMenuOpen ? 'open' : ''}`}
-                onClick={handleMenuClick} // Prevent menu content clicks from closing the menu
-            >
+        <div className={`menu-container ${isMenuOpen ? 'open' : ''}`}>
+            <div className="menu-content">
                 <div className="menu-header">
-                    <h2 className="menu-title">MLLO</h2>
+                    <Link to='/'><h2 className="menu-title">MLLO</h2></Link>
                     <button onClick={toggleMenu} className="close-button">
                         ✕
                     </button>
                 </div>
+                <h4>Analyzer</h4>
                 <ul>
                     <li>
-                        <Link to="/">Analyzer</Link>
-                        <ul className="submenu">
-                            <li><Link to="/find-models">Find Models</Link></li>
-                            <li><Link to="/find-pipelines">Find Pipelines</Link></li>
-                            <li><Link to="/find-datasets">Find Datasets</Link></li>
-                            <li><Link to="/plot-performance">Plot Performance</Link></li>
-                            <li><Link to="/analyze-deployed-models">Analyze Deployed Models</Link></li>
-                            <li><Link to="/compare-pipelines">Compare Pipelines</Link></li>
-                        </ul>
+                        <Submenu items={submenuItems} onItemClick={handleSubmenuClick}/>
                     </li>
                 </ul>
             </div>

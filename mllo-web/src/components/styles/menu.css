@@ -1,0 +1,55 @@
+.menu-container {
+    position: relative;
+    width: 0;
+    transition: width 0.3s ease-in-out;
+    height: 100vh; /* Full height */
+    overflow: hidden; /* Hide content when width is 0 */
+    opacity: 0;
+    background-color: rgb(240, 244, 249);
+}
+
+.menu-container.open {
+    width: 250px; /* Set the desired width */
+    opacity: 100;
+}
+
+.menu-content {
+    padding: 14px;
+}
+
+.menu-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.menu-title {
+    font-size: 20px;
+    margin: 0;
+}
+
+.close-button {
+    font-size: 20px;
+    background: none;
+    border: none;
+    cursor: pointer;
+}
+
+.menu-content ul {
+    list-style: none;
+    padding: 0;
+}
+
+.menu-content li {
+    margin-bottom: 10px;
+}
+
+.menu-content a {
+    text-decoration: none;
+    color: #333; /* Adjust color as needed */
+    font-size: 14px;
+}
+
+.submenu {
+    list-style-type: none; /* Remove default bullet points */
+}

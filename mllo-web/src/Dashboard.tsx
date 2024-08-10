@@ -1,7 +1,7 @@
-import React from 'react';
-import { BrowserRouter as Router, Route, Routes } from 'react-router-dom';
+import React, {useState} from 'react';
+import {BrowserRouter as Router, Route, Routes} from 'react-router-dom';
 import Menu from './components/Menu';
-import Breadcrumb from './components/Breadcrumb';
+import Header from './components/Header.tsx';
 import Home from './pages/Home';
 import ComparePipelines from './pages/ComparePipelines';
 import FindModels from './pages/FindModels';
@@ -11,12 +11,18 @@ import FindDatasets from './pages/FindDatasets';
 import PlotPerformance from './pages/PlotPerformance';
 
 const Dashboard: React.FC = () => {
+    const [isMenuOpen, setIsMenuOpen] = useState(false);
+
+    const toggleMenu = () => {
+        setIsMenuOpen(!isMenuOpen);
+    };
+
     return (
         <Router>
             <div className="dashboard">
-                <Menu />
+                <Menu isMenuOpen={isMenuOpen} toggleMenu={toggleMenu} />
                 <div className="dashboard-content">
-                    <Breadcrumb />
+                    <Header isMenuOpen={isMenuOpen} toggleMenu={toggleMenu} />
                     <Routes>
                         <Route path="/" element={<Home />} />
                         <Route path="/compare-pipelines" element={<ComparePipelines />} />
