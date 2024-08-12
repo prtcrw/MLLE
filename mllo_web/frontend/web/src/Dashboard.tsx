@@ -11,7 +11,7 @@ import FindDatasets from './pages/FindDatasets';
 import PlotPerformance from './pages/PlotPerformance';
 
 const Dashboard: React.FC = () => {
-    const [isMenuOpen, setIsMenuOpen] = useState(false);
+    const [isMenuOpen, setIsMenuOpen] = useState(true);
 
     const toggleMenu = () => {
         setIsMenuOpen(!isMenuOpen);
