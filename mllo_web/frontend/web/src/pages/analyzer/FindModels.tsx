@@ -1,5 +1,6 @@
 import React, {useState} from 'react';
 import {useNavigate} from 'react-router-dom';
+import Search from '../../components/Search.tsx';
 import Table from '../../components/Table.tsx';
 import Pagination from '../../components/Pagination.tsx';
 
@@ -22,7 +23,9 @@ const FindModels: React.FC = () => {
     const [totalPages, setTotalPages] = useState(0);
     const navigate = useNavigate(); // Access useNavigate hook
 
-    const handleSearch = async () => {
+
+    const handleSearch = async (searchTerm: string) => {
+        setDatasetName(searchTerm); // Update datasetName state
         await handlePageChange(1);
     };
 
@@ -51,13 +54,7 @@ const FindModels: React.FC = () => {
         <div>
             <h1>Find Models</h1>
             <div>
-                <input
-                    type="text"
-                    placeholder="Dataset Name"
-                    value={datasetName}
-                    onChange={(e) => setDatasetName(e.target.value)}
-                />
-                <button onClick={handleSearch}>Search</button>
+                <Search onSearch={handleSearch} placeholder={'Dataset Name'}/>
                 <br/>
                 <label>
                     <input
@@ -96,8 +93,8 @@ const FindModels: React.FC = () => {
                     Production Data
                 </label>
             </div>
-            <div>
-                <div style={{margin: '4px 0'}}>
+            <div style={{margin: '8px 0'}}>
+                <div>
                     <button onClick={handleAnalyzeDeployedModel}>Analyze Deployed Model</button>
                 </div>
                 <Table data={models} headers={[

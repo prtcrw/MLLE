@@ -1,5 +1,6 @@
 import React, {useState} from 'react';
 import {useNavigate} from 'react-router-dom';
+import Search from '../../components/Search.tsx';
 import Table from '../../components/Table.tsx';
 import Pagination from '../../components/Pagination.tsx';
 
@@ -22,7 +23,9 @@ const FindDatasets: React.FC = () => {
     const [totalPages, setTotalPages] = useState(0);
     const navigate = useNavigate(); // Access useNavigate hook
 
-    const handleSearch = async () => {
+
+    const handleSearch = async (searchTerm: string) => {
+        setSearchFilter(searchTerm); // Update datasetName state
         await handlePageChange(1);
     };
 
@@ -55,13 +58,7 @@ const FindDatasets: React.FC = () => {
         <div>
             <h1>Find Datasets</h1>
             <div>
-                <input
-                    type="text"
-                    placeholder="Model Name/Model Type"
-                    value={searchFilter}
-                    onChange={(e) => setSearchFilter(e.target.value)}
-                />
-                <button onClick={handleSearch}>Search</button>
+                <Search onSearch={handleSearch} placeholder={'Model Name/Model Type'}/>
                 <br/>
                 <label>
                     <input
@@ -100,10 +97,10 @@ const FindDatasets: React.FC = () => {
                     Production Data
                 </label>
             </div>
-            <div>
-                <div style={{ margin: '4px 0' }}>
+            <div style={{margin: '8px 0'}}>
+                <div>
                     <button onClick={handleAnalyzeModelOutput}>Analyze Model Output</button>
-                    <button style={{ marginLeft: '4px' }} onClick={handlePlotPerformance}>Plot Performance</button>
+                    <button style={{marginLeft: '4px'}} onClick={handlePlotPerformance}>Plot Performance</button>
                 </div>
 
                 <Table data={datasets} headers={[

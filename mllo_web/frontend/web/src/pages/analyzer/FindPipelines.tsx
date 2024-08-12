@@ -1,5 +1,6 @@
 import React, {useState} from 'react';
 import {useNavigate} from 'react-router-dom';
+import Search from '../../components/Search.tsx';
 import Table from '../../components/Table.tsx';
 import Pagination from '../../components/Pagination.tsx';
 
@@ -18,7 +19,9 @@ const FindPipelines: React.FC = () => {
     const [totalPages, setTotalPages] = useState(0);
     const navigate = useNavigate(); // Access useNavigate hook
 
-    const handleSearch = async () => {
+
+    const handleSearch = async (searchTerm: string) => {
+        setModelName(searchTerm); // Update datasetName state
         await handlePageChange(1);
     };
 
@@ -42,16 +45,10 @@ const FindPipelines: React.FC = () => {
         <div>
             <h1>Find Pipelines</h1>
             <div>
-                <input
-                    type="text"
-                    placeholder="Model Name"
-                    value={modelName}
-                    onChange={(e) => setModelName(e.target.value)}
-                />
-                <button onClick={handleSearch}>Search</button>
+                <Search onSearch={handleSearch} placeholder={'Model Name'}/>
             </div>
-            <div>
-                <div style={{margin: '4px 0'}}>
+            <div style={{margin: '8px 0'}}>
+                <div>
                     <button onClick={handleComparePipelines}>Compare Pipelines</button>
                     <button style={{marginLeft: '4px'}} onClick={handleViewPipeline}>View Pipeline</button>
                 </div>
