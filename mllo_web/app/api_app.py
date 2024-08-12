@@ -24,10 +24,9 @@ app.include_router(find_models.router, prefix="/api")
 app.include_router(find_pipelines.router, prefix="/api")
 app.include_router(plot_performances.router, prefix="/api")
 
+web_root_path = Path(list(web_dir.__path__)[0])
 
-# web_root_path = Path(list(web_dir.__path__)[0])
-#
-# app.mount("/", StaticFiles(directory=Path(web_root_path, "dist"), html=True), name="ui")
+app.mount("/", StaticFiles(directory=Path(web_root_path, "dist"), html=True), name="ui")
 
 
 def run():
