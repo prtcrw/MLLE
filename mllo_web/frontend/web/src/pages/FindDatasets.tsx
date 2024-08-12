@@ -19,7 +19,6 @@ const FindDatasets: React.FC = () => {
     const [datasets, setDatasets] = useState<DatasetData[]>([]);
     const [currentPage, setCurrentPage] = useState(0);
     const [totalPages, setTotalPages] = useState(0);
-    const itemsPerPage = 10;
 
     const handleSearch = async () => {
         await handlePageChange(1);
@@ -34,8 +33,8 @@ const FindDatasets: React.FC = () => {
         );
     };
 
-    const handlePageChange = async (page: number = 1) => {
-        const response = await fetch(`http://localhost:5252/api/v1/datasets/?page=${page}&itemsPerPage=${itemsPerPage}`);
+    const handlePageChange = async (page: number = 1, itemsPerPage: number = 10) => {
+        const response = await fetch(`http://localhost:5252/api/v1/datasets/?page=${page}&items_per_page=${itemsPerPage}`);
         const fetchedDatasets = await response.json();
         setCurrentPage(page);
         setTotalPages(fetchedDatasets["total_pages"]);

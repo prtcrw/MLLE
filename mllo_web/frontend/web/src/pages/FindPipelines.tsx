@@ -15,14 +15,13 @@ const FindPipelines: React.FC = () => {
     const [pipelines, setPipelines] = useState<PipelineData[]>([]);
     const [currentPage, setCurrentPage] = useState(0);
     const [totalPages, setTotalPages] = useState(0);
-    const itemsPerPage = 10;
 
     const handleSearch = async () => {
         await handlePageChange(1);
     };
 
-    const handlePageChange = async (page: number = 1) => {
-        const response = await fetch(`http://localhost:5252/api/v1/pipelines/?page=${page}&itemsPerPage=${itemsPerPage}`);
+    const handlePageChange = async (page: number = 1, itemsPerPage: number = 10) => {
+        const response = await fetch(`http://localhost:5252/api/v1/pipelines/?page=${page}&items_per_page=${itemsPerPage}`);
         const fetchedPipelines = await response.json();
         setCurrentPage(page);
         setTotalPages(fetchedPipelines["total_pages"]);

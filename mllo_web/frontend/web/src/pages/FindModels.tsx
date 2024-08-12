@@ -19,7 +19,6 @@ const FindModels: React.FC = () => {
     const [models, setModels] = useState<ModelData[]>([]);
     const [currentPage, setCurrentPage] = useState(0);
     const [totalPages, setTotalPages] = useState(0);
-    const itemsPerPage = 10;
 
     const handleSearch = async () => {
         await handlePageChange(1);
@@ -34,8 +33,8 @@ const FindModels: React.FC = () => {
         );
     };
 
-    const handlePageChange = async (page: number = 1) => {
-        const response = await fetch(`http://localhost:5252/api/v1/models/?page=${page}&itemsPerPage=${itemsPerPage}`);
+    const handlePageChange = async (page: number = 1, itemsPerPage: number = 10) => {
+        const response = await fetch(`http://localhost:5252/api/v1/models/?page=${page}&items_per_page=${itemsPerPage}`);
         const fetchedModels = await response.json();
         setCurrentPage(page);
         setTotalPages(fetchedModels["total_pages"]);
