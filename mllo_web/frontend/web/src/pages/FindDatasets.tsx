@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, {useState} from 'react';
 
 interface DatasetData {
     datasetName: string;
@@ -19,29 +19,15 @@ const FindDatasets: React.FC = () => {
     const [totalPages, setTotalPages] = useState(1);
     const resultsPerPage = 10;
 
-    const handleSearch = () => {
-        // Implement the search logic here
-        // Example: Fetch or filter data based on searchFilter and selectedCheckboxes
-        // Simulate data fetching
-        const fetchedDatasets = [
-            {
-                datasetName: 'Dataset A',
-                datasetUsedFor: 'Training Data',
-                mlInputTimestamp: '2024-08-08T12:00:00Z',
-                datasetSize: '500MB',
-                datasetCharacteristics: 'High Quality',
-                datasetSource: 'Source A',
-                modelOutput: 'Output A',
-                outputUtilization: 'Model Training',
-            },
-            // Add more datasets as needed
-        ];
+    const handleSearch = async () => {
+        const response = await fetch('http://localhost:5252/api/v1/datasets/');
+        const fetchedDatasets = await response.json();
         setDatasets(fetchedDatasets);
         setTotalPages(Math.ceil(fetchedDatasets.length / resultsPerPage));
     };
 
     const handleCheckboxChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const { value, checked } = e.target;
+        const {value, checked} = e.target;
         setSelectedCheckboxes(prev =>
             checked
                 ? [...prev, value]
@@ -102,7 +88,7 @@ const FindDatasets: React.FC = () => {
                     onChange={(e) => setSearchFilter(e.target.value)}
                 />
                 <button onClick={handleSearch}>Search</button>
-                <br />
+                <br/>
                 <label>
                     <input
                         type="checkbox"

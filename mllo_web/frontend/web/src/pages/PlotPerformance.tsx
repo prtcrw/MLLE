@@ -1,9 +1,14 @@
-import React, { useState } from 'react';
-import { Bar } from 'react-chartjs-2';
-import { Chart as ChartJS, CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend } from 'chart.js';
+import React, {useState} from 'react';
+import {Bar} from 'react-chartjs-2';
+import {BarElement, CategoryScale, Chart as ChartJS, Legend, LinearScale, Title, Tooltip} from 'chart.js';
 
 // Register Chart.js components
 ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend);
+
+interface PerformanceData {
+    datasetName: string;
+    data: number;
+}
 
 const PlotPerformance: React.FC = () => {
     const [plotType, setPlotType] = useState('Bar');
@@ -13,24 +18,28 @@ const PlotPerformance: React.FC = () => {
     const [groupBy, setGroupBy] = useState('Dataset Name');
     const [data, setData] = useState<any>(null);
 
-    const handlePlot = () => {
-        // Example data, replace with actual data fetching and processing
-        const exampleData = {
-            labels: ['Dataset A', 'Dataset B', 'Dataset C'],
+    const handlePlot = async () => {
+        // Example data fetching, replace with actual logic
+        const response = await fetch('http://localhost:5252/api/v1/performances/');
+        const fetchedData: PerformanceData[] = await response.json();
+
+        // Assuming data is an array of objects with properties "datasetName" and "data"
+        const chartData = {
+            labels: fetchedData.map(item => item.datasetName),
             datasets: [{
-                label: yAxisMetric,
-                data: [65, 59, 80],
+                label: 'Performance',  // Assuming performance is the only metric
+                data: fetchedData.map(item => item.data),
                 backgroundColor: 'rgba(75, 192, 192, 0.2)',
                 borderColor: 'rgba(75, 192, 192, 1)',
                 borderWidth: 1
             }]
         };
-        setData(exampleData);
+        setData(chartData);
     };
 
     return (
-        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-            <div style={{ width: '30%', padding: '20px' }}>
+        <div style={{display: 'flex', justifyContent: 'space-between'}}>
+            <div style={{width: '30%', padding: '20px'}}>
                 <h2>Filters</h2>
                 <div>
                     <label>
@@ -87,9 +96,15 @@ const PlotPerformance: React.FC = () => {
                 </div>
                 <button onClick={handlePlot}>Plot</button>
             </div>
-            <div style={{ width: '65%', padding: '20px' }}>
+            <div style={{width: '65%', padding: '20px'}}>
                 <h2>Plot</h2>
-                {data && <Bar data={data} options={{ responsive: true, plugins: { legend: { position: 'top' }, tooltip: { callbacks: { label: (context) => `${context.dataset.label}: ${context.raw}` } } } }} />}
+                {data && <Bar data={data} options={{
+                    responsive: true,
+                    plugins: {
+                        legend: {position: 'top'},
+                        tooltip: {callbacks: {label: (context) => `${context.dataset.label}: ${context.raw}`}}
+                    }
+                }}/>}
             </div>
         </div>
     );

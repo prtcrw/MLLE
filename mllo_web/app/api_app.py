@@ -3,18 +3,35 @@ from pathlib import Path
 import uvicorn
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
+from starlette.middleware.cors import CORSMiddleware
 
 import mllo_web.frontend.web as web_dir
+from mllo_web.app.api.routers import find_datasets, find_models, find_pipelines, plot_performances
 
 app = FastAPI(title="MLLO")
 
-web_root_path = Path(list(web_dir.__path__)[0])
+app.add_middleware(
+    CORSMiddleware,
+    allow_credentials=False,
+    allow_origins=["*"],
+    allow_methods=["*"],
+    allow_headers=["*"]
+)
 
-app.mount("/", StaticFiles(directory=Path(web_root_path, "dist"), html=True), name="ui")
+# Include all routers
+app.include_router(find_datasets.router, prefix="/api")
+app.include_router(find_models.router, prefix="/api")
+app.include_router(find_pipelines.router, prefix="/api")
+app.include_router(plot_performances.router, prefix="/api")
+
+
+# web_root_path = Path(list(web_dir.__path__)[0])
+#
+# app.mount("/", StaticFiles(directory=Path(web_root_path, "dist"), html=True), name="ui")
 
 
 def run():
-    uvicorn.run(app, host="0.0.0.0", port=5252)
+    uvicorn.run(app, port=5252)
 
 
 if __name__ == "__main__":

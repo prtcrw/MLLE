@@ -15,21 +15,9 @@ const FindPipelines: React.FC = () => {
     const [totalPages, setTotalPages] = useState(1);
     const resultsPerPage = 10;
 
-    const handleSearch = () => {
-        // Implement the search logic here
-        // Example: Fetch or filter data based on modelName
-        // Simulate data fetching
-        const fetchedPipelines = [
-            // Example data, replace with actual data fetching logic
-            {
-                pipelineName: 'Pipeline A',
-                pipelineType: 'Type 1',
-                pipelineStructure: 'Structure A',
-                pipelineDataInput: 'Input A',
-                pipelineAssociatedModel: 'Model A',
-            },
-            // Add more pipelines as needed
-        ];
+    const handleSearch = async () => {
+        const response = await fetch('http://localhost:5252/api/v1/pipelines/');
+        const fetchedPipelines = await response.json();
         setPipelines(fetchedPipelines);
         setTotalPages(Math.ceil(fetchedPipelines.length / resultsPerPage));
     };
