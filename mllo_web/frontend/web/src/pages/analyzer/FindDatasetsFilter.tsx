@@ -29,7 +29,7 @@ const FindDatasetsFilter: React.FC<{
                         checked={selectedFilters.includes(option.value)}
                         onChange={(e) => onFilterChange(e)}
                     />
-                    {option.label}
+                    <span>{option.label}</span>
                 </label>
             ))}
         </div>

@@ -55,7 +55,7 @@ button {
 table {
   width: 100%;
   border-collapse: collapse;
-  margin-top: 20px;
+  margin-top: 8px;
 }
 
 table, th, td {
@@ -70,3 +70,27 @@ th, td {
 thead {
   background-color: #f4f4f4;
 }
+
+.advanced-filters {
+  display: flex;
+  flex-wrap: wrap;
+  margin: 8px 0;
+  padding: 10px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+}
+
+.advanced-filters label {
+  display: flex;
+  margin-right: 10px;
+  font-size: 12px;
+}
+
+.advanced-filters input[type="checkbox"] {
+  /* Customize checkbox appearance here (background, border, etc.) */
+}
+
+.advanced-filters input[type="checkbox"]:checked {
+  /* Style checkbox and label when checked */
+}
+
