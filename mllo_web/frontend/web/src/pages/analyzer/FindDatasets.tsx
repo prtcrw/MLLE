@@ -3,6 +3,7 @@ import {useNavigate} from 'react-router-dom';
 import Search from '../../components/Search.tsx';
 import Table from '../../components/Table.tsx';
 import Pagination from '../../components/Pagination.tsx';
+import FindDatasetsFilter from './FindDatasetsFilter.tsx';
 
 interface DatasetData {
     datasetName: string;
@@ -59,43 +60,9 @@ const FindDatasets: React.FC = () => {
             <h1>Find Datasets</h1>
             <div>
                 <Search onSearch={handleSearch} placeholder={'Model Name/Model Type'}/>
-                <br/>
-                <label>
-                    <input
-                        type="checkbox"
-                        value="Test Data"
-                        checked={selectedCheckboxes.includes('Test Data')}
-                        onChange={handleCheckboxChange}
-                    />
-                    Test Data
-                </label>
-                <label>
-                    <input
-                        type="checkbox"
-                        value="Validation Data"
-                        checked={selectedCheckboxes.includes('Validation Data')}
-                        onChange={handleCheckboxChange}
-                    />
-                    Validation Data
-                </label>
-                <label>
-                    <input
-                        type="checkbox"
-                        value="Training Data"
-                        checked={selectedCheckboxes.includes('Training Data')}
-                        onChange={handleCheckboxChange}
-                    />
-                    Training Data
-                </label>
-                <label>
-                    <input
-                        type="checkbox"
-                        value="Production Data"
-                        checked={selectedCheckboxes.includes('Production Data')}
-                        onChange={handleCheckboxChange}
-                    />
-                    Production Data
-                </label>
+                <FindDatasetsFilter
+                    selectedFilters={selectedCheckboxes}
+                    onFilterChange={handleCheckboxChange}/>
             </div>
             <div style={{margin: '8px 0'}}>
                 <div>

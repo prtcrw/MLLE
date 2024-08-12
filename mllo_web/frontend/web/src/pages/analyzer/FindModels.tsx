@@ -3,6 +3,7 @@ import {useNavigate} from 'react-router-dom';
 import Search from '../../components/Search.tsx';
 import Table from '../../components/Table.tsx';
 import Pagination from '../../components/Pagination.tsx';
+import FindModelsFilter from './FindModelsFilter.tsx';
 
 interface ModelData {
     modelName: string;
@@ -14,6 +15,7 @@ interface ModelData {
     mlInputTimestamp: string;
     datasetUsedFor: string;
 }
+
 
 const FindModels: React.FC = () => {
     const [datasetName, setDatasetName] = useState('');
@@ -55,43 +57,9 @@ const FindModels: React.FC = () => {
             <h1>Find Models</h1>
             <div>
                 <Search onSearch={handleSearch} placeholder={'Dataset Name'}/>
-                <br/>
-                <label>
-                    <input
-                        type="checkbox"
-                        value="Test Data"
-                        checked={selectedCheckboxes.includes('Test Data')}
-                        onChange={handleCheckboxChange}
-                    />
-                    Test Data
-                </label>
-                <label>
-                    <input
-                        type="checkbox"
-                        value="Validation Data"
-                        checked={selectedCheckboxes.includes('Validation Data')}
-                        onChange={handleCheckboxChange}
-                    />
-                    Validation Data
-                </label>
-                <label>
-                    <input
-                        type="checkbox"
-                        value="Training Data"
-                        checked={selectedCheckboxes.includes('Training Data')}
-                        onChange={handleCheckboxChange}
-                    />
-                    Training Data
-                </label>
-                <label>
-                    <input
-                        type="checkbox"
-                        value="Production Data"
-                        checked={selectedCheckboxes.includes('Production Data')}
-                        onChange={handleCheckboxChange}
-                    />
-                    Production Data
-                </label>
+                <FindModelsFilter
+                    selectedFilters={selectedCheckboxes}
+                    onFilterChange={handleCheckboxChange}/>
             </div>
             <div style={{margin: '8px 0'}}>
                 <div>
