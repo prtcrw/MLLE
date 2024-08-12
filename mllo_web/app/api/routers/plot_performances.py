@@ -1,91 +1,45 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, Query
+from typing import List, Optional
 
 router = APIRouter(prefix="/v1/performances", tags=["performances"])
 
+# Example performance data
+performances = [
+    {"datasetName": 'Dataset A', "accuracy": 65, "precision": 60, "recall": 55},
+    {"datasetName": 'Dataset B', "accuracy": 59, "precision": 58, "recall": 61},
+    {"datasetName": 'Dataset C', "accuracy": 80, "precision": 77, "recall": 70},
+    {"datasetName": 'Dataset D', "accuracy": 72, "precision": 70, "recall": 69},
+    {"datasetName": 'Dataset E', "accuracy": 68, "precision": 65, "recall": 62},
+    {"datasetName": 'Dataset F', "accuracy": 85, "precision": 80, "recall": 75},
+    {"datasetName": 'Dataset G', "accuracy": 77, "precision": 75, "recall": 72},
+    {"datasetName": 'Dataset H', "accuracy": 91, "precision": 88, "recall": 85},
+    {"datasetName": 'Dataset I', "accuracy": 62, "precision": 60, "recall": 58},
+    {"datasetName": 'Dataset J', "accuracy": 74, "precision": 71, "recall": 70},
+    # Add more data as needed
+]
 
-@router.get("/")  # Define a GET endpoint for "/performances"
-async def get_plot_performances():
-    performances = [
-        {
-            "datasetName": 'Dataset A',
-            "data": 65,
-        },
-        {
-            "datasetName": 'Dataset B',
-            "data": 59,
-        },
-        {
-            "datasetName": 'Dataset C',
-            "data": 80,
-        },
-        {
-            "datasetName": 'Dataset D',
-            "data": 72,
-        },
-        {
-            "datasetName": 'Dataset E',
-            "data": 68,
-        },
-        {
-            "datasetName": 'Dataset F',
-            "data": 85,
-        },
-        {
-            "datasetName": 'Dataset G',
-            "data": 77,
-        },
-        {
-            "datasetName": 'Dataset H',
-            "data": 91,
-        },
-        {
-            "datasetName": 'Dataset I',
-            "data": 62,
-        },
-        {
-            "datasetName": 'Dataset J',
-            "data": 74,
-        },
-        {
-            "datasetName": 'Dataset K',
-            "data": 88,
-        },
-        {
-            "datasetName": 'Dataset L',
-            "data": 79,
-        },
-        {
-            "datasetName": 'Dataset M',
-            "data": 81,
-        },
-        {
-            "datasetName": 'Dataset N',
-            "data": 69,
-        },
-        {
-            "datasetName": 'Dataset O',
-            "data": 83,
-        },
-        {
-            "datasetName": 'Dataset P',
-            "data": 76,
-        },
-        {
-            "datasetName": 'Dataset Q',
-            "data": 92,
-        },
-        {
-            "datasetName": 'Dataset R',
-            "data": 65,
-        },
-        {
-            "datasetName": 'Dataset S',
-            "data": 87,
-        },
-        {
-            "datasetName": 'Dataset T',
-            "data": 66,
-        },
-    ]
+@router.get("/")
+async def get_plot_performances(
+    y_axis_metric: str = Query("accuracy", alias="yAxisMetric"),
+    performance_cutoff: Optional[int] = Query(None),
+    order_by: Optional[str] = Query(None),
+    group_by: Optional[str] = Query("datasetName"),
+):
+    # Filter by performance cutoff if provided
+    filtered_performances = performances
+    if performance_cutoff is not None:
+        filtered_performances = [
+            p for p in performances if p[y_axis_metric] >= performance_cutoff
+        ]
 
-    return performances
+    # Order by the specified metric if provided
+    if order_by:
+        reverse_order = order_by.lower() == "descending"
+        filtered_performances.sort(key=lambda p: p[y_axis_metric], reverse=reverse_order)
+
+    # Group by (currently no specific logic for grouping, returning the filtered data)
+    # You could implement logic here if you want to aggregate or group data
+    grouped_performances = filtered_performances
+
+    # Return the filtered and sorted data
+    return grouped_performances

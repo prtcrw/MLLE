@@ -1,4 +1,6 @@
 import React, {useState} from 'react';
+import Table from '../components/Table';
+import Pagination from '../components/Pagination';
 
 interface ModelData {
     modelName: string;
@@ -15,15 +17,12 @@ const FindModels: React.FC = () => {
     const [datasetName, setDatasetName] = useState('');
     const [selectedCheckboxes, setSelectedCheckboxes] = useState<string[]>([]);
     const [models, setModels] = useState<ModelData[]>([]);
-    const [currentPage, setCurrentPage] = useState(1);
-    const [totalPages, setTotalPages] = useState(1);
-    const resultsPerPage = 10;
+    const [currentPage, setCurrentPage] = useState(0);
+    const [totalPages, setTotalPages] = useState(0);
+    const itemsPerPage = 10;
 
     const handleSearch = async () => {
-        const response = await fetch('http://localhost:5252/api/v1/models/');
-        const fetchedModels = await response.json();
-        setModels(fetchedModels);
-        setTotalPages(Math.ceil(fetchedModels.length / resultsPerPage));
+        await handlePageChange(1);
     };
 
     const handleCheckboxChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -35,46 +34,12 @@ const FindModels: React.FC = () => {
         );
     };
 
-    const handlePageChange = (page: number) => {
+    const handlePageChange = async (page: number = 1) => {
+        const response = await fetch(`http://localhost:5252/api/v1/models/?page=${page}&itemsPerPage=${itemsPerPage}`);
+        const fetchedModels = await response.json();
         setCurrentPage(page);
-        // Implement pagination logic here
-    };
-
-    const renderTable = () => {
-        const startIndex = (currentPage - 1) * resultsPerPage;
-        const endIndex = startIndex + resultsPerPage;
-        const paginatedModels = models.slice(startIndex, endIndex);
-
-        return (
-            <table>
-                <thead>
-                <tr>
-                    <th>Model Name</th>
-                    <th>Model Type</th>
-                    <th>Model Performance Metric</th>
-                    <th>Model Performance Value</th>
-                    <th>Model Objective</th>
-                    <th>Data Preprocessing</th>
-                    <th>ML Input Timestamp</th>
-                    <th>Dataset Used For</th>
-                </tr>
-                </thead>
-                <tbody>
-                {paginatedModels.map((model, index) => (
-                    <tr key={index}>
-                        <td>{model.modelName}</td>
-                        <td>{model.modelType}</td>
-                        <td>{model.modelPerformanceMetric}</td>
-                        <td>{model.modelPerformanceValue}</td>
-                        <td>{model.modelObjective}</td>
-                        <td>{model.dataPreprocessing}</td>
-                        <td>{model.mlInputTimestamp}</td>
-                        <td>{model.datasetUsedFor}</td>
-                    </tr>
-                ))}
-                </tbody>
-            </table>
-        );
+        setTotalPages(fetchedModels["total_pages"]);
+        setModels(fetchedModels["data"]);
     };
 
     return (
@@ -127,22 +92,21 @@ const FindModels: React.FC = () => {
                 </label>
             </div>
             <div>
-                {renderTable()}
-                <div>
-                    <button
-                        disabled={currentPage === 1}
-                        onClick={() => handlePageChange(currentPage - 1)}
-                    >
-                        Previous
-                    </button>
-                    <span>Page {currentPage} of {totalPages}</span>
-                    <button
-                        disabled={currentPage === totalPages}
-                        onClick={() => handlePageChange(currentPage + 1)}
-                    >
-                        Next
-                    </button>
-                </div>
+                <Table data={models} headers={[
+                    "Model Name",
+                    "Model Type",
+                    "Model Performance Metric",
+                    "Model Performance Value",
+                    "Model Objective",
+                    "Data Preprocessing",
+                    "ML Input Timestamp",
+                    "Dataset Used For",
+                ]}/>
+                <Pagination
+                    currentPage={currentPage}
+                    totalPages={totalPages}
+                    onPageChange={handlePageChange}
+                />
             </div>
         </div>
     );

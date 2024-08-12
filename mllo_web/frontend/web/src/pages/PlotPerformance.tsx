@@ -1,45 +1,48 @@
-import React, {useState} from 'react';
-import {Bar} from 'react-chartjs-2';
-import {BarElement, CategoryScale, Chart as ChartJS, Legend, LinearScale, Title, Tooltip} from 'chart.js';
+import React, { useState } from 'react';
+import { Bar, Line } from 'react-chartjs-2';
+import { BarElement, CategoryScale, Chart as ChartJS, Legend, LinearScale, LineElement, PointElement, Title, Tooltip } from 'chart.js';
 
 // Register Chart.js components
-ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend);
+ChartJS.register(CategoryScale, LinearScale, BarElement, LineElement, PointElement, Title, Tooltip, Legend);
 
 interface PerformanceData {
     datasetName: string;
-    data: number;
+    accuracy: number;
+    precision: number;
+    recall: number;
 }
 
 const PlotPerformance: React.FC = () => {
     const [plotType, setPlotType] = useState('Bar');
-    const [yAxisMetric, setYAxisMetric] = useState('Performance');
+    const [yAxisMetric, setYAxisMetric] = useState('accuracy');
     const [performanceCutoff, setPerformanceCutoff] = useState(50);
     const [orderBy, setOrderBy] = useState('Ascending');
-    const [groupBy, setGroupBy] = useState('Dataset Name');
+    const [groupBy, setGroupBy] = useState('datasetName');
     const [data, setData] = useState<any>(null);
 
     const handlePlot = async () => {
-        // Example data fetching, replace with actual logic
-        const response = await fetch('http://localhost:5252/api/v1/performances/');
+        // Fetch data with filters
+        const response = await fetch(`http://localhost:5252/api/v1/performances/?yAxisMetric=${yAxisMetric}&performanceCutoff=${performanceCutoff}&orderBy=${orderBy}&groupBy=${groupBy}`);
         const fetchedData: PerformanceData[] = await response.json();
 
-        // Assuming data is an array of objects with properties "datasetName" and "data"
+        // Prepare the chart data
         const chartData = {
-            labels: fetchedData.map(item => item.datasetName),
+            labels: fetchedData.map(item => item[groupBy as keyof PerformanceData]),
             datasets: [{
-                label: 'Performance',  // Assuming performance is the only metric
-                data: fetchedData.map(item => item.data),
-                backgroundColor: 'rgba(75, 192, 192, 0.2)',
-                borderColor: 'rgba(75, 192, 192, 1)',
-                borderWidth: 1
+                label: yAxisMetric.charAt(0).toUpperCase() + yAxisMetric.slice(1), // Capitalize the label
+                data: fetchedData.map(item => item[yAxisMetric as keyof PerformanceData]),
+                backgroundColor: plotType === 'Bar' ? 'rgba(75, 192, 192, 0.2)' : 'rgba(153, 102, 255, 0.2)',
+                borderColor: plotType === 'Bar' ? 'rgba(75, 192, 192, 1)' : 'rgba(153, 102, 255, 1)',
+                borderWidth: 1,
+                fill: plotType === 'Line', // Fill the area under the line only if it's a Line chart
             }]
         };
         setData(chartData);
     };
 
     return (
-        <div style={{display: 'flex', justifyContent: 'space-between'}}>
-            <div style={{width: '30%', padding: '20px'}}>
+        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+            <div style={{ width: '30%', padding: '20px' }}>
                 <h2>Filters</h2>
                 <div>
                     <label>
@@ -55,9 +58,9 @@ const PlotPerformance: React.FC = () => {
                     <label>
                         Y axis (Performance Metric):
                         <select value={yAxisMetric} onChange={(e) => setYAxisMetric(e.target.value)}>
-                            <option value="Accuracy">Accuracy</option>
-                            <option value="Precision">Precision</option>
-                            <option value="Recall">Recall</option>
+                            <option value="accuracy">Accuracy</option>
+                            <option value="precision">Precision</option>
+                            <option value="recall">Recall</option>
                             {/* Add more metrics as needed */}
                         </select>
                     </label>
@@ -88,23 +91,35 @@ const PlotPerformance: React.FC = () => {
                     <label>
                         Group By:
                         <select value={groupBy} onChange={(e) => setGroupBy(e.target.value)}>
-                            <option value="Dataset Name">Dataset Name</option>
-                            <option value="Model Name">Model Name</option>
+                            <option value="datasetName">Dataset Name</option>
+                            <option value="modelName">Model Name</option>
                             {/* Add more group by options as needed */}
                         </select>
                     </label>
                 </div>
                 <button onClick={handlePlot}>Plot</button>
             </div>
-            <div style={{width: '65%', padding: '20px'}}>
+            <div style={{ width: '65%', padding: '20px' }}>
                 <h2>Plot</h2>
-                {data && <Bar data={data} options={{
-                    responsive: true,
-                    plugins: {
-                        legend: {position: 'top'},
-                        tooltip: {callbacks: {label: (context) => `${context.dataset.label}: ${context.raw}`}}
-                    }
-                }}/>}
+                {data && (
+                    plotType === 'Bar' ? (
+                        <Bar data={data} options={{
+                            responsive: true,
+                            plugins: {
+                                legend: { position: 'top' },
+                                tooltip: { callbacks: { label: (context) => `${context.dataset.label}: ${context.raw}` } }
+                            }
+                        }} />
+                    ) : (
+                        <Line data={data} options={{
+                            responsive: true,
+                            plugins: {
+                                legend: { position: 'top' },
+                                tooltip: { callbacks: { label: (context) => `${context.dataset.label}: ${context.raw}` } }
+                            }
+                        }} />
+                    )
+                )}
             </div>
         </div>
     );

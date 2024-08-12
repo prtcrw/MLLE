@@ -1,4 +1,6 @@
 import React, {useState} from 'react';
+import Table from '../components/Table';
+import Pagination from '../components/Pagination';
 
 interface DatasetData {
     datasetName: string;
@@ -15,15 +17,12 @@ const FindDatasets: React.FC = () => {
     const [searchFilter, setSearchFilter] = useState('');
     const [selectedCheckboxes, setSelectedCheckboxes] = useState<string[]>([]);
     const [datasets, setDatasets] = useState<DatasetData[]>([]);
-    const [currentPage, setCurrentPage] = useState(1);
-    const [totalPages, setTotalPages] = useState(1);
-    const resultsPerPage = 10;
+    const [currentPage, setCurrentPage] = useState(0);
+    const [totalPages, setTotalPages] = useState(0);
+    const itemsPerPage = 10;
 
     const handleSearch = async () => {
-        const response = await fetch('http://localhost:5252/api/v1/datasets/');
-        const fetchedDatasets = await response.json();
-        setDatasets(fetchedDatasets);
-        setTotalPages(Math.ceil(fetchedDatasets.length / resultsPerPage));
+        await handlePageChange(1);
     };
 
     const handleCheckboxChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -35,46 +34,12 @@ const FindDatasets: React.FC = () => {
         );
     };
 
-    const handlePageChange = (page: number) => {
+    const handlePageChange = async (page: number = 1) => {
+        const response = await fetch(`http://localhost:5252/api/v1/datasets/?page=${page}&itemsPerPage=${itemsPerPage}`);
+        const fetchedDatasets = await response.json();
         setCurrentPage(page);
-        // Implement pagination logic here
-    };
-
-    const renderTable = () => {
-        const startIndex = (currentPage - 1) * resultsPerPage;
-        const endIndex = startIndex + resultsPerPage;
-        const paginatedDatasets = datasets.slice(startIndex, endIndex);
-
-        return (
-            <table>
-                <thead>
-                <tr>
-                    <th>Dataset Name</th>
-                    <th>Dataset Used For</th>
-                    <th>ML Input Timestamp</th>
-                    <th>Dataset Size</th>
-                    <th>Dataset Characteristics</th>
-                    <th>Dataset Source</th>
-                    <th>Model Output</th>
-                    <th>Output Utilization</th>
-                </tr>
-                </thead>
-                <tbody>
-                {paginatedDatasets.map((dataset, index) => (
-                    <tr key={index}>
-                        <td>{dataset.datasetName}</td>
-                        <td>{dataset.datasetUsedFor}</td>
-                        <td>{dataset.mlInputTimestamp}</td>
-                        <td>{dataset.datasetSize}</td>
-                        <td>{dataset.datasetCharacteristics}</td>
-                        <td>{dataset.datasetSource}</td>
-                        <td>{dataset.modelOutput}</td>
-                        <td>{dataset.outputUtilization}</td>
-                    </tr>
-                ))}
-                </tbody>
-            </table>
-        );
+        setTotalPages(fetchedDatasets["total_pages"]);
+        setDatasets(fetchedDatasets["data"]);
     };
 
     return (
@@ -127,22 +92,21 @@ const FindDatasets: React.FC = () => {
                 </label>
             </div>
             <div>
-                {renderTable()}
-                <div>
-                    <button
-                        disabled={currentPage === 1}
-                        onClick={() => handlePageChange(currentPage - 1)}
-                    >
-                        Previous
-                    </button>
-                    <span>Page {currentPage} of {totalPages}</span>
-                    <button
-                        disabled={currentPage === totalPages}
-                        onClick={() => handlePageChange(currentPage + 1)}
-                    >
-                        Next
-                    </button>
-                </div>
+                <Table data={datasets} headers={[
+                    "Dataset Name",
+                    "Dataset Used For",
+                    "ML Input Timestamp",
+                    "Dataset Size",
+                    "Dataset Characteristics",
+                    "Dataset Source",
+                    "Model Output",
+                    "Output Utilization",
+                ]}/>
+                <Pagination
+                    currentPage={currentPage}
+                    totalPages={totalPages}
+                    onPageChange={handlePageChange}
+                />
             </div>
         </div>
     );
