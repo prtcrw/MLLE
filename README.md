@@ -1,30 +1,51 @@
 # MLLO Web
+MLLO Web is a web application for [MLLOS](https://github.com/hakjuoh/MLLOS).
 
-## Quick Start
+This guide is intended for developers working on the MLLO Web project.
 
-0. Pre-requisite:
+### Prerequisites
 
+- Node.js and npm: Ensure both are installed.
+- Virtual Environment: Recommended for managing Python dependencies and isolating them from system-wide installations.
+
+### Setting up the project
+
+#### Install frontend dependencies:
 ```
 cd mllo_web/frontend/web
 npm install
 cd ../../..
+```
 
+#### Install/Activate virtualenv:
+```
 virtualenv .venv
 source .venv/bin/activate
+```
+
+#### Install backend dependencies:
+```
 pip install -r requirements.txt
 ```
 
-1. Build the UI:
+### Running the Application
 
+#### Run the frontend server for development:
 ```
 cd mllo_web/frontend/web
-npm install
+npm run dev
+```
+
+### Run the backend server:
+```
+python -m mllo_web.app.api_app
+```
+
+### Build the frontend UI for deployment:
+```
+cd mllo_web/frontend/web
 npm run build
 cd ../../..
 ```
 
-2. Run api_app:
-
-```
-python -m mllo_web.app.api_app
-```
+This command starts the backend server for the MLLO Web application.
