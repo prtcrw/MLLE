@@ -8,6 +8,7 @@ interface SearchProps {
 
 const Search: React.FC<SearchProps> = ({onSearch, placeholder}) => {
     const [searchTerm, setSearchTerm] = useState('');
+
     const SearchIcon = () => {
         return (
             <svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px" fill="#5f6368">
@@ -34,6 +35,12 @@ const Search: React.FC<SearchProps> = ({onSearch, placeholder}) => {
         setSearchTerm('');
     };
 
+    const handleKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
+        if (event.key === 'Enter') {
+            handleSearch();
+        }
+    };
+
     return (
         <div className="search-container">
             <input
@@ -41,6 +48,7 @@ const Search: React.FC<SearchProps> = ({onSearch, placeholder}) => {
                 placeholder={placeholder || 'Search...'}
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
+                onKeyDown={handleKeyDown}
                 className="search-input"
             />
             {searchTerm && (
