@@ -3,7 +3,7 @@
 To run:
 
 ```
-cd mllo-web
+cd mllo-web/frontend/web
 npm install
 npm run dev
 ```
