@@ -23,3 +23,16 @@
 .items-per-page {
     padding: 0 8px;
 }
+
+.items-per-page select {
+    padding: 0.5rem 1rem; /* Same padding as buttons */
+    border: solid 1px #ddd; /* Remove default border */
+    border-radius: 4px; /* Same rounded corners as buttons */
+    cursor: pointer; /* Set cursor to pointer on hover */
+    background-color: #fff; /* Optional: Set background color */
+    /* Optional: Add a border on hover to mimic button behavior */
+
+    &:hover {
+        border: 1px solid #ccc; /* Light border on hover */
+    }
+}
