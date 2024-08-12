@@ -1,4 +1,5 @@
 import React, {useState} from 'react';
+import {useNavigate} from 'react-router-dom';
 import Table from '../../components/Table.tsx';
 import Pagination from '../../components/Pagination.tsx';
 
@@ -19,6 +20,7 @@ const FindModels: React.FC = () => {
     const [models, setModels] = useState<ModelData[]>([]);
     const [currentPage, setCurrentPage] = useState(0);
     const [totalPages, setTotalPages] = useState(0);
+    const navigate = useNavigate(); // Access useNavigate hook
 
     const handleSearch = async () => {
         await handlePageChange(1);
@@ -39,6 +41,10 @@ const FindModels: React.FC = () => {
         setCurrentPage(page);
         setTotalPages(fetchedModels["total_pages"]);
         setModels(fetchedModels["data"]);
+    };
+
+    const handleAnalyzeDeployedModel = () => {
+        navigate('/models/analyze-deployed-model');
     };
 
     return (
@@ -91,6 +97,9 @@ const FindModels: React.FC = () => {
                 </label>
             </div>
             <div>
+                <div style={{margin: '4px 0'}}>
+                    <button onClick={handleAnalyzeDeployedModel}>Analyze Deployed Model</button>
+                </div>
                 <Table data={models} headers={[
                     "Model Name",
                     "Model Type",

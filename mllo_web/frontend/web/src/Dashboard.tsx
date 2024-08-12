@@ -8,7 +8,8 @@ import FindModels from './pages/analyzer/FindModels.tsx';
 import FindPipelines from './pages/analyzer/FindPipelines.tsx';
 import FindDatasets from './pages/analyzer/FindDatasets.tsx';
 import PlotPerformance from './pages/analyzer/PlotPerformance.tsx';
-import AnalyzeDeployedModels from './pages/analyzer/AnalyzeDeployedModels.tsx';
+import AnalyzeModelOutput from './pages/analyzer/AnalyzeModelOutput.tsx';
+import AnalyzeDeployedModel from './pages/analyzer/AnalyzeDeployedModel.tsx';
 import ComparePipelines from './pages/analyzer/ComparePipelines.tsx';
 
 const Dashboard: React.FC = () => {
@@ -26,13 +27,14 @@ const Dashboard: React.FC = () => {
                     <Header isMenuOpen={isMenuOpen} toggleMenu={toggleMenu} />
                     <Routes>
                         <Route path="/" element={<Home />} />
-                        <Route path="/pipeline-editor" element={<PipelineEditor />} />
-                        <Route path="/find-models" element={<FindModels />} />
-                        <Route path="/find-pipelines" element={<FindPipelines />} />
-                        <Route path="/find-datasets" element={<FindDatasets />} />
-                        <Route path="/plot-performance" element={<PlotPerformance />} />
-                        <Route path="/analyze-deployed-models" element={<AnalyzeDeployedModels />} />
-                        <Route path="/compare-pipelines" element={<ComparePipelines />} />
+                        <Route path="/models" element={<FindModels />} />
+                        <Route path="/models/analyze-deployed-model" element={<AnalyzeDeployedModel />} />
+                        <Route path="/pipelines" element={<FindPipelines />} />
+                        <Route path="/pipelines/compare-pipelines" element={<ComparePipelines />} />
+                        <Route path="/pipelines/edit-pipeline" element={<PipelineEditor />} />
+                        <Route path="/datasets" element={<FindDatasets />} />
+                        <Route path="/datasets/plot-performance" element={<PlotPerformance />} />
+                        <Route path="/datasets/analyze-model-output" element={<AnalyzeModelOutput />} />
                     </Routes>
                 </div>
             </div>

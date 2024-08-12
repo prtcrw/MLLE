@@ -1,4 +1,5 @@
 import React, {useState} from 'react';
+import {useNavigate} from 'react-router-dom';
 import Table from '../../components/Table.tsx';
 import Pagination from '../../components/Pagination.tsx';
 
@@ -15,6 +16,7 @@ const FindPipelines: React.FC = () => {
     const [pipelines, setPipelines] = useState<PipelineData[]>([]);
     const [currentPage, setCurrentPage] = useState(0);
     const [totalPages, setTotalPages] = useState(0);
+    const navigate = useNavigate(); // Access useNavigate hook
 
     const handleSearch = async () => {
         await handlePageChange(1);
@@ -26,6 +28,14 @@ const FindPipelines: React.FC = () => {
         setCurrentPage(page);
         setTotalPages(fetchedPipelines["total_pages"]);
         setPipelines(fetchedPipelines["data"]);
+    };
+
+    const handleComparePipelines = () => {
+        navigate('/pipelines/compare-pipelines');
+    };
+
+    const handleViewPipeline = () => {
+        navigate('/pipelines/edit-pipeline');
     };
 
     return (
@@ -41,6 +51,11 @@ const FindPipelines: React.FC = () => {
                 <button onClick={handleSearch}>Search</button>
             </div>
             <div>
+                <div style={{margin: '4px 0'}}>
+                    <button onClick={handleComparePipelines}>Compare Pipelines</button>
+                    <button style={{marginLeft: '4px'}} onClick={handleViewPipeline}>View Pipeline</button>
+                </div>
+
                 <Table data={pipelines} headers={[
                     "Pipeline Name",
                     "Pipeline Type",

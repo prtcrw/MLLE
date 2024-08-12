@@ -1,4 +1,5 @@
 import React, {useState} from 'react';
+import {useNavigate} from 'react-router-dom';
 import Table from '../../components/Table.tsx';
 import Pagination from '../../components/Pagination.tsx';
 
@@ -19,6 +20,7 @@ const FindDatasets: React.FC = () => {
     const [datasets, setDatasets] = useState<DatasetData[]>([]);
     const [currentPage, setCurrentPage] = useState(0);
     const [totalPages, setTotalPages] = useState(0);
+    const navigate = useNavigate(); // Access useNavigate hook
 
     const handleSearch = async () => {
         await handlePageChange(1);
@@ -39,6 +41,14 @@ const FindDatasets: React.FC = () => {
         setCurrentPage(page);
         setTotalPages(fetchedDatasets["total_pages"]);
         setDatasets(fetchedDatasets["data"]);
+    };
+
+    const handleAnalyzeModelOutput = () => {
+        navigate('/datasets/analyze-model-output');
+    };
+
+    const handlePlotPerformance = () => {
+        navigate('/datasets/plot-performance');
     };
 
     return (
@@ -91,6 +101,11 @@ const FindDatasets: React.FC = () => {
                 </label>
             </div>
             <div>
+                <div style={{ margin: '4px 0' }}>
+                    <button onClick={handleAnalyzeModelOutput}>Analyze Model Output</button>
+                    <button style={{ marginLeft: '4px' }} onClick={handlePlotPerformance}>Plot Performance</button>
+                </div>
+
                 <Table data={datasets} headers={[
                     "Dataset Name",
                     "Dataset Used For",

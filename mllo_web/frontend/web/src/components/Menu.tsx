@@ -9,16 +9,13 @@ const Menu: React.FC<{ isMenuOpen: boolean; toggleMenu: () => void }> = ({isMenu
     };
 
     const editorSubmenuItems = [
-        {label: 'Pipeline Editor', path: '/pipeline-editor'},
+        {label: 'Pipeline Editor', path: '/pipelines/edit-pipeline'},
     ];
 
     const analyzerSubmenuItems = [
-        {label: 'Find Models', path: '/find-models'},
-        {label: 'Find Pipelines', path: '/find-pipelines'},
-        {label: 'Find Datasets', path: '/find-datasets'},
-        {label: 'Plot Performance', path: '/plot-performance'},
-        {label: 'Analyze Deployed Models', path: '/analyze-deployed-models'},
-        {label: 'Compare Pipelines', path: '/compare-pipelines'}
+        {label: 'Find Models', path: '/models'},
+        {label: 'Find Pipelines', path: '/pipelines'},
+        {label: 'Find Datasets', path: '/datasets'},
     ];
 
     return (
