@@ -8,7 +8,11 @@ const Menu: React.FC<{ isMenuOpen: boolean; toggleMenu: () => void }> = ({isMenu
         event.stopPropagation();
     };
 
-    const submenuItems = [
+    const editorSubmenuItems = [
+        {label: 'Pipeline Editor', path: '/pipeline-editor'},
+    ];
+
+    const analyzerSubmenuItems = [
         {label: 'Find Models', path: '/find-models'},
         {label: 'Find Pipelines', path: '/find-pipelines'},
         {label: 'Find Datasets', path: '/find-datasets'},
@@ -26,10 +30,16 @@ const Menu: React.FC<{ isMenuOpen: boolean; toggleMenu: () => void }> = ({isMenu
                         ✕
                     </button>
                 </div>
+                <h4>Editor</h4>
+                <ul>
+                    <li>
+                        <Submenu items={editorSubmenuItems} onItemClick={handleSubmenuClick}/>
+                    </li>
+                </ul>
                 <h4>Analyzer</h4>
                 <ul>
                     <li>
-                        <Submenu items={submenuItems} onItemClick={handleSubmenuClick}/>
+                        <Submenu items={analyzerSubmenuItems} onItemClick={handleSubmenuClick}/>
                     </li>
                 </ul>
             </div>

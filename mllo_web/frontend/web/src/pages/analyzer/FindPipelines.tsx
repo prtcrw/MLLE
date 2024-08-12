@@ -1,6 +1,6 @@
 import React, {useState} from 'react';
-import Table from '../components/Table';
-import Pagination from '../components/Pagination';
+import Table from '../../components/Table.tsx';
+import Pagination from '../../components/Pagination.tsx';
 
 interface PipelineData {
     pipelineName: string;

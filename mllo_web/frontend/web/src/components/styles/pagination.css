@@ -1,0 +1,25 @@
+.pagination-container {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding-top: 8px;
+}
+
+.pagination {
+    display: flex;
+    list-style-type: none;
+    padding: 0;
+}
+
+.pagination li {
+    padding: 0 4px;
+}
+
+.pagination li.active button {
+    color: rgb(255, 255, 255);
+    background-color: rgb(13, 153, 255);
+}
+
+.items-per-page {
+    padding: 0 8px;
+}
