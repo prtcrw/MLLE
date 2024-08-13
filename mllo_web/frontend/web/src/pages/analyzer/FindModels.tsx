@@ -1,5 +1,6 @@
 import React, {useState} from 'react';
 import {useNavigate} from 'react-router-dom';
+import {buildV1Url} from '../../services/api';
 import Search from '../../components/Search.tsx';
 import Table from '../../components/Table.tsx';
 import Pagination from '../../components/Pagination.tsx';
@@ -41,7 +42,7 @@ const FindModels: React.FC = () => {
     };
 
     const handlePageChange = async (page: number = 1, itemsPerPage: number = 10) => {
-        const response = await fetch(`http://localhost:5252/api/v1/models/?page=${page}&items_per_page=${itemsPerPage}`);
+        const response = await fetch(buildV1Url(`models/?page=${page}&items_per_page=${itemsPerPage}`));
         const fetchedModels = await response.json();
         setCurrentPage(page);
         setTotalPages(fetchedModels["total_pages"]);

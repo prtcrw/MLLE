@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import {buildV1Url} from '../../services/api';
 import { Bar, Line } from 'react-chartjs-2';
 import { BarElement, CategoryScale, Chart as ChartJS, Legend, LinearScale, LineElement, PointElement, Title, Tooltip } from 'chart.js';
 
@@ -22,7 +23,7 @@ const PlotPerformance: React.FC = () => {
 
     const handlePlot = async () => {
         // Fetch data with filters
-        const response = await fetch(`http://localhost:5252/api/v1/performances/?yAxisMetric=${yAxisMetric}&performanceCutoff=${performanceCutoff}&orderBy=${orderBy}&groupBy=${groupBy}`);
+        const response = await fetch(buildV1Url(`performances/?yAxisMetric=${yAxisMetric}&performanceCutoff=${performanceCutoff}&orderBy=${orderBy}&groupBy=${groupBy}`));
         const fetchedData: PerformanceData[] = await response.json();
 
         // Prepare the chart data

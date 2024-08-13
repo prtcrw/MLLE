@@ -6,19 +6,21 @@ from fastapi.staticfiles import StaticFiles
 from starlette.middleware.cors import CORSMiddleware
 
 import mllo_web.frontend.web as web_dir
+from mllo_web.app.api.config import get_config
 from mllo_web.app.api.routers import find_datasets, find_models, find_pipelines, plot_performances
 from mllo_web.app.util.logging import Logger
 
-logger = Logger.get_logger()
+config = get_config()
+logger = Logger.get_logger(config=config)
 
 app = FastAPI(title="MLLO")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_credentials=False,
-    allow_origins=["*"],
-    allow_methods=["*"],
-    allow_headers=["*"]
+    allow_credentials=config.allow_credentials,
+    allow_origins=config.allow_origins,
+    allow_methods=config.allow_methods,
+    allow_headers=config.allow_headers
 )
 
 # Include all routers
@@ -36,7 +38,10 @@ except RuntimeError:
 
 
 def run():
-    uvicorn.run(app, port=5252)
+    if config.dev:
+        logger.info(f"Running in the development mode.")
+
+    uvicorn.run(app, host=config.host, port=config.port)
 
 
 if __name__ == "__main__":

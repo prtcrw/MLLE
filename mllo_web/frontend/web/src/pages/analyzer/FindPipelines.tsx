@@ -1,5 +1,6 @@
 import React, {useState} from 'react';
 import {useNavigate} from 'react-router-dom';
+import {buildV1Url} from '../../services/api';
 import Search from '../../components/Search.tsx';
 import Table from '../../components/Table.tsx';
 import Pagination from '../../components/Pagination.tsx';
@@ -26,7 +27,7 @@ const FindPipelines: React.FC = () => {
     };
 
     const handlePageChange = async (page: number = 1, itemsPerPage: number = 10) => {
-        const response = await fetch(`http://localhost:5252/api/v1/pipelines/?page=${page}&items_per_page=${itemsPerPage}`);
+        const response = await fetch(buildV1Url(`pipelines/?page=${page}&items_per_page=${itemsPerPage}`));
         const fetchedPipelines = await response.json();
         setCurrentPage(page);
         setTotalPages(fetchedPipelines["total_pages"]);

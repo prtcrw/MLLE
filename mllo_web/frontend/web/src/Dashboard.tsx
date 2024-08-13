@@ -1,5 +1,5 @@
 import React, {useState} from 'react';
-import {MemoryRouter as Router, Route, Routes} from 'react-router-dom';
+import {BrowserRouter as Router, Route, Routes} from 'react-router-dom';
 import Menu from './components/Menu';
 import Header from './components/Header.tsx';
 import Home from './pages/Home';

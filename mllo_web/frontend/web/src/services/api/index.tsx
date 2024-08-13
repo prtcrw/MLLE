@@ -1,0 +1,1 @@
+export const buildV1Url = (path: string): string => `http://localhost:5252/api/v1/${path}`;
