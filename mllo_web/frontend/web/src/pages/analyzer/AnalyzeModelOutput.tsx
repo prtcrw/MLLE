@@ -1,7 +1,17 @@
-import React, { useState } from 'react';
+import React, {useState} from 'react';
 import {buildV1Url} from '../../services/api';
-import { Bar, Line } from 'react-chartjs-2';
-import { BarElement, CategoryScale, Chart as ChartJS, Legend, LinearScale, LineElement, PointElement, Title, Tooltip } from 'chart.js';
+import {Bar, Line} from 'react-chartjs-2';
+import {
+    BarElement,
+    CategoryScale,
+    Chart as ChartJS,
+    Legend,
+    LinearScale,
+    LineElement,
+    PointElement,
+    Title,
+    Tooltip
+} from 'chart.js';
 
 // Register Chart.js components
 ChartJS.register(CategoryScale, LinearScale, BarElement, LineElement, PointElement, Title, Tooltip, Legend);
@@ -15,10 +25,8 @@ interface PerformanceData {
 
 const AnalyzeModelOutput: React.FC = () => {
     const [plotType, setPlotType] = useState('Bar');
-    const [yAxisMetric, setYAxisMetric] = useState('accuracy');
-    const [performanceCutoff, setPerformanceCutoff] = useState(50);
-    const [orderBy, setOrderBy] = useState('Ascending');
-    const [groupBy, setGroupBy] = useState('datasetName');
+    const [yAxisMetric] = useState('accuracy');
+    const [groupBy] = useState('datasetName');
     const [data, setData] = useState<any>(null);
 
     const handlePlot = async () => {
@@ -42,8 +50,8 @@ const AnalyzeModelOutput: React.FC = () => {
     };
 
     return (
-        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-            <div style={{ width: '30%', padding: '20px' }}>
+        <div style={{display: 'flex', justifyContent: 'space-between'}}>
+            <div style={{width: '30%', padding: '20px'}}>
                 <h2>Filters</h2>
                 <div>
                     <label>
@@ -57,25 +65,25 @@ const AnalyzeModelOutput: React.FC = () => {
                 </div>
                 <button onClick={handlePlot}>Plot</button>
             </div>
-            <div style={{ width: '65%', padding: '20px' }}>
+            <div style={{width: '65%', padding: '20px'}}>
                 <h2>Plot</h2>
                 {data && (
                     plotType === 'Bar' ? (
                         <Bar data={data} options={{
                             responsive: true,
                             plugins: {
-                                legend: { position: 'top' },
-                                tooltip: { callbacks: { label: (context) => `${context.dataset.label}: ${context.raw}` } }
+                                legend: {position: 'top'},
+                                tooltip: {callbacks: {label: (context) => `${context.dataset.label}: ${context.raw}`}}
                             }
-                        }} />
+                        }}/>
                     ) : (
                         <Line data={data} options={{
                             responsive: true,
                             plugins: {
-                                legend: { position: 'top' },
-                                tooltip: { callbacks: { label: (context) => `${context.dataset.label}: ${context.raw}` } }
+                                legend: {position: 'top'},
+                                tooltip: {callbacks: {label: (context) => `${context.dataset.label}: ${context.raw}`}}
                             }
-                        }} />
+                        }}/>
                     )
                 )}
             </div>

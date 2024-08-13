@@ -41,7 +41,7 @@ const FindDatasets: React.FC = () => {
     };
 
     const handlePageChange = async (page: number = 1, itemsPerPage: number = 10) => {
-        const response = await fetch(buildV1Url(`datasets/?page=${page}&items_per_page=${itemsPerPage}`));
+        const response = await fetch(buildV1Url(`datasets/?searchFilter=${searchFilter}&page=${page}&items_per_page=${itemsPerPage}`));
         const fetchedDatasets = await response.json();
         setCurrentPage(page);
         setTotalPages(fetchedDatasets["total_pages"]);

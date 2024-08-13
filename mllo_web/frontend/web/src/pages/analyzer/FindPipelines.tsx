@@ -14,7 +14,7 @@ interface PipelineData {
 }
 
 const FindPipelines: React.FC = () => {
-    const [modelName, setModelName] = useState('');
+    const [searchFilter, setSearchFilter] = useState('');
     const [pipelines, setPipelines] = useState<PipelineData[]>([]);
     const [currentPage, setCurrentPage] = useState(0);
     const [totalPages, setTotalPages] = useState(0);
@@ -22,12 +22,12 @@ const FindPipelines: React.FC = () => {
 
 
     const handleSearch = async (searchTerm: string) => {
-        setModelName(searchTerm); // Update datasetName state
+        setSearchFilter(searchTerm); // Update datasetName state
         await handlePageChange(1);
     };
 
     const handlePageChange = async (page: number = 1, itemsPerPage: number = 10) => {
-        const response = await fetch(buildV1Url(`pipelines/?page=${page}&items_per_page=${itemsPerPage}`));
+        const response = await fetch(buildV1Url(`pipelines/?searchFilter=${searchFilter}&page=${page}&items_per_page=${itemsPerPage}`));
         const fetchedPipelines = await response.json();
         setCurrentPage(page);
         setTotalPages(fetchedPipelines["total_pages"]);

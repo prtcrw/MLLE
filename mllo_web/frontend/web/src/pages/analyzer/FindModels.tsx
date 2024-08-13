@@ -19,7 +19,7 @@ interface ModelData {
 
 
 const FindModels: React.FC = () => {
-    const [datasetName, setDatasetName] = useState('');
+    const [searchFilter, setSearchFilter] = useState('');
     const [selectedCheckboxes, setSelectedCheckboxes] = useState<string[]>([]);
     const [models, setModels] = useState<ModelData[]>([]);
     const [currentPage, setCurrentPage] = useState(0);
@@ -28,7 +28,7 @@ const FindModels: React.FC = () => {
 
 
     const handleSearch = async (searchTerm: string) => {
-        setDatasetName(searchTerm); // Update datasetName state
+        setSearchFilter(searchTerm); // Update searchFilter state
         await handlePageChange(1);
     };
 
@@ -42,7 +42,7 @@ const FindModels: React.FC = () => {
     };
 
     const handlePageChange = async (page: number = 1, itemsPerPage: number = 10) => {
-        const response = await fetch(buildV1Url(`models/?page=${page}&items_per_page=${itemsPerPage}`));
+        const response = await fetch(buildV1Url(`models/?searchFilter=${searchFilter}&page=${page}&items_per_page=${itemsPerPage}`));
         const fetchedModels = await response.json();
         setCurrentPage(page);
         setTotalPages(fetchedModels["total_pages"]);
