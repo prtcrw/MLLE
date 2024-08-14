@@ -1,6 +1,7 @@
 import React, {useState} from 'react';
 import {useNavigate} from 'react-router-dom';
 import {buildV1Url} from '../../services/api';
+import LoadingBar from '../../components/LoadingBar.tsx';
 import ErrorMessage from '../../components/ErrorMessage.tsx';
 import Search from '../../components/Search.tsx';
 import Table from '../../components/Table.tsx';
@@ -25,14 +26,20 @@ const FindModels: React.FC = () => {
     const [models, setModels] = useState<ModelData[]>([]);
     const [currentPage, setCurrentPage] = useState(0);
     const [totalPages, setTotalPages] = useState(0);
+    const [isLoading, setIsLoading] = useState(false);
     const [message, setMessage] = useState('');
     const [error, setError] = useState<string | null>(null);
     const navigate = useNavigate(); // Access useNavigate hook
 
 
     const handleSearch = async (searchTerm: string) => {
-        setSearchFilter(searchTerm); // Update searchFilter state
-        await handlePageChange(1);
+        setIsLoading(true); // Set loading to true
+        try {
+            setSearchFilter(searchTerm); // Update searchFilter state
+            await handlePageChange(1);
+        } finally {
+            setIsLoading(false); // Set loading to false after fetching
+        }
     };
 
     const handleCheckboxChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -71,6 +78,7 @@ const FindModels: React.FC = () => {
 
     return (
         <div>
+            {isLoading && <LoadingBar isLoading={isLoading}/>}
             <h1>Find Models</h1>
             <div>
                 <Search onSearch={handleSearch} placeholder={'Dataset Name'}/>

@@ -1,0 +1,22 @@
+.loading-bar-container {
+    height: 4px;
+    background-color: #f0f0f0;
+}
+
+.loading-bar {
+    position: relative;
+    height: 100%;
+    width: 20%;
+    background-color: rgb(13, 153, 255);
+    left: 0;
+    animation: indeterminate-loading 1s linear infinite;
+}
+
+@keyframes indeterminate-loading {
+    0% {
+        left: 0;
+    }
+    100% {
+        left: 80%;
+    }
+}
