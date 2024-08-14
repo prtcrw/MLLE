@@ -1,7 +1,6 @@
-import React, {useEffect, useState} from 'react';
+import React, {useState} from 'react';
 import {BrowserRouter as Router, Route, Routes} from 'react-router-dom';
 import {useMediaQuery} from 'react-responsive'; // Import useMediaQuery
-
 import Menu from './components/Menu';
 import Header from './components/Header.tsx';
 import Home from './pages/Home';
