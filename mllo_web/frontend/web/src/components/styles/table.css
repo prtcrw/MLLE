@@ -1,0 +1,16 @@
+table {
+    width: 100%;
+    border-collapse: collapse;
+    overflow-x: auto;
+}
+
+th, td {
+    width: calc(100% / var(--column-count)); /* Dynamic width based on column count */
+    text-align: left;
+    padding: 8px;
+    border: 1px solid #ddd; /* Optional: Add borders to cells */
+}
+
+th {
+    background-color: #f2f2f2;
+}

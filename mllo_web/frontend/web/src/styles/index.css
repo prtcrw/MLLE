@@ -48,8 +48,20 @@ button {
   padding: 0 16px; /* Add padding as needed */
 }
 
+.blurred {
+  filter: blur(3px); /* Add blur effect on mobile menu open */
+}
+
 .menu-content.open ~ .dashboard-content {
   margin-left: 250px; /* Adjust based on menu width */
+}
+
+.menu-container.mobile-open {
+  position: fixed; /* Fix menu position on top on mobile */
+  top: 0;
+  left: 0;
+  z-index: 10; /* Ensure menu is above content on mobile */
+  /* Adjust width and other styles as needed for mobile layout */
 }
 
 table {

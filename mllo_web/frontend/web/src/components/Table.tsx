@@ -1,4 +1,5 @@
 import React from 'react';
+import './styles/table.css';
 
 interface TableProps {
     data: any[]; // Assuming any data type for now
@@ -8,7 +9,7 @@ interface TableProps {
 
 const Table: React.FC<TableProps> = ({data, headers, message}) => {
     return (
-        <div>
+        <div style={{ '--column-count': headers.length } as React.CSSProperties}>
             {data.length > 0 ? (
                 <table>
                     <thead>

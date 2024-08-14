@@ -3,9 +3,12 @@ import './styles/menu.css'
 import Submenu from './Submenu.tsx';
 import {Link} from "react-router-dom";
 
-const Menu: React.FC<{ isMenuOpen: boolean; toggleMenu: () => void }> = ({isMenuOpen, toggleMenu}) => {
+const Menu: React.FC<{ isMenuOpen: boolean; toggleMenu: () => void; isMobile: boolean }> = ({isMenuOpen, toggleMenu, isMobile}) => {
     const handleSubmenuClick = (event: React.MouseEvent) => {
         event.stopPropagation();
+        if (isMobile) {
+            toggleMenu();
+        }
     };
 
     const editorSubmenuItems = [
@@ -19,7 +22,7 @@ const Menu: React.FC<{ isMenuOpen: boolean; toggleMenu: () => void }> = ({isMenu
     ];
 
     return (
-        <div className={`menu-container ${isMenuOpen ? 'open' : ''}`}>
+        <div className={`menu-container ${isMenuOpen ? (isMobile ? 'mobile-open' : 'open') : ''}`}>
             <div className="menu-content">
                 <div className="menu-header">
                     <Link to='/'><h2 className="menu-title">MLLO</h2></Link>
