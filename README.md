@@ -7,6 +7,7 @@ This guide is intended for developers working on the MLLO Web project.
 
 - Node.js and npm: Ensure both are installed.
 - Virtual Environment: Recommended for managing Python dependencies and isolating them from system-wide installations.
+- MOBI Server: Required to handle SPARQL queries in the backend. [MOBI](https://inovexcorp.github.io/mobi-docs/latest/index.html#installing_the_docker_image) 
 
 ### Setting up the project
 
