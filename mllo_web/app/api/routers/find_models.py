@@ -1,25 +1,45 @@
 import math
-from fastapi import APIRouter, Query, HTTPException
-from mllo_web.app.api.routers import sparql_query as sq
+from fastapi import APIRouter, Request, Query
 
 router = APIRouter(prefix="/v1/models", tags=["models"])
 
-SPARQL_ENDPOINT = "https://localhost:8443/mobirest/sparql"
+QUERY = """
+PREFIX ml: <http://www.semanticweb.org/mnd14/ml/>
+PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+PREFIX bfo: <http://purl.obolibrary.org/obo/>
+PREFIX iof-core: <https://spec.industrialontologies.org/ontology/core/Core/>
+select (STRAFTER(STR(?model), "#" ) AS ?model_name) ?model_type ?model_performance_metric ?model_performance_value ?model_objective ?data_preprocessing_pipeline ?ml_input_timestamp ?dataset_used_as where { 
+    VALUES ?dataset {<http://www.semanticweb.org/milos/ontologies/2024/6/untitled-ontology-707#TestDataSet1>}
+    ?ml_process ml:hasDataInput ?dataset.
+    ?ml_process ml:executes ?model.
+    ?dataset rdf:type/rdfs:label ?dataset_used_as.
+    OPTIONAL{?ml_process bfo:BFO_0000222/iof-core:hasValueExpressionAtAllTimes/iof-core:hasDateTimeValue ?ml_input_timestamp}
+    ?model rdf:type ?model_type_iri.
+    ?model bfo:BFO_0000178 ?model_objective.
+    ?model_objective rdf:type/rdfs:subClassOf+ iof-core:ObjectiveSpecification.
+    ?model_type_iri rdfs:subClassOf+ ml:MachineLearningModel.
+    ?model_type_iri rdfs:label ?model_type.
+    OPTIONAL{?ml_process (ml:hasDataOutput/^ml:hasDataInput)+ ?model_performance_assesment.
+     ?model_performance_assesment bfo:BFO_0000059 ?model_performance_metric_iri.
+     ?model_performance_assesment rdf:type/rdfs:subClassOf+ ml:ModelPerformanceAssessment.
+	?model_performance_metric_iri rdf:type ?model_performance_metric_type.
+    ?model_performance_metric_type rdfs:subClassOf+ ml:PerformanceMetric.
+    ?model_performance_metric_type rdfs:label ?model_performance_metric.
+    ?model_performance_assesment ml:hasDataOutput/iof-core:hasSimpleExpressionValue ?model_performance_value}
+    OPTIONAL{?data_preprocessing_pipeline ml:hasDataOutput ?dataset.
+    		?data_preprocessing_pipeline rdf:type ml:MachineLearningDataPreparationPipeline}
+}
+"""
 
-def fetch_data():
-    try:
-        with open("mllo_web/app/api/queries/find_models_query.txt") as file:
-            SPARQL_QUERY = file.read()
-        sparql_results = sq.query(SPARQL_ENDPOINT, SPARQL_QUERY)
-        return sq.to_dict(sparql_results)
-    except Exception as e:
-        raise HTTPException(status_code= 500, detail=f"Failed to fetch models data: {e}")
-
-models = fetch_data()
 
 @router.get("/")  # Define a GET endpoint for "/models"
-async def get_models(page: int = Query(default=1, description="Page number"),
+async def get_models(request: Request,
+                     page: int = Query(default=1, description="Page number"),
                      items_per_page: int = Query(default=10, description="Number of models to return per page")):
+    app = request.app
+    models = app.sparql_client.query(QUERY)
+
     # Calculate total pages based on results and page size
     total_pages = math.ceil(len(models) / items_per_page)
 

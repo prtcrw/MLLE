@@ -1,6 +1,7 @@
 import React, {useState} from 'react';
 import {useNavigate} from 'react-router-dom';
 import {buildV1Url} from '../../services/api';
+import ErrorMessage from '../../components/ErrorMessage.tsx';
 import Search from '../../components/Search.tsx';
 import Table from '../../components/Table.tsx';
 import Pagination from '../../components/Pagination.tsx';
@@ -18,6 +19,7 @@ const FindPipelines: React.FC = () => {
     const [pipelines, setPipelines] = useState<PipelineData[]>([]);
     const [currentPage, setCurrentPage] = useState(0);
     const [totalPages, setTotalPages] = useState(0);
+    const [error, setError] = useState<string | null>(null);
     const navigate = useNavigate(); // Access useNavigate hook
 
 
@@ -27,11 +29,19 @@ const FindPipelines: React.FC = () => {
     };
 
     const handlePageChange = async (page: number = 1, itemsPerPage: number = 10) => {
-        const response = await fetch(buildV1Url(`pipelines/?searchFilter=${searchFilter}&page=${page}&items_per_page=${itemsPerPage}`));
-        const fetchedPipelines = await response.json();
-        setCurrentPage(page);
-        setTotalPages(fetchedPipelines["total_pages"]);
-        setPipelines(fetchedPipelines["data"]);
+        try {
+            const response = await fetch(buildV1Url(`pipelines/?searchFilter=${searchFilter}&page=${page}&items_per_page=${itemsPerPage}`));
+            if (!response.ok) {
+                throw new Error(`Failed to fetch models: ${response.statusText}`);
+            }
+            const fetchedPipelines = await response.json();
+            setCurrentPage(page);
+            setTotalPages(fetchedPipelines["total_pages"]);
+            setPipelines(fetchedPipelines["data"]);
+        } catch (error) {
+            console.error('Error fetching models:', error);
+            setError((error as Error).message);
+        }
     };
 
     const handleComparePipelines = () => {
@@ -67,6 +77,7 @@ const FindPipelines: React.FC = () => {
                     onPageChange={handlePageChange}
                 />
             </div>
+            {error && <ErrorMessage message={error}/>}
         </div>
     );
 };

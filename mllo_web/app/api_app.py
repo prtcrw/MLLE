@@ -8,6 +8,7 @@ from starlette.middleware.cors import CORSMiddleware
 import mllo_web.frontend.web as web_dir
 from mllo_web.app.api.config import get_config
 from mllo_web.app.api.routers import find_datasets, find_models, find_pipelines, plot_performances
+from mllo_web.app.api.services.sparql_client import MobiSparqlClient
 from mllo_web.app.util.logging import Logger
 
 config = get_config()
@@ -22,6 +23,8 @@ app.add_middleware(
     allow_methods=config.allow_methods,
     allow_headers=config.allow_headers
 )
+
+app.sparql_client = MobiSparqlClient(config=config)
 
 # Include all routers
 app.include_router(find_datasets.router, prefix="/api")

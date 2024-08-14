@@ -19,6 +19,13 @@ class AppConfig(BaseSettings):
     # Logging
     log_level: LOG_LEVEL = Field(default="info", description="Emit logging messages at this level or higher.")
 
+    # SPARQL Client
+    sparql_client_endpoint: str = Field(default="https://localhost:8443/mobirest/sparql",
+                                        description="Endpoint to use for SPARQL client.")
+    sparql_client_auth_type: str = Field(default="basic", description="Auth type for SPARQL client.")
+    sparql_client_auth_username: str = Field(default="admin", description="Username for SPARQL client.")
+    sparql_client_auth_password: str = Field(default="admin", description="Username for SPARQL client.")
+
 
 def get_config() -> AppConfig:
     config = AppConfig()
