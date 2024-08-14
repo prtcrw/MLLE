@@ -25,6 +25,7 @@ const FindModels: React.FC = () => {
     const [models, setModels] = useState<ModelData[]>([]);
     const [currentPage, setCurrentPage] = useState(0);
     const [totalPages, setTotalPages] = useState(0);
+    const [message, setMessage] = useState('');
     const [error, setError] = useState<string | null>(null);
     const navigate = useNavigate(); // Access useNavigate hook
 
@@ -53,6 +54,11 @@ const FindModels: React.FC = () => {
             setCurrentPage(page);
             setTotalPages(fetchedModels["total_pages"]);
             setModels(fetchedModels["data"]);
+            if (fetchedModels["data"].length == 0) {
+                setMessage("No models found.");
+            } else {
+                setMessage('');
+            }
         } catch (error) {
             console.error('Error fetching models:', error);
             setError((error as Error).message);
@@ -85,7 +91,7 @@ const FindModels: React.FC = () => {
                     "Data Preprocessing",
                     "ML Input Timestamp",
                     "Dataset Used For",
-                ]}/>
+                ]} message={message}/>
                 <Pagination
                     currentPage={currentPage}
                     totalPages={totalPages}

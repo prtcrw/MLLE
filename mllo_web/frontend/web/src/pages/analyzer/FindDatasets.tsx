@@ -24,6 +24,7 @@ const FindDatasets: React.FC = () => {
     const [datasets, setDatasets] = useState<DatasetData[]>([]);
     const [currentPage, setCurrentPage] = useState(0);
     const [totalPages, setTotalPages] = useState(0);
+    const [message, setMessage] = useState('');
     const [error, setError] = useState<string | null>(null);
     const navigate = useNavigate(); // Access useNavigate hook
 
@@ -52,6 +53,11 @@ const FindDatasets: React.FC = () => {
             setCurrentPage(page);
             setTotalPages(fetchedDatasets["total_pages"]);
             setDatasets(fetchedDatasets["data"]);
+            if (fetchedDatasets["data"].length == 0) {
+                setMessage("No datasets found.");
+            } else {
+                setMessage('');
+            }
         } catch (error) {
             console.error('Error fetching models:', error);
             setError((error as Error).message);
@@ -90,7 +96,7 @@ const FindDatasets: React.FC = () => {
                     "Dataset Source",
                     "Model Output",
                     "Output Utilization",
-                ]}/>
+                ]} message={message}/>
                 <Pagination
                     currentPage={currentPage}
                     totalPages={totalPages}

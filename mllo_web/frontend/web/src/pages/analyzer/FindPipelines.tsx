@@ -19,6 +19,7 @@ const FindPipelines: React.FC = () => {
     const [pipelines, setPipelines] = useState<PipelineData[]>([]);
     const [currentPage, setCurrentPage] = useState(0);
     const [totalPages, setTotalPages] = useState(0);
+    const [message, setMessage] = useState('');
     const [error, setError] = useState<string | null>(null);
     const navigate = useNavigate(); // Access useNavigate hook
 
@@ -38,6 +39,11 @@ const FindPipelines: React.FC = () => {
             setCurrentPage(page);
             setTotalPages(fetchedPipelines["total_pages"]);
             setPipelines(fetchedPipelines["data"]);
+            if (fetchedPipelines["data"].length == 0) {
+                setMessage("No pipelines found.");
+            } else {
+                setMessage('');
+            }
         } catch (error) {
             console.error('Error fetching models:', error);
             setError((error as Error).message);
@@ -70,7 +76,7 @@ const FindPipelines: React.FC = () => {
                     "Pipeline Structure",
                     "Pipeline Data Input",
                     "Pipeline Associated Model",
-                ]}/>
+                ]} message={message}/>
                 <Pagination
                     currentPage={currentPage}
                     totalPages={totalPages}
