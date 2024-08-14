@@ -80,7 +80,7 @@ const FindDatasets: React.FC = () => {
 
     return (
         <div>
-            {isLoading && <LoadingBar isLoading={isLoading}/>}
+            <LoadingBar isLoading={isLoading}/>
             <h1>Find Datasets</h1>
             <div>
                 <Search onSearch={handleSearch} placeholder={'Model Name/Model Type'}/>

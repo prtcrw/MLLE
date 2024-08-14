@@ -67,7 +67,7 @@ const FindPipelines: React.FC = () => {
 
     return (
         <div>
-            {isLoading && <LoadingBar isLoading={isLoading}/>}
+            <LoadingBar isLoading={isLoading}/>
             <h1>Find Pipelines</h1>
             <div>
                 <Search onSearch={handleSearch} placeholder={'Model Name'}/>

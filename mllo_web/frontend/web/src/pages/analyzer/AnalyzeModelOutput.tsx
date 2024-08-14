@@ -58,7 +58,7 @@ const AnalyzeModelOutput: React.FC = () => {
 
     return (
         <>
-            {isLoading && <LoadingBar isLoading={isLoading}/>}
+            <LoadingBar isLoading={isLoading}/>
             <div style={{display: 'flex', justifyContent: 'space-between'}}>
                 <div style={{width: '30%'}}>
                     <h2>Filters</h2>

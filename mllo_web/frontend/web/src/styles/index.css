@@ -52,6 +52,10 @@ button {
   filter: blur(3px); /* Add blur effect on mobile menu open */
 }
 
+.hidden {
+  visibility: hidden;
+}
+
 .menu-content.open ~ .dashboard-content {
   margin-left: 250px; /* Adjust based on menu width */
 }

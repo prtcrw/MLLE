@@ -78,7 +78,7 @@ const FindModels: React.FC = () => {
 
     return (
         <div>
-            {isLoading && <LoadingBar isLoading={isLoading}/>}
+            <LoadingBar isLoading={isLoading}/>
             <h1>Find Models</h1>
             <div>
                 <Search onSearch={handleSearch} placeholder={'Dataset Name'}/>
