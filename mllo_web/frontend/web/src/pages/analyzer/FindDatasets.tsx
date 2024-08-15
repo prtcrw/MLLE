@@ -10,13 +10,16 @@ import FindDatasetsFilter from './FindDatasetsFilter.tsx';
 
 interface DatasetData {
     datasetName: string;
-    datasetUsedFor: string;
+    datasetUsedAs: string;
     mlInputTimestamp: string;
-    datasetSize: string;
+    datasetShape: string;
     datasetCharacteristics: string;
     datasetSource: string;
+    modelType: string;
     modelOutput: string;
-    outputUtilization: string;
+    modelOutputUtilization: string;
+    modelPerformanceMetric: string;
+    modelPerformanceValue: string;
 }
 
 const FindDatasets: React.FC = () => {
@@ -97,25 +100,30 @@ const FindDatasets: React.FC = () => {
                     <button onClick={handleAnalyzeModelOutput}>Analyze Model Output</button>
                     <button style={{marginLeft: '4px'}} onClick={handlePlotPerformance}>Plot Performance</button>
                 </div>
-
                 <Table data={datasets} headers={[
                     "Dataset Name",
-                    "Dataset Used For",
+                    "Dataset Used As",
                     "ML Input Timestamp",
-                    "Dataset Size",
+                    "Dataset Shape",
                     "Dataset Characteristics",
                     "Dataset Source",
+                    "Model Type",
                     "Model Output",
-                    "Output Utilization",
+                    "Model Output Utilization",
+                    "Model Performance Metric",
+                    "Model Performance Value",
                 ]} message={message} sorts={{
                     "Dataset Name": null,
-                    "Dataset Used For": null,
+                    "Dataset Used As": null,
                     "ML Input Timestamp": null,
-                    "Dataset Size": null,
+                    "Dataset Shape": null,
                     "Dataset Characteristics": null,
                     "Dataset Source": null,
+                    "Model Type": null,
                     "Model Output": null,
-                    "Output Utilization": null,
+                    "Model Output Utilization": null,
+                    "Model Performance Metric": null,
+                    "Model Performance Value": null,
                 }} onSort={handleSort}/>
                 <Pagination
                     currentPage={currentPage}
