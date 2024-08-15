@@ -6,6 +6,13 @@ import requests
 from mllo_web.app.api.config import AppConfig
 
 
+class QueryBuilder(ABC):
+
+    @abstractmethod
+    def build_query(self) -> str:
+        raise NotImplementedError
+
+
 class SparqlClient(ABC):
 
     @abstractmethod

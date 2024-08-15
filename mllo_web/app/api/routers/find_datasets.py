@@ -1,5 +1,10 @@
+from typing import Optional, List
+
 import math
 from fastapi import APIRouter, Request, Query
+
+from mllo_web.app.api.routers.utilities import parse_sort_params
+from mllo_web.app.api.services.sparql_client import QueryBuilder
 
 router = APIRouter(prefix="/v1/datasets", tags=["datasets"])
 
@@ -88,15 +93,32 @@ WHERE {
 """
 
 
+class FindDatasetsQueryBuilder(QueryBuilder):
+
+    def __init__(self, search_term: str, page: int, items_per_page: int, sort: Optional[List[str]]):
+        self.search_term = search_term
+        self.page = page
+        self.items_per_page = items_per_page
+        self.sort = parse_sort_params(sort)
+
+    def build_query(self) -> str:
+        # TODO: Handle 'search_term', 'page', 'items_per_page', and 'sort'
+        return QUERY
+
+
 @router.get("/")  # Define a GET endpoint for "/datasets"
 async def get_datasets(request: Request,
+                       search_term: str = Query(default=None, description="Search term"),
                        page: int = Query(default=1, description="Page number"),
-                       items_per_page: int = Query(default=10, description="Number of datasets to return per page")):
+                       items_per_page: int = Query(default=10, description="Number of datasets to return per page"),
+                       sort: Optional[List[str]] = Query(default=None,
+                                                         description="Sort criteria (e.g., [dataset_name,asc,dataset_used_as,desc])")) -> dict:
     app = request.app
-    datasets = app.sparql_client.query(QUERY)
+    datasets = app.sparql_client.query(
+        FindDatasetsQueryBuilder(search_term, page=page, items_per_page=items_per_page, sort=sort).build_query())
 
     # Calculate total pages based on results and page size
-    total_pages = math.ceil(len(datasets) / items_per_page)
+    total_pages = math.ceil(len(datasets) / items_per_page) if len(datasets) > 0 else 0
 
     # Slice data based on page and results per page
     start_index = (page - 1) * items_per_page

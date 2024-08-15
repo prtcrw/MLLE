@@ -21,25 +21,63 @@ interface ModelData {
 
 
 const FindModels: React.FC = () => {
-    const [searchFilter, setSearchFilter] = useState('');
+    const [searchTerm, setSearchTerm] = useState('');
     const [selectedCheckboxes, setSelectedCheckboxes] = useState<string[]>([]);
     const [models, setModels] = useState<ModelData[]>([]);
-    const [currentPage, setCurrentPage] = useState(0);
+    const [currentPage, setCurrentPage] = useState(1);
     const [totalPages, setTotalPages] = useState(0);
+    const [itemsPerPage, setItemsPerPage] = useState(10);
+    const [sorts, setSorts] = useState<{ [key: string]: 'asc' | 'desc' | null }>({});
     const [isLoading, setIsLoading] = useState(false);
     const [message, setMessage] = useState('');
     const [error, setError] = useState<string | null>(null);
     const navigate = useNavigate(); // Access useNavigate hook
 
 
-    const handleSearch = async (searchTerm: string) => {
+    const fetchData = async (searchTerm: string,
+                             currentPage: number,
+                             itemsPerPage: number,
+                             sorts: { [key: string]: 'asc' | 'desc' | null }) => {
         setIsLoading(true); // Set loading to true
         try {
-            setSearchFilter(searchTerm); // Update searchFilter state
-            await handlePageChange(1);
+            const urlParams = new URLSearchParams({
+                search_term: searchTerm,
+                page: currentPage.toString(),
+                items_per_page: itemsPerPage.toString(),
+            });
+
+            // Add sorts as query params
+            for (const [key, value] of Object.entries(sorts)) {
+                if (value) {
+                    urlParams.append('sort', `${key},${value}`);
+                }
+            }
+
+            const response = await fetch(buildV1Url(`models/?${urlParams.toString()}`));
+            if (!response.ok) {
+                throw new Error(`Failed to fetch models: ${response.statusText}`);
+            }
+            const fetchedModels = await response.json();
+            setCurrentPage(currentPage);
+            setTotalPages(fetchedModels["total_pages"]);
+            setModels(fetchedModels["data"]);
+            if (fetchedModels["data"].length == 0) {
+                setMessage("No models found.");
+            } else {
+                setMessage('');
+            }
+        } catch (error) {
+            console.error('Error fetching models:', error);
+            setError((error as Error).message);
         } finally {
             setIsLoading(false); // Set loading to false after fetching
         }
+    }
+
+
+    const handleSearch = async (searchTerm: string) => {
+        setSearchTerm(searchTerm);
+        await fetchData(searchTerm, 1, itemsPerPage, sorts);
     };
 
     const handleCheckboxChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -52,33 +90,19 @@ const FindModels: React.FC = () => {
     };
 
     const handlePageChange = async (page: number = 1, itemsPerPage: number = 10) => {
-        try {
-            const response = await fetch(buildV1Url(`models/?searchFilter=${searchFilter}&page=${page}&items_per_page=${itemsPerPage}`));
-            if (!response.ok) {
-                throw new Error(`Failed to fetch models: ${response.statusText}`);
-            }
-            const fetchedModels = await response.json();
-            setCurrentPage(page);
-            setTotalPages(fetchedModels["total_pages"]);
-            setModels(fetchedModels["data"]);
-            if (fetchedModels["data"].length == 0) {
-                setMessage("No models found.");
-            } else {
-                setMessage('');
-            }
-        } catch (error) {
-            console.error('Error fetching models:', error);
-            setError((error as Error).message);
-        }
+        setCurrentPage(page);
+        setItemsPerPage(itemsPerPage);
+        await fetchData(searchTerm, page, itemsPerPage, sorts);
     };
+
+    const handleSort = async (sorts: { [key: string]: 'asc' | 'desc' | null }) => {
+        setSorts(sorts);
+        await fetchData(searchTerm, currentPage, itemsPerPage, sorts);
+    }
 
     const handleAnalyzeDeployedModel = () => {
         navigate('/models/analyze-deployed-model');
     };
-
-    const handleSort = (sorts: { [key: string]: 'asc' | 'desc' | null }) => {
-        console.log(sorts);
-    }
 
     return (
         <div>

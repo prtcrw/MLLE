@@ -16,34 +16,43 @@ interface PipelineData {
 }
 
 const FindPipelines: React.FC = () => {
-    const [searchFilter, setSearchFilter] = useState('');
+    const [searchTerm, setSearchTerm] = useState('');
     const [pipelines, setPipelines] = useState<PipelineData[]>([]);
-    const [currentPage, setCurrentPage] = useState(0);
+    const [currentPage, setCurrentPage] = useState(1);
     const [totalPages, setTotalPages] = useState(0);
+    const [itemsPerPage, setItemsPerPage] = useState(10);
+    const [sorts, setSorts] = useState<{ [key: string]: 'asc' | 'desc' | null }>({});
     const [isLoading, setIsLoading] = useState(false);
     const [message, setMessage] = useState('');
     const [error, setError] = useState<string | null>(null);
     const navigate = useNavigate(); // Access useNavigate hook
 
 
-    const handleSearch = async (searchTerm: string) => {
+    const fetchData = async (searchTerm: string,
+                             currentPage: number,
+                             itemsPerPage: number,
+                             sorts: { [key: string]: 'asc' | 'desc' | null }) => {
         setIsLoading(true); // Set loading to true
         try {
-            setSearchFilter(searchTerm); // Update datasetName state
-            await handlePageChange(1);
-        } finally {
-            setIsLoading(false); // Set loading to false after fetching
-        }
-    };
+            const urlParams = new URLSearchParams({
+                search_term: searchTerm,
+                page: currentPage.toString(),
+                items_per_page: itemsPerPage.toString(),
+            });
 
-    const handlePageChange = async (page: number = 1, itemsPerPage: number = 10) => {
-        try {
-            const response = await fetch(buildV1Url(`pipelines/?searchFilter=${searchFilter}&page=${page}&items_per_page=${itemsPerPage}`));
+            // Add sorts as query params
+            for (const [key, value] of Object.entries(sorts)) {
+                if (value) {
+                    urlParams.append('sort', `${key},${value}`);
+                }
+            }
+
+            const response = await fetch(buildV1Url(`pipelines/?${urlParams.toString()}`));
             if (!response.ok) {
                 throw new Error(`Failed to fetch models: ${response.statusText}`);
             }
             const fetchedPipelines = await response.json();
-            setCurrentPage(page);
+            setCurrentPage(currentPage);
             setTotalPages(fetchedPipelines["total_pages"]);
             setPipelines(fetchedPipelines["data"]);
             if (fetchedPipelines["data"].length == 0) {
@@ -54,8 +63,27 @@ const FindPipelines: React.FC = () => {
         } catch (error) {
             console.error('Error fetching models:', error);
             setError((error as Error).message);
+        } finally {
+            setIsLoading(false); // Set loading to false after fetching
         }
+    }
+
+    const handleSearch = async (searchTerm: string) => {
+        setSearchTerm(searchTerm);
+        await fetchData(searchTerm, 1, itemsPerPage, sorts);
     };
+
+    const handlePageChange = async (page: number = 1, itemsPerPage: number = 10) => {
+        setCurrentPage(page);
+        setItemsPerPage(itemsPerPage);
+        await fetchData(searchTerm, page, itemsPerPage, sorts);
+    };
+
+    const handleSort = async (sorts: { [key: string]: 'asc' | 'desc' | null }) => {
+        setSorts(sorts);
+        await fetchData(searchTerm, currentPage, itemsPerPage, sorts);
+        ;
+    }
 
     const handleComparePipelines = () => {
         navigate('/pipelines/compare-pipelines');
@@ -64,10 +92,6 @@ const FindPipelines: React.FC = () => {
     const handleViewPipeline = () => {
         navigate('/pipelines/edit-pipeline');
     };
-
-    const handleSort = (sorts: { [key: string]: 'asc' | 'desc' | null }) => {
-        console.log(sorts);
-    }
 
     return (
         <div>
