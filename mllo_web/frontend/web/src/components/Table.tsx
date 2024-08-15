@@ -69,7 +69,9 @@ const Table: React.FC<TableProps> = ({data, headers, message, sorts, onSort}) =>
                     {data.map((row, index) => (
                         <tr key={index}>
                             {Object.keys(row).map((key, i) => (
-                                <td key={i}>{row[key]}</td>
+                                <td key={i}>
+                                    {row[key]}
+                                </td>
                             ))}
                         </tr>
                     ))}
