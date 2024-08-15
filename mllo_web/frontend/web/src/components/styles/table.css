@@ -1,7 +1,7 @@
 table {
     width: 100%;
     border-collapse: collapse;
-    overflow-x: auto;
+    overflow-wrap: anywhere;
     margin-top: 8px;
 }
 
@@ -16,7 +16,7 @@ th > div {
 }
 
 th, td {
-    width: calc(100% / var(--column-count)); /* Dynamic width based on column count */
+    width: calc(100% / var(--column-count));
     text-align: left;
     padding: 10px;
     border: 1px solid #ddd; /* Optional: Add borders to cells */
