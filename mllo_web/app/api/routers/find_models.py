@@ -76,7 +76,6 @@ async def get_models(request: Request,
                      sort: Optional[List[str]] = Query(default=None,
                                                        description="Sort criteria (e.g., [dataset_name,asc,dataset_used_as,desc])")) -> dict:
     app = request.app
-    print("++++++",specific_IRI, type(specific_IRI))
     models = app.sparql_client.query(
         FindModelsQueryBuilder(search_term, 
                                page=page, 
