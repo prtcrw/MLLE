@@ -86,7 +86,7 @@ const FindModels: React.FC = () => {
 
     const handleSearch = async (searchTerm: string) => {
         setSearchTerm(searchTerm);
-        await fetchData(searchTerm, 1, itemsPerPage, sorts);
+        await fetchData(searchTerm, 1, itemsPerPage, currentSorts);
     };
 
     const handleCheckboxChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -101,7 +101,7 @@ const FindModels: React.FC = () => {
     const handlePageChange = async (page: number = 1, itemsPerPage: number = 10) => {
         setCurrentPage(page);
         setItemsPerPage(itemsPerPage);
-        await fetchData(searchTerm, page, itemsPerPage, sorts);
+        await fetchData(searchTerm, page, itemsPerPage, currentSorts);
     };
 
     const handleSort = async (sorts: { key: string; direction: 'asc' | 'desc' | null }[]) => {
