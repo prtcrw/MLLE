@@ -28,13 +28,11 @@ WHERE {
     OPTIONAL {
         ?ml_process bfo:BFO_0000222/iof-core:hasValueExpressionAtAllTimes/iof-core:hasDateTimeValue ?ml_input_timestamp
     }
-    OPTIONAL {
-        ?model rdf:type ?model_type_iri.
-        ?model bfo:BFO_0000178 ?model_objective.
-        ?model_objective rdf:type/rdfs:subClassOf+ iof-core:ObjectiveSpecification.
-        ?model_type_iri rdfs:subClassOf+ ml:MachineLearningModel.
-        ?model_type_iri rdfs:label ?model_type
-    }
+    ?model rdf:type ?model_type_iri.
+    ?model bfo:BFO_0000178 ?model_objective.
+    ?model_objective rdf:type/rdfs:subClassOf+ iof-core:ObjectiveSpecification.
+    ?model_type_iri rdfs:subClassOf+ ml:MachineLearningModel.
+    ?model_type_iri rdfs:label ?model_type.
     OPTIONAL {
         ?ml_process (ml:hasDataOutput/^ml:hasDataInput)+ ?model_performance_assessment.
         ?model_performance_assessment bfo:BFO_0000059 ?model_performance_metric_iri.
