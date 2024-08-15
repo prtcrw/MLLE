@@ -76,6 +76,10 @@ const FindModels: React.FC = () => {
         navigate('/models/analyze-deployed-model');
     };
 
+    const handleSort = (sorts: { [key: string]: 'asc' | 'desc' | null }) => {
+        console.log(sorts);
+    }
+
     return (
         <div>
             <LoadingBar isLoading={isLoading}/>
@@ -99,7 +103,16 @@ const FindModels: React.FC = () => {
                     "Data Preprocessing",
                     "ML Input Timestamp",
                     "Dataset Used For",
-                ]} message={message}/>
+                ]} message={message} sorts={{
+                    "Model Name": null,
+                    "Model Type": null,
+                    "Model Performance Metric": null,
+                    "Model Performance Value": null,
+                    "Model Objective": null,
+                    "Data Preprocessing": null,
+                    "ML Input Timestamp": null,
+                    "Dataset Used For": null,
+                }} onSort={handleSort}/>
                 <Pagination
                     currentPage={currentPage}
                     totalPages={totalPages}

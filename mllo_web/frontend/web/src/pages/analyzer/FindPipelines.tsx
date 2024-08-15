@@ -65,6 +65,10 @@ const FindPipelines: React.FC = () => {
         navigate('/pipelines/edit-pipeline');
     };
 
+    const handleSort = (sorts: { [key: string]: 'asc' | 'desc' | null }) => {
+        console.log(sorts);
+    }
+
     return (
         <div>
             <LoadingBar isLoading={isLoading}/>
@@ -84,7 +88,13 @@ const FindPipelines: React.FC = () => {
                     "Pipeline Structure",
                     "Pipeline Data Input",
                     "Pipeline Associated Model",
-                ]} message={message}/>
+                ]} message={message} sorts={{
+                    "Pipeline Name": null,
+                    "Pipeline Type": null,
+                    "Pipeline Structure": null,
+                    "Pipeline Data Input": null,
+                    "Pipeline Associated Model": null,
+                }} onSort={handleSort}/>
                 <Pagination
                     currentPage={currentPage}
                     totalPages={totalPages}

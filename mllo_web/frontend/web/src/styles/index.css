@@ -68,25 +68,6 @@ button {
   /* Adjust width and other styles as needed for mobile layout */
 }
 
-table {
-  width: 100%;
-  border-collapse: collapse;
-  margin-top: 8px;
-}
-
-table, th, td {
-  border: 1px solid #ddd;
-}
-
-th, td {
-  padding: 8px;
-  text-align: left;
-}
-
-thead {
-  background-color: #f4f4f4;
-}
-
 .advanced-filters {
   display: flex;
   flex-wrap: wrap;

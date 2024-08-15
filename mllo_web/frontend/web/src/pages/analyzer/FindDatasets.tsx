@@ -78,6 +78,10 @@ const FindDatasets: React.FC = () => {
         navigate('/datasets/plot-performance');
     };
 
+    const handleSort = (sorts: { [key: string]: 'asc' | 'desc' | null }) => {
+        console.log(sorts);
+    }
+
     return (
         <div>
             <LoadingBar isLoading={isLoading}/>
@@ -103,7 +107,16 @@ const FindDatasets: React.FC = () => {
                     "Dataset Source",
                     "Model Output",
                     "Output Utilization",
-                ]} message={message}/>
+                ]} message={message} sorts={{
+                    "Dataset Name": null,
+                    "Dataset Used For": null,
+                    "ML Input Timestamp": null,
+                    "Dataset Size": null,
+                    "Dataset Characteristics": null,
+                    "Dataset Source": null,
+                    "Model Output": null,
+                    "Output Utilization": null,
+                }} onSort={handleSort}/>
                 <Pagination
                     currentPage={currentPage}
                     totalPages={totalPages}
