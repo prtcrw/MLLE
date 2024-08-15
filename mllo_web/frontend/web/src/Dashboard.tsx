@@ -25,8 +25,7 @@ const Dashboard: React.FC = () => {
         <Router>
             <div className="dashboard">
                 <Menu isMenuOpen={isMenuOpen} toggleMenu={toggleMenu} isMobile={isMobile}/>
-                <div className={`dashboard-content ${
-                    isMenuOpen && isMobile ? 'blurred' : ''}`}>
+                <div className={`dashboard-content ${isMenuOpen && !isMobile ? 'slide-out' : 'slide-in'} ${isMenuOpen && isMobile ? 'blurred' : ''}`}>
                     <Header isMenuOpen={isMenuOpen} toggleMenu={toggleMenu}/>
                     <Routes>
                         <Route path="/" element={<Home/>}/>

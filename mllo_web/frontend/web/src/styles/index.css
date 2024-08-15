@@ -1,93 +1,107 @@
 html, body {
-  height: 100%;
-  margin: 0;
+    height: 100%;
+    margin: 0;
 }
 
 body {
-  font-family: 'Inter', sans-serif;
-  font-size: 0.75rem;
-  line-height: 1.5;
-  margin: 0;
-  padding: 0;
-  box-sizing: border-box;
+    font-family: 'Inter', sans-serif;
+    font-size: 0.75rem;
+    line-height: 1.5;
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
 }
 
 h1, h2, h3, h4, h5, h6 {
-  margin-bottom: 0.5rem;
+    margin-bottom: 0.5rem;
 }
 
 p, a, button {
-  font-size: 0.75rem;
+    font-size: 0.75rem;
 }
 
 a {
-  text-decoration: none;
-  color: #007bff; /* Example link color */
+    text-decoration: none;
+    color: #007bff; /* Example link color */
 }
 
 button {
-  padding: 0.5rem 1rem;
-  border: none;
-  border-radius: 4px;
-  cursor: pointer;
+    padding: 0.5rem 1rem;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+@keyframes dashboardSlideIn {
+    0% {
+        margin-left: 250px;
+    }
+    100% {
+        margin-left: 0;
+    }
+}
+
+@keyframes dashboardSlideOut {
+    0% {
+        margin-left: -250px;
+    }
+    100% {
+        margin-left: 0;
+    }
 }
 
 .dashboard {
-  display: flex;
-  flex-direction: row;
-  height: 100vh; /* Full height */
+    display: flex;
+    flex-direction: row;
+    height: 100vh; /* Full height */
 }
 
 .dashboard-content {
-  display: flex;
-  flex-direction: column;
-  flex-grow: 1; /* Make content fill available space */
-  overflow-y: auto; /* Enable vertical scrolling */
-  transition: margin-left 0.3s ease-in-out;
-  margin-left: 0; /* Default no margin */
-  padding: 0 16px; /* Add padding as needed */
+    display: flex;
+    flex-direction: column;
+    flex-grow: 1; /* Make content fill available space */
+    overflow-y: auto; /* Enable vertical scrolling */
+    margin-left: 0; /* Default no margin */
+    padding: 0 16px; /* Add padding as needed */
+    transition: margin-left 0.3s ease-in-out;
+}
+
+.dashboard-content.slide-in {
+    animation: dashboardSlideIn 0.3s forwards;
+}
+
+.dashboard-content.slide-out {
+    animation: dashboardSlideOut 0.3s forwards;
 }
 
 .blurred {
-  filter: blur(3px); /* Add blur effect on mobile menu open */
+    filter: blur(3px); /* Add blur effect on mobile menu open */
 }
 
 .hidden {
-  visibility: hidden;
-}
-
-.menu-content.open ~ .dashboard-content {
-  margin-left: 250px; /* Adjust based on menu width */
-}
-
-.menu-container.mobile-open {
-  position: fixed; /* Fix menu position on top on mobile */
-  top: 0;
-  left: 0;
-  z-index: 10; /* Ensure menu is above content on mobile */
-  /* Adjust width and other styles as needed for mobile layout */
+    visibility: hidden;
 }
 
 .advanced-filters {
-  display: flex;
-  flex-wrap: wrap;
-  margin: 8px 0;
-  padding: 10px;
-  border: 1px solid #ccc;
-  border-radius: 4px;
+    display: flex;
+    flex-wrap: wrap;
+    margin: 8px 0;
+    padding: 10px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
 }
 
 .advanced-filters label {
-  display: flex;
-  margin-right: 10px;
-  font-size: 12px;
+    display: flex;
+    margin-right: 10px;
+    font-size: 12px;
 }
 
 .advanced-filters input[type="checkbox"] {
-  /* Customize checkbox appearance here (background, border, etc.) */
+    /* Customize checkbox appearance here (background, border, etc.) */
 }
 
 .advanced-filters input[type="checkbox"]:checked {
-  /* Style checkbox and label when checked */
+    /* Style checkbox and label when checked */
 }
 
