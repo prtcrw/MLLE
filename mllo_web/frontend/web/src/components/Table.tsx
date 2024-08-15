@@ -55,9 +55,11 @@ const Table: React.FC<TableProps> = ({data, headers, message, sorts, onSort}) =>
                                 onClick={() => isSortedBy(header) && handleSort(header)}
                             >
                                 <div>
-                                    {header}
+                                    <span className="name">{header}</span>
+                                    <div className="sort-icon">
                                     {sortDirection(header) ? (sortDirection(header) == 'asc' ? <ArrowUpIcon/> :
                                         <ArrowDownIcon/>) : ''}
+                                    </div>
                                 </div>
                             </th>
                         ))}

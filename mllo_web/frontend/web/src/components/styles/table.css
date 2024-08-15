@@ -15,10 +15,23 @@ th > div {
     align-items: center;
 }
 
+th > div .name {
+    width: 80%;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+th > div .sort-icon {
+    display: flex;
+    justify-content: flex-end;
+    width: 16px;
+}
+
 th, td {
     width: calc(100% / var(--column-count));
     text-align: left;
-    padding: 10px;
+    padding: 8px;
     border: 1px solid #ddd; /* Optional: Add borders to cells */
 }
 
