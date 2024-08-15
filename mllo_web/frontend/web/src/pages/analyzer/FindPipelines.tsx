@@ -21,7 +21,15 @@ const FindPipelines: React.FC = () => {
     const [currentPage, setCurrentPage] = useState(1);
     const [totalPages, setTotalPages] = useState(0);
     const [itemsPerPage, setItemsPerPage] = useState(10);
-    const [sorts, setSorts] = useState<{ [key: string]: 'asc' | 'desc' | null }>({});
+    const sorts = [
+        {key: "Pipeline Name", direction: null},
+        {key: "Pipeline Type", direction: null},
+        {key: "Pipeline Structure", direction: null},
+        {key: "Pipeline Data Input", direction: null},
+        {key: "Pipeline Associated Model", direction: null},
+    ];
+    const headers = sorts.map(sort => sort.key);
+    const [currentSorts, setCurrentSorts] = useState<{ key: string; direction: 'asc' | 'desc' | null }[]>([]);
     const [isLoading, setIsLoading] = useState(false);
     const [message, setMessage] = useState('');
     const [error, setError] = useState<string | null>(null);
@@ -31,7 +39,7 @@ const FindPipelines: React.FC = () => {
     const fetchData = async (searchTerm: string,
                              currentPage: number,
                              itemsPerPage: number,
-                             sorts: { [key: string]: 'asc' | 'desc' | null }) => {
+                             sorts: { key: string; direction: 'asc' | 'desc' | null }[]) => {
         setIsLoading(true); // Set loading to true
         try {
             const urlParams = new URLSearchParams({
@@ -41,10 +49,8 @@ const FindPipelines: React.FC = () => {
             });
 
             // Add sorts as query params
-            for (const [key, value] of Object.entries(sorts)) {
-                if (value) {
-                    urlParams.append('sort', `${key},${value}`);
-                }
+            for (const {key, direction} of sorts) {
+                urlParams.append('sort', `${key},${direction}`);
             }
 
             const response = await fetch(buildV1Url(`pipelines/?${urlParams.toString()}`));
@@ -79,11 +85,16 @@ const FindPipelines: React.FC = () => {
         await fetchData(searchTerm, page, itemsPerPage, sorts);
     };
 
-    const handleSort = async (sorts: { [key: string]: 'asc' | 'desc' | null }) => {
-        setSorts(sorts);
+    const handleSort = async (sorts: { key: string; direction: 'asc' | 'desc' | null }[]) => {
+        setCurrentSorts(sorts);
         await fetchData(searchTerm, currentPage, itemsPerPage, sorts);
-        ;
     }
+
+    const handleRemoveSort = async (key: string) => {
+        const newSorts = currentSorts.filter(sort => sort.key !== key);
+        setCurrentSorts(newSorts);
+        await fetchData(searchTerm, currentPage, itemsPerPage, newSorts); // Update data with new sorts
+    };
 
     const handleComparePipelines = () => {
         navigate('/pipelines/compare-pipelines');
@@ -100,25 +111,18 @@ const FindPipelines: React.FC = () => {
             <div>
                 <Search onSearch={handleSearch} placeholder={'Model Name'}/>
             </div>
-            <div style={{margin: '8px 0'}}>
-                <div>
+            <div>
+                <div style={{margin: '8px 0'}}>
                     <button onClick={handleComparePipelines}>Compare Pipelines</button>
                     <button style={{marginLeft: '4px'}} onClick={handleViewPipeline}>View Pipeline</button>
                 </div>
-
-                <Table data={pipelines} headers={[
-                    "Pipeline Name",
-                    "Pipeline Type",
-                    "Pipeline Structure",
-                    "Pipeline Data Input",
-                    "Pipeline Associated Model",
-                ]} message={message} sorts={{
-                    "Pipeline Name": null,
-                    "Pipeline Type": null,
-                    "Pipeline Structure": null,
-                    "Pipeline Data Input": null,
-                    "Pipeline Associated Model": null,
-                }} onSort={handleSort}/>
+                <Table data={pipelines}
+                       headers={headers}
+                       sorts={sorts}
+                       currentSorts={currentSorts}
+                       onSort={handleSort}
+                       onRemoveSort={handleRemoveSort}
+                       message={message}/>
                 <Pagination
                     currentPage={currentPage}
                     totalPages={totalPages}

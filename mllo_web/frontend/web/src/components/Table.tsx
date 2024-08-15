@@ -1,87 +1,102 @@
-import React, {useState} from 'react';
+import React from 'react';
+import {ArrowDownIcon, ArrowUpIcon} from './Icons.tsx';
 import './styles/table.css';
 
 interface TableProps {
     data: any[]; // Assuming any data type for now
     headers: string[];
+    sorts: { key: string; direction: 'asc' | 'desc' | null }[];
+    currentSorts: { key: string; direction: 'asc' | 'desc' | null }[];
+    onSort: (sorts: { key: string; direction: 'desc' | 'asc' | null }[]) => void;
+    onRemoveSort: (key: string) => void;
     message?: string;
-    sorts?: { [key: string]: 'asc' | 'desc' | null }; // Sorting definition object
-    onSort?: (sorts: { [key: string]: 'asc' | 'desc' | null }) => void; // Sort event handler
 }
 
-const Table: React.FC<TableProps> = ({data, headers, message, sorts, onSort}) => {
-    const [currentSorts, setCurrentSorts] = useState<TableProps['sorts']>(sorts || {});
-
-    const ArrowUpIcon = () => {
-        return (
-            <svg xmlns="http://www.w3.org/2000/svg" height="12px" viewBox="0 -960 960 960" width="12px" fill="#5f6368">
-                <path d="M440-160v-487L216-423l-56-57 320-320 320 320-56 57-224-224v487h-80Z"/>
-            </svg>
-        );
-    };
-
-    const ArrowDownIcon = () => {
-        return (
-            <svg xmlns="http://www.w3.org/2000/svg" height="12px" viewBox="0 -960 960 960" width="12px" fill="#5f6368">
-                <path d="M440-800v487L216-537l-56 57 320 320 320-320-56-57-224 224v-487h-80Z"/>
-            </svg>
-        );
-    };
-
+const Table: React.FC<TableProps> = ({
+                                         data, headers,
+                                         sorts, currentSorts,
+                                         onSort, onRemoveSort,
+                                         message
+                                     }) => {
     const handleSort = (column: string) => {
-        const newSorts = {...currentSorts};
-        const direction = sortDirection(column);
-        newSorts[column] = direction === 'asc' ? 'desc' : (direction === 'desc' ? null : 'asc');
+        if (sorts?.findIndex(sort => sort.key === column) === -1) {
+            return;
+        }
 
-        setCurrentSorts(newSorts);
+        const newSorts = [...currentSorts || []];
+        const existingSortIndex = newSorts.findIndex(sort => sort.key === column);
+
+        if (existingSortIndex !== -1) {
+            const newDirection = newSorts[existingSortIndex].direction === 'asc' ? 'desc' : null;
+            if (newDirection === null) {
+                // Remove the sort if the new direction is null
+                newSorts.splice(existingSortIndex, 1);
+            } else {
+                newSorts[existingSortIndex].direction = newDirection;
+            }
+        } else {
+            newSorts.push({key: column, direction: 'asc'});
+        }
 
         if (onSort) {
-            onSort(newSorts); // Pass the entire newSorts object
+            onSort(newSorts); // Pass the entire newSorts list
         }
     };
 
-    const isSortedBy = (column: string) => currentSorts?.[column] !== undefined;
-    const sortDirection = (column: string) => currentSorts?.[column];
+    const isSortedBy = (column: string) => {
+        return sorts?.find(sort => sort.key === column) !== undefined;
+    }
 
-    return (
+    const sortDirection = (column: string) => {
+        const existingSort = currentSorts?.find(sort => sort.key === column);
+        return existingSort?.direction;
+    };
+
+    return data.length > 0 ? (
         <div style={{'--column-count': headers.length} as React.CSSProperties}>
-            {data.length > 0 ? (
-                <table>
-                    <thead>
-                    <tr>
-                        {headers.map((header, index) => (
-                            <th
-                                key={index}
-                                onClick={() => isSortedBy(header) && handleSort(header)}
-                            >
-                                <div>
-                                    <span className="name">{header}</span>
-                                    <div className="sort-icon">
+            <div className="sort-container">
+                {currentSorts.filter(sort => sort.direction !== null).map(sort => (
+                    <div key={sort.key} className="sort-item">
+                        <span>{sort.key}</span>
+                        <span className="sort-direction">{sort.direction === 'asc' ?
+                            <ArrowUpIcon/> : sort.direction === 'desc' ? <ArrowDownIcon/> : 'Unsorted'}</span>
+                        <button className="remove-button" onClick={() => onRemoveSort(sort.key)}>✕</button>
+                    </div>
+                ))}
+            </div>
+            <table>
+                <thead>
+                <tr>
+                    {headers.map((header, index) => (
+                        <th
+                            key={index}
+                            onClick={() => isSortedBy(header) && handleSort(header)}
+                        >
+                            <div>
+                                <span className="name">{header}</span>
+                                <div className="sort-icon">
                                     {sortDirection(header) ? (sortDirection(header) == 'asc' ? <ArrowUpIcon/> :
                                         <ArrowDownIcon/>) : ''}
-                                    </div>
                                 </div>
-                            </th>
+                            </div>
+                        </th>
+                    ))}
+                </tr>
+                </thead>
+                <tbody>
+                {data.map((row, index) => (
+                    <tr key={index}>
+                        {Object.keys(row).map((key, i) => (
+                            <td key={i}>
+                                {row[key]}
+                            </td>
                         ))}
                     </tr>
-                    </thead>
-                    <tbody>
-                    {data.map((row, index) => (
-                        <tr key={index}>
-                            {Object.keys(row).map((key, i) => (
-                                <td key={i}>
-                                    {row[key]}
-                                </td>
-                            ))}
-                        </tr>
-                    ))}
-                    </tbody>
-                </table>
-            ) : (
-                <p>{message || ''}</p>
-            )}
+                ))}
+                </tbody>
+            </table>
         </div>
-    );
+    ) : (<p>{message || ''}</p>)
 };
 
 export default Table;

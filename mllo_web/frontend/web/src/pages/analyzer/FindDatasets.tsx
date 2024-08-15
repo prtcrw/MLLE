@@ -29,7 +29,21 @@ const FindDatasets: React.FC = () => {
     const [currentPage, setCurrentPage] = useState(1);
     const [totalPages, setTotalPages] = useState(0);
     const [itemsPerPage, setItemsPerPage] = useState(10);
-    const [sorts, setSorts] = useState<{ [key: string]: 'asc' | 'desc' | null }>({});
+    const sorts = [
+        {key: "Dataset Name", direction: null},
+        {key: "Dataset Used As", direction: null},
+        {key: "ML Input Timestamp", direction: null},
+        {key: "Dataset Shape", direction: null},
+        {key: "Dataset Characteristics", direction: null},
+        {key: "Dataset Source", direction: null},
+        {key: "Model Type", direction: null},
+        {key: "Model Output", direction: null},
+        {key: "Model Output Utilization", direction: null},
+        {key: "Model Performance Metric", direction: null},
+        {key: "Model Performance Value", direction: null},
+    ];
+    const headers = sorts.map(sort => sort.key);
+    const [currentSorts, setCurrentSorts] = useState<{ key: string; direction: 'asc' | 'desc' | null }[]>([]);
     const [isLoading, setIsLoading] = useState(false);
     const [message, setMessage] = useState('');
     const [error, setError] = useState<string | null>(null);
@@ -39,7 +53,7 @@ const FindDatasets: React.FC = () => {
     const fetchData = async (searchTerm: string,
                              currentPage: number,
                              itemsPerPage: number,
-                             sorts: { [key: string]: 'asc' | 'desc' | null }) => {
+                             sorts: { key: string; direction: 'asc' | 'desc' | null }[]) => {
         setIsLoading(true); // Set loading to true
         try {
             const urlParams = new URLSearchParams({
@@ -49,10 +63,8 @@ const FindDatasets: React.FC = () => {
             });
 
             // Add sorts as query params
-            for (const [key, value] of Object.entries(sorts)) {
-                if (value) {
-                    urlParams.append('sort', `${key},${value}`);
-                }
+            for (const {key, direction} of sorts) {
+                urlParams.append('sort', `${key},${direction}`);
             }
 
             const response = await fetch(buildV1Url(`datasets/?${urlParams.toString()}`));
@@ -87,10 +99,16 @@ const FindDatasets: React.FC = () => {
         await fetchData(searchTerm, page, itemsPerPage, sorts);
     };
 
-    const handleSort = async (sorts: { [key: string]: 'asc' | 'desc' | null }) => {
-        setSorts(sorts);
+    const handleSort = async (sorts: { key: string; direction: 'asc' | 'desc' | null }[]) => {
+        setCurrentSorts(sorts);
         await fetchData(searchTerm, currentPage, itemsPerPage, sorts);
     }
+
+    const handleRemoveSort = async (key: string) => {
+        const newSorts = currentSorts.filter(sort => sort.key !== key);
+        setCurrentSorts(newSorts);
+        await fetchData(searchTerm, currentPage, itemsPerPage, newSorts); // Update data with new sorts
+    };
 
     const handleCheckboxChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const {value, checked} = e.target;
@@ -119,36 +137,18 @@ const FindDatasets: React.FC = () => {
                     selectedFilters={selectedCheckboxes}
                     onFilterChange={handleCheckboxChange}/>
             </div>
-            <div style={{margin: '8px 0'}}>
-                <div>
+            <div>
+                <div style={{margin: '8px 0'}}>
                     <button onClick={handleAnalyzeModelOutput}>Analyze Model Output</button>
                     <button style={{marginLeft: '4px'}} onClick={handlePlotPerformance}>Plot Performance</button>
                 </div>
-                <Table data={datasets} headers={[
-                    "Dataset Name",
-                    "Dataset Used As",
-                    "ML Input Timestamp",
-                    "Dataset Shape",
-                    "Dataset Characteristics",
-                    "Dataset Source",
-                    "Model Type",
-                    "Model Output",
-                    "Model Output Utilization",
-                    "Model Performance Metric",
-                    "Model Performance Value",
-                ]} message={message} sorts={{
-                    "Dataset Name": null,
-                    "Dataset Used As": null,
-                    "ML Input Timestamp": null,
-                    "Dataset Shape": null,
-                    "Dataset Characteristics": null,
-                    "Dataset Source": null,
-                    "Model Type": null,
-                    "Model Output": null,
-                    "Model Output Utilization": null,
-                    "Model Performance Metric": null,
-                    "Model Performance Value": null,
-                }} onSort={handleSort}/>
+                <Table data={datasets}
+                       headers={headers}
+                       sorts={sorts}
+                       currentSorts={currentSorts}
+                       onSort={handleSort}
+                       onRemoveSort={handleRemoveSort}
+                       message={message}/>
                 <Pagination
                     currentPage={currentPage}
                     totalPages={totalPages}

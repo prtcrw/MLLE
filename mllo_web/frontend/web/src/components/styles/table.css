@@ -39,3 +39,32 @@ th, td {
     padding: 8px;
     border: 1px solid #ddd; /* Optional: Add borders to cells */
 }
+
+.sort-container {
+    display: flex;
+    margin: 4px 0;
+}
+
+.sort-item {
+    display: flex;
+    align-items: center; /* This line adds vertical centering */
+    background-color: #f0f0f0;
+    border: 1px solid #ccc;
+    padding: 5px 10px;
+    cursor: pointer;
+    margin-right: 4px;
+    border-radius: 4px;
+}
+
+.sort-item .sort-direction {
+    display: flex;
+    margin: 0 4px;
+}
+
+.remove-button {
+    background-color: transparent;
+    border: none;
+    color: red;
+    cursor: pointer;
+    padding: 0;
+}
