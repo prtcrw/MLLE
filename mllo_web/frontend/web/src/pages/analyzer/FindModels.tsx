@@ -22,7 +22,6 @@ interface ModelData {
 
 const FindModels: React.FC = () => {
     const [searchTerm, setSearchTerm] = useState('');
-    const [specificIRI, setSpecificIRI] = useState(''); // Add state for specificIRI
     const [selectedCheckboxes, setSelectedCheckboxes] = useState<string[]>([]);
     const [models, setModels] = useState<ModelData[]>([]);
     const [currentPage, setCurrentPage] = useState(1);
@@ -49,15 +48,15 @@ const FindModels: React.FC = () => {
     const fetchData = async (searchTerm: string,
                              currentPage: number,
                              itemsPerPage: number,
-                             sorts: { key: string; direction: 'asc' | 'desc' | null }[],
-                             specificIRI: string) => {
+                             sorts: { key: string; direction: 'asc' | 'desc' | null }[]
+                             ) => {
         setIsLoading(true); // Set loading to true
         try {
             const urlParams = new URLSearchParams({
                 search_term: searchTerm,
                 page: currentPage.toString(),
                 items_per_page: itemsPerPage.toString(),
-                specific_IRI: specificIRI,
+                
             });
 
             // Add sorts as query params
@@ -89,12 +88,10 @@ const FindModels: React.FC = () => {
 
     const handleSearch = async (searchTerm: string) => {
         setSearchTerm(searchTerm);
-        await fetchData(searchTerm, 1, itemsPerPage, currentSorts, specificIRI);
+        await fetchData(searchTerm, 1, itemsPerPage, currentSorts);
     };
 
-    const handleIRIChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        setSpecificIRI(e.target.value);
-    };
+
 
     const handleCheckboxChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const {value, checked} = e.target;
@@ -108,18 +105,18 @@ const FindModels: React.FC = () => {
     const handlePageChange = async (page: number = 1, itemsPerPage: number = 10) => {
         setCurrentPage(page);
         setItemsPerPage(itemsPerPage);
-        await fetchData(searchTerm, page, itemsPerPage, currentSorts, specificIRI);
+        await fetchData(searchTerm, page, itemsPerPage, currentSorts);
     };
 
     const handleSort = async (sorts: { key: string; direction: 'asc' | 'desc' | null }[]) => {
         setCurrentSorts(sorts);
-        await fetchData(searchTerm, currentPage, itemsPerPage, sorts, specificIRI);
+        await fetchData(searchTerm, currentPage, itemsPerPage, sorts);
     }
 
     const handleRemoveSort = async (key: string) => {
         const newSorts = currentSorts.filter(sort => sort.key !== key);
         setCurrentSorts(newSorts);
-        await fetchData(searchTerm, currentPage, itemsPerPage, newSorts, specificIRI); // Update data with new sorts
+        await fetchData(searchTerm, currentPage, itemsPerPage, newSorts); // Update data with new sorts
     };
 
     const handleAnalyzeDeployedModel = () => {
@@ -130,15 +127,6 @@ const FindModels: React.FC = () => {
         <div>
             <LoadingBar isLoading={isLoading}/>
             <h1>Find Models</h1>
-            <div>
-            <input
-                    type="text"
-                    placeholder="Specific IRI"
-                    value={specificIRI}
-                    onChange={handleIRIChange}  // Handle IRI input changes
-                />
-            </div>
-            
             <div style={{margin: '8px 0'}}>
                 <Search onSearch={handleSearch} placeholder={'Dataset Name'}/>
                 <FindModelsFilter

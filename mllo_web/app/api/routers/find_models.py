@@ -48,7 +48,13 @@ select
 
 class FindModelsQueryBuilder(QueryBuilder):
 
-    def __init__(self, search_term: str, page: int, items_per_page: int, sort: Optional[List[str]], specific_IRI: str):
+    def __init__(self, 
+                 search_term: str, 
+                 page: int, 
+                 items_per_page: int, 
+                 sort: Optional[List[str]], 
+                 specific_IRI = None):
+        
         self.search_term = search_term
         self.page = page
         self.items_per_page = items_per_page
@@ -56,21 +62,23 @@ class FindModelsQueryBuilder(QueryBuilder):
         self.specific_IRI = specific_IRI
 
     def build_query(self) -> str:
-        #default value for figma.rdf
-        # if not self.search_term:
-        #     self.search_term = "TestDataSet1"
-        if self.specific_IRI:
-            query = QUERY.replace("#target_dataset_iri", self.specific_IRI + self.search_term)
-        else:
-            self.search_term = "\"" + self.search_term + "\")"
-            query = QUERY.replace("VALUES ?dataset {#target_dataset_iri}", f"FILTER(STRAFTER(STR(?dataset),\"#\")={self.search_term}")
-        return query
+
+        if not self.search_term:
+            print(0)
+            return QUERY.replace("VALUES ?dataset {#target_dataset_iri}",  "")
+
+        else: 
+            if self.specific_IRI!= None:
+                return QUERY.replace("#target_dataset_iri", self.specific_IRI + self.search_term)
+            else:
+                self.search_term = "\"" + self.search_term + "\")"
+                return QUERY.replace("VALUES ?dataset {#target_dataset_iri}", f"FILTER(STRAFTER(STR(?dataset),\"#\")={self.search_term}")
 
 
 @router.get("/")  # Define a GET endpoint for "/models"
 async def get_models(request: Request,
                      search_term: str = Query(default=None, description="Search term"),
-                     specific_IRI: str = Query(default= None, description="Specific IRI"),
+                     specific_IRI = Query(default= None, description="Specific IRI"),
                      page: int = Query(default=1, description="Page number"),
                      items_per_page: int = Query(default=10, description="Number of models to return per page"),
                      sort: Optional[List[str]] = Query(default=None,
