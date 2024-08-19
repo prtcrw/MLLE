@@ -6,6 +6,7 @@ import ErrorMessage from '../../components/ErrorMessage.tsx';
 import Search from '../../components/Search.tsx';
 import Table from '../../components/Table.tsx';
 import Pagination from '../../components/Pagination.tsx';
+import ToggleSwitch from '../../components/toggleSwitch';
 import {DownloadIcon} from '../../components/Icons.tsx';
 
 interface PipelineData {
@@ -18,6 +19,7 @@ interface PipelineData {
 
 const FindPipelines: React.FC = () => {
     const [searchTerm, setSearchTerm] = useState('');
+    const [toggleConstraint, setToggleConstraint] = useState<boolean>(false);
     const [pipelines, setPipelines] = useState<PipelineData[]>([]);
     const [currentPage, setCurrentPage] = useState(1);
     const [totalPages, setTotalPages] = useState(0);
@@ -38,20 +40,22 @@ const FindPipelines: React.FC = () => {
 
 
     const fetchData = async (searchTerm: string,
-                             currentPage: number,
-                             itemsPerPage: number,
-                             sorts: { key: string; direction: 'asc' | 'desc' | null }[],
-                             format: string = '') => {
-        setIsLoading(true); // Set loading to true
+                            currentPage: number,
+                            itemsPerPage: number,
+                            sorts: { key: string; direction: 'asc' | 'desc' | null }[],
+                            toggleConstraint: boolean,
+                            format: string = '',) => {
+                            setIsLoading(true); // Set loading to true
         try {
             const urlParams = new URLSearchParams({
                 search_term: searchTerm,
                 page: currentPage.toString(),
                 items_per_page: itemsPerPage.toString(),
+                toggle_constraint: toggleConstraint.toString(),
             });
 
             // Add sorts as query params
-            for (const {key, direction} of sorts) {
+            for (const { key, direction } of sorts) {
                 urlParams.append('sort', `${key},${direction}`);
             }
 
@@ -87,28 +91,32 @@ const FindPipelines: React.FC = () => {
 
     const handleSearch = async (searchTerm: string) => {
         setSearchTerm(searchTerm);
-        await fetchData(searchTerm, 1, itemsPerPage, currentSorts);
+        await fetchData(searchTerm, 1, itemsPerPage, currentSorts, toggleConstraint);
     };
 
     const handleDownload = async () => {
-        await fetchData(searchTerm, 1, itemsPerPage, currentSorts, 'csv');
+        await fetchData(searchTerm, 1, itemsPerPage, currentSorts, toggleConstraint, 'csv');
     };
 
     const handlePageChange = async (page: number = 1, itemsPerPage: number = 10) => {
         setCurrentPage(page);
         setItemsPerPage(itemsPerPage);
-        await fetchData(searchTerm, page, itemsPerPage, currentSorts);
+        await fetchData(searchTerm, page, itemsPerPage, currentSorts, toggleConstraint);
     };
 
     const handleSort = async (sorts: { key: string; direction: 'asc' | 'desc' | null }[]) => {
         setCurrentSorts(sorts);
-        await fetchData(searchTerm, currentPage, itemsPerPage, sorts);
+        await fetchData(searchTerm, currentPage, itemsPerPage, sorts, toggleConstraint);
     }
 
     const handleRemoveSort = async (key: string) => {
         const newSorts = currentSorts.filter(sort => sort.key !== key);
         setCurrentSorts(newSorts);
-        await fetchData(searchTerm, currentPage, itemsPerPage, newSorts); // Update data with new sorts
+        await fetchData(searchTerm, currentPage, itemsPerPage, newSorts, toggleConstraint); // Update data with new sorts
+    };
+
+    const handleToggleConstraint = () => {
+        setToggleConstraint(!toggleConstraint); // Toggle between Model and Dataset
     };
 
     const handleComparePipelines = () => {
@@ -121,15 +129,21 @@ const FindPipelines: React.FC = () => {
 
     return (
         <div>
-            <LoadingBar isLoading={isLoading}/>
+            <LoadingBar isLoading={isLoading} />
             <h1>Find Pipelines</h1>
-            <div>
-                <Search onSearch={handleSearch} placeholder={'Model Name'}/>
+
+            <div style={{ margin: '8px 0' }}>
+                <Search onSearch={handleSearch} placeholder={'Pipelines Constraint'} />
+                <div style={{ display: 'flex', alignItems: 'center' }}>
+                    <span className="toggle-label">Model Constraint</span>
+                    <ToggleSwitch isChecked={toggleConstraint} onToggle={handleToggleConstraint} />
+                    <span className="toggle-label">Dataset Constraint</span>
+                </div>
             </div>
             <div>
-                <div style={{margin: '8px 0'}}>
+                <div style={{ margin: '8px 0' }}>
                     <button onClick={handleComparePipelines}>Compare Pipelines</button>
-                    <button style={{marginLeft: '4px'}} onClick={handleViewPipeline}>View Pipeline</button>
+                    <button style={{ marginLeft: '4px' }} onClick={handleViewPipeline}>View Pipeline</button>
                 </div>
                 {pipelines.length > 0 &&
                     <div style={{display: 'flex', justifyContent: 'flex-end'}}>
@@ -141,19 +155,19 @@ const FindPipelines: React.FC = () => {
                     </div>
                 }
                 <Table data={pipelines}
-                       headers={headers}
-                       sorts={sorts}
-                       currentSorts={currentSorts}
-                       onSort={handleSort}
-                       onRemoveSort={handleRemoveSort}
-                       message={message}/>
+                    headers={headers}
+                    sorts={sorts}
+                    currentSorts={currentSorts}
+                    onSort={handleSort}
+                    onRemoveSort={handleRemoveSort}
+                    message={message} />
                 <Pagination
                     currentPage={currentPage}
                     totalPages={totalPages}
                     onPageChange={handlePageChange}
                 />
             </div>
-            {error && <ErrorMessage message={error}/>}
+            {error && <ErrorMessage message={error} />}
         </div>
     );
 };
