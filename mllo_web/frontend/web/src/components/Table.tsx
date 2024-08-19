@@ -59,7 +59,7 @@ const Table: React.FC<TableProps> = ({
                     <div key={sort.key} className="sort-item">
                         <span>{sort.key}</span>
                         <span className="sort-direction">{sort.direction === 'asc' ?
-                            <ArrowUpIcon/> : sort.direction === 'desc' ? <ArrowDownIcon/> : 'Unsorted'}</span>
+                            <ArrowUpIcon width={12} height={12}/> : sort.direction === 'desc' ? <ArrowDownIcon width={12} height={12}/> : 'Unsorted'}</span>
                         <button className="remove-button" onClick={() => onRemoveSort(sort.key)}>✕</button>
                     </div>
                 ))}
@@ -68,15 +68,14 @@ const Table: React.FC<TableProps> = ({
                 <thead>
                 <tr>
                     {headers.map((header, index) => (
-                        <th
-                            key={index}
-                            onClick={() => isSortedBy(header) && handleSort(header)}
-                        >
+                        <th key={index}
+                            onClick={() => isSortedBy(header) && handleSort(header)}>
                             <div>
                                 <span className="name">{header}</span>
                                 <div className="sort-icon">
-                                    {sortDirection(header) ? (sortDirection(header) == 'asc' ? <ArrowUpIcon/> :
-                                        <ArrowDownIcon/>) : ''}
+                                    {sortDirection(header) ? (sortDirection(header) == 'asc' ?
+                                        <ArrowUpIcon width={12} height={12}/> :
+                                        <ArrowDownIcon width={12} height={12}/>) : ''}
                                 </div>
                             </div>
                         </th>

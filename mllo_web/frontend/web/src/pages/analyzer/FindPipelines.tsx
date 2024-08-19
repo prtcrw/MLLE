@@ -6,6 +6,7 @@ import ErrorMessage from '../../components/ErrorMessage.tsx';
 import Search from '../../components/Search.tsx';
 import Table from '../../components/Table.tsx';
 import Pagination from '../../components/Pagination.tsx';
+import {DownloadIcon} from '../../components/Icons.tsx';
 
 interface PipelineData {
     pipelineName: string;
@@ -132,7 +133,11 @@ const FindPipelines: React.FC = () => {
                 </div>
                 {pipelines.length > 0 &&
                     <div style={{display: 'flex', justifyContent: 'flex-end'}}>
-                        <button onClick={handleDownload}>Download Results</button>
+                        <button onClick={handleDownload}
+                                style={{display: 'flex', alignItems: 'center', justifyContent: 'space-between'}}>
+                            <span style={{marginRight: '4px'}}>Download Results</span>
+                            <DownloadIcon width={14} height={14}/>
+                        </button>
                     </div>
                 }
                 <Table data={pipelines}
