@@ -1,9 +1,10 @@
+import math
 from typing import Optional, List
 
-import math
 from fastapi import APIRouter, Request, Query
+from fastapi.responses import Response, JSONResponse, StreamingResponse
 
-from mllo_web.app.api.routers.utilities import parse_sort_params
+from mllo_web.app.api.routers.utilities import parse_sort_params, generate_csv_response
 from mllo_web.app.api.services.sparql_client import QueryBuilder
 
 router = APIRouter(prefix="/v1/models", tags=["models"])
@@ -48,13 +49,13 @@ select
 
 class FindModelsQueryBuilder(QueryBuilder):
 
-    def __init__(self, 
-                 search_term: str, 
-                 page: int, 
-                 items_per_page: int, 
-                 sort: Optional[List[str]], 
-                 specific_IRI = None):
-        
+    def __init__(self,
+                 search_term: str,
+                 page: int,
+                 items_per_page: int,
+                 sort: Optional[List[str]],
+                 specific_IRI=None):
+
         self.search_term = search_term
         self.page = page
         self.items_per_page = items_per_page
@@ -65,41 +66,54 @@ class FindModelsQueryBuilder(QueryBuilder):
 
         if not self.search_term:
             print(0)
-            return QUERY.replace("VALUES ?dataset {#target_dataset_iri}",  "")
+            return QUERY.replace("VALUES ?dataset {#target_dataset_iri}", "")
 
-        else: 
-            if self.specific_IRI!= None:
+        else:
+            if self.specific_IRI != None:
                 return QUERY.replace("#target_dataset_iri", self.specific_IRI + self.search_term)
             else:
                 self.search_term = "\"" + self.search_term + "\")"
-                return QUERY.replace("VALUES ?dataset {#target_dataset_iri}", f"FILTER(STRAFTER(STR(?dataset),\"#\")={self.search_term}")
+                return QUERY.replace("VALUES ?dataset {#target_dataset_iri}",
+                                     f"FILTER(STRAFTER(STR(?dataset),\"#\")={self.search_term}")
 
 
 @router.get("/")  # Define a GET endpoint for "/models"
 async def get_models(request: Request,
                      search_term: str = Query(default=None, description="Search term"),
-                     specific_IRI = Query(default= None, description="Specific IRI"),
+                     specific_IRI=Query(default=None, description="Specific IRI"),
                      page: int = Query(default=1, description="Page number"),
                      items_per_page: int = Query(default=10, description="Number of models to return per page"),
                      sort: Optional[List[str]] = Query(default=None,
-                                                       description="Sort criteria (e.g., [dataset_name,asc,dataset_used_as,desc])")) -> dict:
+                                                       description="Sort criteria (e.g., [dataset_name,asc,dataset_used_as,desc])"),
+                     format: str = Query(default="json", description="Output format (json or csv)")) -> Response:
     app = request.app
     models = app.sparql_client.query(
-        FindModelsQueryBuilder(search_term, 
-                               page=page, 
-                               items_per_page=items_per_page, 
-                               sort=sort, 
+        FindModelsQueryBuilder(search_term,
+                               page=page,
+                               items_per_page=items_per_page,
+                               sort=sort,
                                specific_IRI=specific_IRI).build_query())
+    if format == 'json':
+        # Calculate total pages based on results and page size
+        total_pages = math.ceil(len(models) / items_per_page) if len(models) > 0 else 0
 
-    # Calculate total pages based on results and page size
-    total_pages = math.ceil(len(models) / items_per_page) if len(models) > 0 else 0
+        # Slice data based on page and results per page
+        start_index = (page - 1) * items_per_page
+        end_index = start_index + items_per_page
+        displayed_datasets = models[start_index:end_index]
 
-    # Slice data based on page and results per page
-    start_index = (page - 1) * items_per_page
-    end_index = start_index + items_per_page
-    displayed_datasets = models[start_index:end_index]
-
-    return {
-        "data": displayed_datasets,
-        "total_pages": total_pages,
-    }
+        return JSONResponse({
+            "data": displayed_datasets,
+            "total_pages": total_pages,
+        })
+    elif format == 'csv':
+        return StreamingResponse(
+            generate_csv_response(
+                header=['model_name', 'model_type', 'model_performance_metric', 'model_performance_value',
+                        'model_objective', 'data_preprocessing_pipeline', 'ml_input_timestamp', 'dataset_used_as'],
+                values=[x.values() for x in models]),
+            media_type='text/csv',
+            headers={'Content-Disposition': f'attachment; filename=find_models.csv'}
+        )
+    else:
+        return Response(content="Unsupported format", status_code=400)

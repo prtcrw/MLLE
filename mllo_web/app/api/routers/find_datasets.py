@@ -1,9 +1,10 @@
+import math
 from typing import Optional, List
 
-import math
 from fastapi import APIRouter, Request, Query
+from fastapi.responses import StreamingResponse, Response, JSONResponse
 
-from mllo_web.app.api.routers.utilities import parse_sort_params
+from mllo_web.app.api.routers.utilities import parse_sort_params, generate_csv_response
 from mllo_web.app.api.services.sparql_client import QueryBuilder
 
 router = APIRouter(prefix="/v1/datasets", tags=["datasets"])
@@ -112,20 +113,34 @@ async def get_datasets(request: Request,
                        page: int = Query(default=1, description="Page number"),
                        items_per_page: int = Query(default=10, description="Number of datasets to return per page"),
                        sort: Optional[List[str]] = Query(default=None,
-                                                         description="Sort criteria (e.g., [dataset_name,asc,dataset_used_as,desc])")) -> dict:
+                                                         description="Sort criteria (e.g., [dataset_name,asc,dataset_used_as,desc])"),
+                       format: str = Query(default="json", description="Output format (json or csv)")) -> Response:
     app = request.app
     datasets = app.sparql_client.query(
         FindDatasetsQueryBuilder(search_term, page=page, items_per_page=items_per_page, sort=sort).build_query())
 
-    # Calculate total pages based on results and page size
-    total_pages = math.ceil(len(datasets) / items_per_page) if len(datasets) > 0 else 0
+    if format == 'json':
+        # Calculate total pages based on results and page size
+        total_pages = math.ceil(len(datasets) / items_per_page) if len(datasets) > 0 else 0
 
-    # Slice data based on page and results per page
-    start_index = (page - 1) * items_per_page
-    end_index = start_index + items_per_page
-    displayed_datasets = datasets[start_index:end_index]
+        # Slice data based on page and results per page
+        start_index = (page - 1) * items_per_page
+        end_index = start_index + items_per_page
+        displayed_datasets = datasets[start_index:end_index]
 
-    return {
-        "data": displayed_datasets,
-        "total_pages": total_pages,
-    }
+        return JSONResponse({
+            "data": displayed_datasets,
+            "total_pages": total_pages,
+        })
+    elif format == 'csv':
+        return StreamingResponse(
+            generate_csv_response(header=['dataset_name', 'dataset_used_as', 'ml_input_timestamp', 'dataset_shape',
+                                          'dataset_characteristics', 'dataset_source', 'model_type', 'model_output',
+                                          'model_output_utilization', 'model_performance_metric',
+                                          'model_performance_value'],
+                                  values=[x.values() for x in datasets]),
+            media_type='text/csv',
+            headers={'Content-Disposition': f'attachment; filename=find_datasets.csv'}
+        )
+    else:
+        return Response(content="Unsupported format", status_code=400)

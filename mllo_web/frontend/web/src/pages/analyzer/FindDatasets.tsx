@@ -1,6 +1,6 @@
 import React, {useState} from 'react';
 import {useNavigate} from 'react-router-dom';
-import {buildV1Url} from '../../services/api';
+import {buildV1Url, downloadFromResponse} from '../../services/api';
 import LoadingBar from '../../components/LoadingBar.tsx';
 import ErrorMessage from '../../components/ErrorMessage.tsx';
 import Search from '../../components/Search.tsx';
@@ -53,7 +53,8 @@ const FindDatasets: React.FC = () => {
     const fetchData = async (searchTerm: string,
                              currentPage: number,
                              itemsPerPage: number,
-                             sorts: { key: string; direction: 'asc' | 'desc' | null }[]) => {
+                             sorts: { key: string; direction: 'asc' | 'desc' | null }[],
+                             format: string = '') => {
         setIsLoading(true); // Set loading to true
         try {
             const urlParams = new URLSearchParams({
@@ -67,18 +68,27 @@ const FindDatasets: React.FC = () => {
                 urlParams.append('sort', `${key},${direction}`);
             }
 
+            if (format !== '') {
+                urlParams.append('format', format);
+            }
+
             const response = await fetch(buildV1Url(`datasets/?${urlParams.toString()}`));
             if (!response.ok) {
                 throw new Error(`Failed to fetch models: ${response.statusText}`);
             }
-            const fetchedDatasets = await response.json();
-            setCurrentPage(currentPage);
-            setTotalPages(fetchedDatasets["total_pages"]);
-            setDatasets(fetchedDatasets["data"]);
-            if (fetchedDatasets["data"].length == 0) {
-                setMessage("No datasets found.");
+
+            if (format === '' || format === 'json') {
+                const fetchedDatasets = await response.json();
+                setCurrentPage(currentPage);
+                setTotalPages(fetchedDatasets["total_pages"]);
+                setDatasets(fetchedDatasets["data"]);
+                if (fetchedDatasets["data"].length == 0) {
+                    setMessage("No datasets found.");
+                } else {
+                    setMessage('');
+                }
             } else {
-                setMessage('');
+                await downloadFromResponse(response, 'find_datasets.csv');
             }
         } catch (error) {
             console.error('Error fetching models:', error);
@@ -91,6 +101,10 @@ const FindDatasets: React.FC = () => {
     const handleSearch = async (searchTerm: string) => {
         setSearchTerm(searchTerm);
         await fetchData(searchTerm, 1, itemsPerPage, currentSorts);
+    };
+
+    const handleDownload = async () => {
+        await fetchData(searchTerm, 1, itemsPerPage, currentSorts, 'csv');
     };
 
     const handlePageChange = async (page: number = 1, itemsPerPage: number = 10) => {
@@ -142,6 +156,11 @@ const FindDatasets: React.FC = () => {
                     <button onClick={handleAnalyzeModelOutput}>Analyze Model Output</button>
                     <button style={{marginLeft: '4px'}} onClick={handlePlotPerformance}>Plot Performance</button>
                 </div>
+                {datasets.length > 0 &&
+                    <div style={{display: 'flex', justifyContent: 'flex-end'}}>
+                        <button onClick={handleDownload}>Download Results</button>
+                    </div>
+                }
                 <Table data={datasets}
                        headers={headers}
                        sorts={sorts}

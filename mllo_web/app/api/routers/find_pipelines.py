@@ -1,9 +1,10 @@
+import math
 from typing import Optional, List
 
-import math
 from fastapi import APIRouter, Request, Query
+from fastapi.responses import Response, JSONResponse, StreamingResponse
 
-from mllo_web.app.api.routers.utilities import parse_sort_params
+from mllo_web.app.api.routers.utilities import parse_sort_params, generate_csv_response
 from mllo_web.app.api.services.sparql_client import QueryBuilder
 
 router = APIRouter(prefix="/v1/pipelines", tags=["pipelines"])
@@ -81,20 +82,33 @@ async def get_pipelines(request: Request,
                         page: int = Query(default=1, description="Page number"),
                         items_per_page: int = Query(default=10, description="Number of pipelines to return per page"),
                         sort: Optional[List[str]] = Query(default=None,
-                                                          description="Sort criteria (e.g., [dataset_name,asc,dataset_used_as,desc])")) -> dict:
+                                                          description="Sort criteria (e.g., [dataset_name,asc,dataset_used_as,desc])"),
+                        format: str = Query(default="json", description="Output format (json or csv)")) -> Response:
     app = request.app
     pipelines = app.sparql_client.query(
         FindPipelinesQueryBuilder(search_term, page=page, items_per_page=items_per_page, sort=sort).build_query())
 
-    # Calculate total pages based on results and page size
-    total_pages = math.ceil(len(pipelines) / items_per_page) if len(pipelines) > 0 else 0
+    if format == 'json':
+        # Calculate total pages based on results and page size
+        total_pages = math.ceil(len(pipelines) / items_per_page) if len(pipelines) > 0 else 0
 
-    # Slice data based on page and results per page
-    start_index = (page - 1) * items_per_page
-    end_index = start_index + items_per_page
-    displayed_datasets = pipelines[start_index:end_index]
+        # Slice data based on page and results per page
+        start_index = (page - 1) * items_per_page
+        end_index = start_index + items_per_page
+        displayed_datasets = pipelines[start_index:end_index]
 
-    return {
-        "data": displayed_datasets,
-        "total_pages": total_pages,
-    }
+        return JSONResponse({
+            "data": displayed_datasets,
+            "total_pages": total_pages,
+        })
+    elif format == 'csv':
+        return StreamingResponse(
+            generate_csv_response(
+                header=['pipeline_name', 'pipeline_type', 'pipeline_components', 'pipeline_data_input',
+                        'pipeline_associated_model'],
+                values=[x.values() for x in pipelines]),
+            media_type='text/csv',
+            headers={'Content-Disposition': f'attachment; filename=find_pipelines.csv'}
+        )
+    else:
+        return Response(content="Unsupported format", status_code=400)

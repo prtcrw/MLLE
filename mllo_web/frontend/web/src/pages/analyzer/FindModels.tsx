@@ -1,6 +1,6 @@
 import React, {useState} from 'react';
 import {useNavigate} from 'react-router-dom';
-import {buildV1Url} from '../../services/api';
+import {buildV1Url, downloadFromResponse} from '../../services/api';
 import LoadingBar from '../../components/LoadingBar.tsx';
 import ErrorMessage from '../../components/ErrorMessage.tsx';
 import Search from '../../components/Search.tsx';
@@ -48,8 +48,8 @@ const FindModels: React.FC = () => {
     const fetchData = async (searchTerm: string,
                              currentPage: number,
                              itemsPerPage: number,
-                             sorts: { key: string; direction: 'asc' | 'desc' | null }[]
-                             ) => {
+                             sorts: { key: string; direction: 'asc' | 'desc' | null }[],
+                             format: string = '') => {
         setIsLoading(true); // Set loading to true
         try {
             const urlParams = new URLSearchParams({
@@ -64,18 +64,27 @@ const FindModels: React.FC = () => {
                 urlParams.append('sort', `${key},${direction}`);
             }
 
+            if (format !== '') {
+                urlParams.append('format', format);
+            }
+
             const response = await fetch(buildV1Url(`models/?${urlParams.toString()}`));
             if (!response.ok) {
                 throw new Error(`Failed to fetch models: ${response.statusText}`);
             }
-            const fetchedModels = await response.json();
-            setCurrentPage(currentPage);
-            setTotalPages(fetchedModels["total_pages"]);
-            setModels(fetchedModels["data"]);
-            if (fetchedModels["data"].length == 0) {
-                setMessage("No models found.");
+
+            if (format === '' || format === 'json') {
+                const fetchedModels = await response.json();
+                setCurrentPage(currentPage);
+                setTotalPages(fetchedModels["total_pages"]);
+                setModels(fetchedModels["data"]);
+                if (fetchedModels["data"].length == 0) {
+                    setMessage("No models found.");
+                } else {
+                    setMessage('');
+                }
             } else {
-                setMessage('');
+                await downloadFromResponse(response, 'find_models.csv');
             }
         } catch (error) {
             console.error('Error fetching models:', error);
@@ -91,7 +100,9 @@ const FindModels: React.FC = () => {
         await fetchData(searchTerm, 1, itemsPerPage, currentSorts);
     };
 
-
+    const handleDownload = async () => {
+        await fetchData(searchTerm, 1, itemsPerPage, currentSorts, 'csv');
+    };
 
     const handleCheckboxChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const {value, checked} = e.target;
@@ -137,6 +148,11 @@ const FindModels: React.FC = () => {
                 <div style={{margin: '8px 0'}}>
                     <button onClick={handleAnalyzeDeployedModel}>Analyze Deployed Model</button>
                 </div>
+                {models.length > 0 &&
+                    <div style={{display: 'flex', justifyContent: 'flex-end'}}>
+                        <button onClick={handleDownload}>Download Results</button>
+                    </div>
+                }
                 <Table data={models}
                        headers={headers}
                        sorts={sorts}
