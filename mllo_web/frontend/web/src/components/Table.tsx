@@ -1,10 +1,11 @@
-import React from 'react';
+import React, {ReactNode} from 'react';
 import {ArrowDownIcon, ArrowUpIcon} from './Icons.tsx';
 import './styles/table.css';
 
 interface TableProps {
     data: any[]; // Assuming any data type for now
     headers: string[];
+    mapItemToRow?: (header: string, value: any) => ReactNode;
     sorts: { key: string; direction: 'asc' | 'desc' | null }[];
     currentSorts: { key: string; direction: 'asc' | 'desc' | null }[];
     onSort: (sorts: { key: string; direction: 'desc' | 'asc' | null }[]) => void;
@@ -13,7 +14,7 @@ interface TableProps {
 }
 
 const Table: React.FC<TableProps> = ({
-                                         data, headers,
+                                         data, headers, mapItemToRow,
                                          sorts, currentSorts,
                                          onSort, onRemoveSort,
                                          message
@@ -87,7 +88,7 @@ const Table: React.FC<TableProps> = ({
                     <tr key={index}>
                         {Object.keys(row).map((key, i) => (
                             <td key={i}>
-                                {row[key]}
+                                {(mapItemToRow !== undefined) ? mapItemToRow(headers[i], row[key]) : row[key]}
                             </td>
                         ))}
                     </tr>

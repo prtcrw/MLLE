@@ -1,12 +1,12 @@
 import React, {useState} from 'react';
-import {useNavigate} from 'react-router-dom';
+import {Link, useNavigate} from 'react-router-dom';
 import {buildV1Url, downloadFromResponse} from '../../services/api';
 import LoadingBar from '../../components/LoadingBar.tsx';
 import ErrorMessage from '../../components/ErrorMessage.tsx';
 import Search from '../../components/Search.tsx';
 import Table from '../../components/Table.tsx';
 import Pagination from '../../components/Pagination.tsx';
-import ToggleSwitch from '../../components/toggleSwitch';
+import ToggleSwitch from '../../components/ToggleSwitch.tsx';
 import {DownloadIcon} from '../../components/Icons.tsx';
 
 interface PipelineData {
@@ -37,7 +37,6 @@ const FindPipelines: React.FC = () => {
     const [message, setMessage] = useState('');
     const [error, setError] = useState<string | null>(null);
     const navigate = useNavigate(); // Access useNavigate hook
-
 
     const fetchData = async (searchTerm: string,
                             currentPage: number,
@@ -155,12 +154,19 @@ const FindPipelines: React.FC = () => {
                     </div>
                 }
                 <Table data={pipelines}
-                    headers={headers}
-                    sorts={sorts}
-                    currentSorts={currentSorts}
-                    onSort={handleSort}
-                    onRemoveSort={handleRemoveSort}
-                    message={message} />
+                       headers={headers}
+                       mapItemToRow={(header, value) => {
+                           if (header === "Pipeline Name") {
+                               return <Link to={`/pipelines/edit-pipeline?pipeline-name=${value}`}>{value}</Link>;
+                           } else {
+                               return (value);
+                           }
+                       }}
+                       sorts={sorts}
+                       currentSorts={currentSorts}
+                       onSort={handleSort}
+                       onRemoveSort={handleRemoveSort}
+                       message={message}/>
                 <Pagination
                     currentPage={currentPage}
                     totalPages={totalPages}
