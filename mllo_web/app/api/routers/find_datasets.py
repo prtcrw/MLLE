@@ -15,7 +15,7 @@ PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
 PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
 PREFIX bfo: <http://purl.obolibrary.org/obo/>
 PREFIX iof-core: <https://spec.industrialontologies.org/ontology/core/Core/>
-SELECT 
+SELECT DISTINCT
     (STRAFTER(STR(?dataset), "#") AS ?dataset_name)
     ?dataset_used_as
     ?ml_input_timestamp

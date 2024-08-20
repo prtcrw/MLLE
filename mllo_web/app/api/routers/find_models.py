@@ -15,34 +15,42 @@ PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
 PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
 PREFIX bfo: <http://purl.obolibrary.org/obo/>
 PREFIX iof-core: <https://spec.industrialontologies.org/ontology/core/Core/>
-select 
+SELECT DISTINCT 
     (STRAFTER(STR(?model), "#" ) AS ?model_name) 
     ?model_type 
     ?model_performance_metric 
     ?model_performance_value 
     ?model_objective 
     ?data_preprocessing_pipeline 
-    ?ml_input_timestamp ?dataset_used_as where { 
+    ?ml_input_timestamp 
+    ?dataset_used_as 
+WHERE { 
     ?dataset rdf:type/rdfs:subClassOf* <http://purl.obolibrary.org/obo/IAO_0000100>;
-     rdf:type/rdfs:label ?dataset_used_as.
+    rdf:type/rdfs:label ?dataset_used_as.
     VALUES ?dataset {#target_dataset_iri}
     ?ml_process ml:hasDataInput ?dataset.
     ?ml_process ml:executes ?model.
-    OPTIONAL{?ml_process bfo:BFO_0000222/iof-core:hasValueExpressionAtAllTimes/iof-core:hasDateTimeValue ?ml_input_timestamp}
+    OPTIONAL {
+        ?ml_process bfo:BFO_0000222/iof-core:hasValueExpressionAtAllTimes/iof-core:hasDateTimeValue ?ml_input_timestamp
+    }
     ?model rdf:type ?model_type_iri.
     ?model bfo:BFO_0000178 ?model_objective.
     ?model_objective rdf:type/rdfs:subClassOf+ iof-core:ObjectiveSpecification.
     ?model_type_iri rdfs:subClassOf+ ml:MachineLearningModel.
     ?model_type_iri rdfs:label ?model_type.
-    OPTIONAL{?ml_process (ml:hasDataOutput/^ml:hasDataInput)+ ?model_performance_assesment.
-     ?model_performance_assesment bfo:BFO_0000059 ?model_performance_metric_iri.
-     ?model_performance_assesment rdf:type/rdfs:subClassOf+ ml:ModelPerformanceAssessment.
-	?model_performance_metric_iri rdf:type ?model_performance_metric_type.
-    ?model_performance_metric_type rdfs:subClassOf+ ml:PerformanceMetric.
-    ?model_performance_metric_type rdfs:label ?model_performance_metric.
-    ?model_performance_assesment ml:hasDataOutput/iof-core:hasSimpleExpressionValue ?model_performance_value}
-    OPTIONAL{?data_preprocessing_pipeline ml:hasDataOutput ?dataset.
-    		?data_preprocessing_pipeline rdf:type ml:MachineLearningDataPreparationPipeline}
+    OPTIONAL {
+        ?ml_process (ml:hasDataOutput/^ml:hasDataInput)+ ?model_performance_assessment.
+        ?model_performance_assessment bfo:BFO_0000059 ?model_performance_metric_iri.
+        ?model_performance_assessment rdf:type/rdfs:subClassOf+ ml:ModelPerformanceAssessment.
+        ?model_performance_metric_iri rdf:type ?model_performance_metric_type.
+        ?model_performance_metric_type rdfs:subClassOf+ ml:PerformanceMetric.
+        ?model_performance_metric_type rdfs:label ?model_performance_metric.
+        ?model_performance_assessment ml:hasDataOutput/iof-core:hasSimpleExpressionValue ?model_performance_value
+    }
+    OPTIONAL {
+        ?data_preprocessing_pipeline ml:hasDataOutput ?dataset.
+        ?data_preprocessing_pipeline rdf:type ml:MachineLearningDataPreparationPipeline
+    }
 }
 """
 
@@ -63,7 +71,6 @@ class FindModelsQueryBuilder(QueryBuilder):
         self.specific_IRI = specific_IRI
 
     def build_query(self) -> str:
-
         if not self.search_term:
             print(0)
             return QUERY.replace("VALUES ?dataset {#target_dataset_iri}", "")
@@ -80,7 +87,7 @@ class FindModelsQueryBuilder(QueryBuilder):
 @router.get("/")  # Define a GET endpoint for "/models"
 async def get_models(request: Request,
                      search_term: str = Query(default=None, description="Search term"),
-                     specific_IRI=Query(default=None, description="Specific IRI"),
+                     specific_IRI: str = Query(default=None, description="Specific IRI"),
                      page: int = Query(default=1, description="Page number"),
                      items_per_page: int = Query(default=10, description="Number of models to return per page"),
                      sort: Optional[List[str]] = Query(default=None,
