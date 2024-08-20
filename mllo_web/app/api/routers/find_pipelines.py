@@ -4,8 +4,8 @@ from typing import Optional, List
 from fastapi import APIRouter, Request, Query
 from fastapi.responses import Response, JSONResponse, StreamingResponse
 
-from mllo_web.app.api.routers.utilities import parse_sort_params, generate_csv_response
-from mllo_web.app.api.services.sparql_client import QueryBuilder
+from mllo_web.app.api.routers.utilities import generate_csv_response
+from mllo_web.app.api.services.sparql_client import QueryBuilder, TotalRecordsQueryBuilder, PaginationQueryBuilder
 
 router = APIRouter(prefix="/v1/pipelines", tags=["pipelines"])
 
@@ -71,39 +71,31 @@ class FindPipelinesQueryBuilder(QueryBuilder):
 
     def __init__(self,
                  search_term: str,
-                 page: int,
-                 items_per_page: int,
-                 sort: Optional[List[str]],
-                 toggle_constraint: bool, ):
+                 toggle_constraint: bool):
 
-        self.search_term = search_term.strip
-        self.page = page
-        self.items_per_page = items_per_page
-        self.sort = parse_sort_params(sort)
-        self.pipeline_constraint = search_term
+        self.search_term = search_term.strip() if len(search_term) > 0 else None
+        self.pipeline_constraint = self.search_term
         self.toggle_constraint = toggle_constraint
 
     def build_query(self) -> str:
         query = QUERY
 
-        if self.pipeline_constraint == "":
-            return query
-
-        # select model constraint
-        # self.pipeline_constraint = MachineLearningModel1
-        if self.toggle_constraint == False:  # select model constraint
-            replacement_string_for_model_association = "FILTER EXISTS{{?pipeline bfo:BFO_0000117*/(bfo:BFO_0000057 | ml:executes) ?model}\nUNION\n{?pipeline bfo:BFO_0000063+/(bfo:BFO_0000057 | ml:executes) ?model}}\n"
-            replacement_string_for_specific_model = "?model rdf:type/rdfs:subClassOf* ml:MachineLearningModel.\n" + "FILTER(STRAFTER(STR(?model),\"#\")=" + "\"" + self.pipeline_constraint + "\")\n"
-            return query.replace("#dataset_or_ml_filter",
-                                 replacement_string_for_specific_model + replacement_string_for_model_association)
-
-        # select dataset constraint
-        # self.pipeline_constraint = RawDataSet1
-        if self.toggle_constraint == True:  # select dataset constraint
+        if self.toggle_constraint:
             replacement_string_for_dataset_association = "FILTER EXISTS{?pipeline ml:hasDataInput| ml:hasDataOutput ?dataset}\n"
-            replacement_string_for_specific_dataset = "?dataset rdf:type/rdfs:subClassOf* <http://purl.obolibrary.org/obo/IAO_0000100>.\n" + "FILTER(STRAFTER(STR(?dataset),\"#\")=" + "\"" + self.pipeline_constraint + "\")\n"
-        return query.replace("#dataset_or_ml_filter",
-                             replacement_string_for_specific_dataset + replacement_string_for_dataset_association)
+            replacement_string_for_specific_dataset = "?dataset rdf:type/rdfs:subClassOf* <http://purl.obolibrary.org/obo/IAO_0000100>.\n"
+            if self.pipeline_constraint is not None and len(self.pipeline_constraint) > 0:
+                replacement_string_for_specific_dataset += "FILTER(STRAFTER(STR(?dataset),\"#\")=" + "\"" + self.pipeline_constraint + "\")\n"
+            query = query.replace("#dataset_or_ml_filter",
+                                  replacement_string_for_specific_dataset + replacement_string_for_dataset_association)
+        else:
+            replacement_string_for_model_association = "FILTER EXISTS{{?pipeline bfo:BFO_0000117*/(bfo:BFO_0000057 | ml:executes) ?model}\nUNION\n{?pipeline bfo:BFO_0000063+/(bfo:BFO_0000057 | ml:executes) ?model}}\n"
+            replacement_string_for_specific_model = "?model rdf:type/rdfs:subClassOf* ml:MachineLearningModel.\n"
+            if self.pipeline_constraint is not None and len(self.pipeline_constraint) > 0:
+                replacement_string_for_specific_model += "FILTER(STRAFTER(STR(?model),\"#\")=" + "\"" + self.pipeline_constraint + "\")\n"
+            query = query.replace("#dataset_or_ml_filter",
+                                  replacement_string_for_specific_model + replacement_string_for_model_association)
+
+        return query
 
 
 @router.get("/")  # Define a GET endpoint for "/pipelines"
@@ -116,34 +108,31 @@ async def get_pipelines(request: Request,
                                                           description="Sort criteria (e.g., [dataset_name,asc,dataset_used_as,desc])"),
                         format: str = Query(default="json", description="Output format (json or csv)")) -> Response:
     app = request.app
-    pipelines = app.sparql_client.query(
-        FindPipelinesQueryBuilder(search_term,
-                                  page=page,
-                                  items_per_page=items_per_page,
-                                  sort=sort,
-                                  toggle_constraint=toggle_constraint).build_query())
+    query_builder = FindPipelinesQueryBuilder(search_term, toggle_constraint=toggle_constraint)
 
     if format == 'json':
-        # Calculate total pages based on results and page size
-        total_pages = math.ceil(len(pipelines) / items_per_page) if len(pipelines) > 0 else 0
+        total_records = int(
+            app.sparql_client.query(TotalRecordsQueryBuilder(query_builder).build_query())[0]['total_records'])
 
-        # Slice data based on page and results per page
-        start_index = (page - 1) * items_per_page
-        end_index = start_index + items_per_page
-        displayed_pipelines = pipelines[start_index:end_index]
+        # Calculate total pages based on results and page size
+        total_pages = math.ceil(total_records / items_per_page) if total_records > 0 else 0
+        pipelines = app.sparql_client.query(
+            PaginationQueryBuilder(query_builder, page=page, items_per_page=items_per_page, sort=sort).build_query())
 
         # Process data for JSON response
-        for pipeline in displayed_pipelines:
+        for pipeline in pipelines:
             # Split pipeline_components by semicolon, remove leading/trailing whitespaces
             if len(pipeline['pipeline_components']) > 0:
                 pipeline['pipeline_components'] = [component.strip() for component in
                                                    pipeline['pipeline_components'].split(';')]
 
         return JSONResponse({
-            "data": displayed_pipelines,
+            "data": pipelines,
             "total_pages": total_pages,
         })
     elif format == 'csv':
+        pipelines = app.sparql_client.query(query_builder.build_query())
+
         return StreamingResponse(
             generate_csv_response(
                 header=['pipeline_name', 'pipeline_type', 'pipeline_components', 'pipeline_data_input',

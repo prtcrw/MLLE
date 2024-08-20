@@ -4,8 +4,8 @@ from typing import Optional, List
 from fastapi import APIRouter, Request, Query
 from fastapi.responses import StreamingResponse, Response, JSONResponse
 
-from mllo_web.app.api.routers.utilities import parse_sort_params, generate_csv_response
-from mllo_web.app.api.services.sparql_client import QueryBuilder
+from mllo_web.app.api.routers.utilities import generate_csv_response
+from mllo_web.app.api.services.sparql_client import QueryBuilder, TotalRecordsQueryBuilder, PaginationQueryBuilder
 
 router = APIRouter(prefix="/v1/datasets", tags=["datasets"])
 
@@ -96,15 +96,13 @@ WHERE {
 
 class FindDatasetsQueryBuilder(QueryBuilder):
 
-    def __init__(self, search_term: str, page: int, items_per_page: int, sort: Optional[List[str]]):
+    def __init__(self, search_term: str):
         self.search_term = search_term
-        self.page = page
-        self.items_per_page = items_per_page
-        self.sort = parse_sort_params(sort)
 
     def build_query(self) -> str:
-        # TODO: Handle 'search_term', 'page', 'items_per_page', and 'sort'
-        return QUERY
+        query = QUERY
+        # TODO: Handle 'search_term'
+        return query
 
 
 @router.get("/")  # Define a GET endpoint for "/datasets"
@@ -116,30 +114,31 @@ async def get_datasets(request: Request,
                                                          description="Sort criteria (e.g., [dataset_name,asc,dataset_used_as,desc])"),
                        format: str = Query(default="json", description="Output format (json or csv)")) -> Response:
     app = request.app
-    datasets = app.sparql_client.query(
-        FindDatasetsQueryBuilder(search_term, page=page, items_per_page=items_per_page, sort=sort).build_query())
+    query_builder = FindDatasetsQueryBuilder(search_term)
 
     if format == 'json':
-        # Calculate total pages based on results and page size
-        total_pages = math.ceil(len(datasets) / items_per_page) if len(datasets) > 0 else 0
+        total_records = int(
+            app.sparql_client.query(TotalRecordsQueryBuilder(query_builder).build_query())[0]['total_records'])
 
-        # Slice data based on page and results per page
-        start_index = (page - 1) * items_per_page
-        end_index = start_index + items_per_page
-        displayed_datasets = datasets[start_index:end_index]
+        # Calculate total pages based on results and page size
+        total_pages = math.ceil(total_records / items_per_page) if total_records > 0 else 0
+        datasets = app.sparql_client.query(
+            PaginationQueryBuilder(query_builder, page=page, items_per_page=items_per_page, sort=sort).build_query())
 
         # Process data for JSON response
-        for dataset in displayed_datasets:
+        for dataset in datasets:
             # Split dataset_characteristics by semicolon, remove leading/trailing whitespaces
             if len(dataset['dataset_characteristics']) > 0:
                 dataset['dataset_characteristics'] = [component.strip() for component in
                                                       dataset['dataset_characteristics'].split(';')]
 
         return JSONResponse({
-            "data": displayed_datasets,
+            "data": datasets,
             "total_pages": total_pages,
         })
     elif format == 'csv':
+        datasets = app.sparql_client.query(query_builder.build_query())
+
         return StreamingResponse(
             generate_csv_response(header=['dataset_name', 'dataset_used_as', 'ml_input_timestamp', 'dataset_shape',
                                           'dataset_characteristics', 'dataset_source', 'model_type', 'model_output',

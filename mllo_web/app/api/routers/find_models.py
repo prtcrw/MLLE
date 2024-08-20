@@ -4,8 +4,8 @@ from typing import Optional, List
 from fastapi import APIRouter, Request, Query
 from fastapi.responses import Response, JSONResponse, StreamingResponse
 
-from mllo_web.app.api.routers.utilities import parse_sort_params, generate_csv_response
-from mllo_web.app.api.services.sparql_client import QueryBuilder
+from mllo_web.app.api.routers.utilities import generate_csv_response
+from mllo_web.app.api.services.sparql_client import QueryBuilder, TotalRecordsQueryBuilder, PaginationQueryBuilder
 
 router = APIRouter(prefix="/v1/models", tags=["models"])
 
@@ -59,29 +59,26 @@ class FindModelsQueryBuilder(QueryBuilder):
 
     def __init__(self,
                  search_term: str,
-                 page: int,
-                 items_per_page: int,
-                 sort: Optional[List[str]],
                  specific_IRI=None):
 
         self.search_term = search_term
-        self.page = page
-        self.items_per_page = items_per_page
-        self.sort = parse_sort_params(sort)
         self.specific_IRI = specific_IRI
 
     def build_query(self) -> str:
+        query = QUERY
+
         if not self.search_term:
-            print(0)
-            return QUERY.replace("VALUES ?dataset {#target_dataset_iri}", "")
+            query = query.replace("VALUES ?dataset {#target_dataset_iri}", "")
 
         else:
             if self.specific_IRI != None:
-                return QUERY.replace("#target_dataset_iri", self.specific_IRI + self.search_term)
+                query = query.replace("#target_dataset_iri", self.specific_IRI + self.search_term)
             else:
                 self.search_term = "\"" + self.search_term + "\")"
-                return QUERY.replace("VALUES ?dataset {#target_dataset_iri}",
-                                     f"FILTER(STRAFTER(STR(?dataset),\"#\")={self.search_term}")
+                query = query.replace("VALUES ?dataset {#target_dataset_iri}",
+                                      f"FILTER(STRAFTER(STR(?dataset),\"#\")={self.search_term}")
+
+        return query
 
 
 @router.get("/")  # Define a GET endpoint for "/models"
@@ -94,26 +91,24 @@ async def get_models(request: Request,
                                                        description="Sort criteria (e.g., [dataset_name,asc,dataset_used_as,desc])"),
                      format: str = Query(default="json", description="Output format (json or csv)")) -> Response:
     app = request.app
-    models = app.sparql_client.query(
-        FindModelsQueryBuilder(search_term,
-                               page=page,
-                               items_per_page=items_per_page,
-                               sort=sort,
-                               specific_IRI=specific_IRI).build_query())
-    if format == 'json':
-        # Calculate total pages based on results and page size
-        total_pages = math.ceil(len(models) / items_per_page) if len(models) > 0 else 0
+    query_builder = FindModelsQueryBuilder(search_term, specific_IRI=specific_IRI)
 
-        # Slice data based on page and results per page
-        start_index = (page - 1) * items_per_page
-        end_index = start_index + items_per_page
-        displayed_datasets = models[start_index:end_index]
+    if format == 'json':
+        total_records = int(
+            app.sparql_client.query(TotalRecordsQueryBuilder(query_builder).build_query())[0]['total_records'])
+
+        # Calculate total pages based on results and page size
+        total_pages = math.ceil(total_records / items_per_page) if total_records > 0 else 0
+        models = app.sparql_client.query(
+            PaginationQueryBuilder(query_builder, page=page, items_per_page=items_per_page, sort=sort).build_query())
 
         return JSONResponse({
-            "data": displayed_datasets,
+            "data": models,
             "total_pages": total_pages,
         })
     elif format == 'csv':
+        models = app.sparql_client.query(query_builder.build_query())
+
         return StreamingResponse(
             generate_csv_response(
                 header=['model_name', 'model_type', 'model_performance_metric', 'model_performance_value',
