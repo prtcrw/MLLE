@@ -33,7 +33,7 @@ WHERE {
             ?dataset
             ?model
             ?ml_process
-            (GROUP_CONCAT(?dataset_characteristic; separator= ";") AS ?dataset_characteristics)
+            (GROUP_CONCAT(?dataset_characteristic; separator=";") AS ?dataset_characteristics)
         WHERE {
             ?model rdf:type/rdfs:subClassOf ml:ArtificialNeuralNetwork.
             ?ml_process ml:hasDataInput ?dataset.
@@ -127,6 +127,13 @@ async def get_datasets(request: Request,
         start_index = (page - 1) * items_per_page
         end_index = start_index + items_per_page
         displayed_datasets = datasets[start_index:end_index]
+
+        # Process data for JSON response
+        for dataset in displayed_datasets:
+            # Split dataset_characteristics by semicolon, remove leading/trailing whitespaces
+            if len(dataset['dataset_characteristics']) > 0:
+                dataset['dataset_characteristics'] = [component.strip() for component in
+                                                      dataset['dataset_characteristics'].split(';')]
 
         return JSONResponse({
             "data": displayed_datasets,

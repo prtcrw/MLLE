@@ -16,14 +16,14 @@ PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
 PREFIX bfo: <http://purl.obolibrary.org/obo/>
 PREFIX iof-core: <https://spec.industrialontologies.org/ontology/core/Core/>
 SELECT DISTINCT 
-    (STRAFTER(STR(?model), "#" ) AS ?model_name) 
+    (STRAFTER(STR(?model), "#") AS ?model_name) 
     ?model_type 
     ?model_performance_metric 
     ?model_performance_value 
     ?model_objective 
     ?data_preprocessing_pipeline 
     ?ml_input_timestamp 
-    ?dataset_used_as 
+    ?dataset_used_as
 WHERE { 
     ?dataset rdf:type/rdfs:subClassOf* <http://purl.obolibrary.org/obo/IAO_0000100>;
     rdf:type/rdfs:label ?dataset_used_as.

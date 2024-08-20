@@ -19,14 +19,14 @@ SELECT DISTINCT
     (STRAFTER(STR(?pipeline), "#") AS ?pipeline_name)
     ?pipeline_type
     ?pipeline_components
-    STRAFTER(STR(?pipeline_data_input_iri), "#") AS ?pipeline_data_input)
+    (STRAFTER(STR(?pipeline_data_input_iri), "#") AS ?pipeline_data_input)
     (STRAFTER(STR(?pipeline_associated_model_iri), "#") AS ?pipeline_associated_model) 
 WHERE { 
     {
         SELECT 
             ?pipeline 
             ?pipeline_type 
-            (GROUP_CONCAT(?pipeline_component_label;separator=" ; ") as ?pipeline_components)
+            (GROUP_CONCAT(?pipeline_component_label; separator=";") AS ?pipeline_components)
         WHERE {
 	        ?pipeline rdf:type ?pipeline_type_iri.
             {
@@ -35,7 +35,7 @@ WHERE {
             }
             UNION
             {
-                VALUES ?pipeline_type_iri { ml:MachineLearningModelDevelopmentPipeline}
+                VALUES ?pipeline_type_iri { ml:MachineLearningModelDevelopmentPipeline }
                 ?pipeline rdf:type ?pipeline_type_iri.
                 ?pipeline_type_iri rdfs:label ?pipeline_type
             }
@@ -69,13 +69,13 @@ WHERE {
 
 class FindPipelinesQueryBuilder(QueryBuilder):
 
-    def __init__(self, 
-                 search_term: str, 
-                 page: int, 
+    def __init__(self,
+                 search_term: str,
+                 page: int,
                  items_per_page: int,
                  sort: Optional[List[str]],
-                 toggle_constraint: bool,):
-        
+                 toggle_constraint: bool, ):
+
         self.search_term = search_term.strip
         self.page = page
         self.items_per_page = items_per_page
@@ -88,20 +88,22 @@ class FindPipelinesQueryBuilder(QueryBuilder):
 
         if self.pipeline_constraint == "":
             return query
-        
+
         # select model constraint
         # self.pipeline_constraint = MachineLearningModel1
-        if self.toggle_constraint == False: #select model constraint
-            replacement_string_for_model_association=  "FILTER EXISTS{{?pipeline bfo:BFO_0000117*/(bfo:BFO_0000057 | ml:executes) ?model}\nUNION\n{?pipeline bfo:BFO_0000063+/(bfo:BFO_0000057 | ml:executes) ?model}}\n"
-            replacement_string_for_specific_model = "?model rdf:type/rdfs:subClassOf* ml:MachineLearningModel.\n" +"FILTER(STRAFTER(STR(?model),\"#\")="+ "\""+ self.pipeline_constraint+ "\")\n"
-            return query.replace("#dataset_or_ml_filter",replacement_string_for_specific_model+replacement_string_for_model_association)
+        if self.toggle_constraint == False:  # select model constraint
+            replacement_string_for_model_association = "FILTER EXISTS{{?pipeline bfo:BFO_0000117*/(bfo:BFO_0000057 | ml:executes) ?model}\nUNION\n{?pipeline bfo:BFO_0000063+/(bfo:BFO_0000057 | ml:executes) ?model}}\n"
+            replacement_string_for_specific_model = "?model rdf:type/rdfs:subClassOf* ml:MachineLearningModel.\n" + "FILTER(STRAFTER(STR(?model),\"#\")=" + "\"" + self.pipeline_constraint + "\")\n"
+            return query.replace("#dataset_or_ml_filter",
+                                 replacement_string_for_specific_model + replacement_string_for_model_association)
 
-        #select dataset constraint
+        # select dataset constraint
         # self.pipeline_constraint = RawDataSet1
-        if self.toggle_constraint == True: #select dataset constraint
+        if self.toggle_constraint == True:  # select dataset constraint
             replacement_string_for_dataset_association = "FILTER EXISTS{?pipeline ml:hasDataInput| ml:hasDataOutput ?dataset}\n"
-            replacement_string_for_specific_dataset = "?dataset rdf:type/rdfs:subClassOf* <http://purl.obolibrary.org/obo/IAO_0000100>.\n" + "FILTER(STRAFTER(STR(?dataset),\"#\")="+ "\""+ self.pipeline_constraint+ "\")\n"
-        return query.replace("#dataset_or_ml_filter",replacement_string_for_specific_dataset+replacement_string_for_dataset_association)
+            replacement_string_for_specific_dataset = "?dataset rdf:type/rdfs:subClassOf* <http://purl.obolibrary.org/obo/IAO_0000100>.\n" + "FILTER(STRAFTER(STR(?dataset),\"#\")=" + "\"" + self.pipeline_constraint + "\")\n"
+        return query.replace("#dataset_or_ml_filter",
+                             replacement_string_for_specific_dataset + replacement_string_for_dataset_association)
 
 
 @router.get("/")  # Define a GET endpoint for "/pipelines"
@@ -114,11 +116,10 @@ async def get_pipelines(request: Request,
                                                           description="Sort criteria (e.g., [dataset_name,asc,dataset_used_as,desc])"),
                         format: str = Query(default="json", description="Output format (json or csv)")) -> Response:
     app = request.app
-    print(toggle_constraint)
     pipelines = app.sparql_client.query(
-        FindPipelinesQueryBuilder(search_term, 
-                                  page=page, 
-                                  items_per_page=items_per_page, 
+        FindPipelinesQueryBuilder(search_term,
+                                  page=page,
+                                  items_per_page=items_per_page,
                                   sort=sort,
                                   toggle_constraint=toggle_constraint).build_query())
 
@@ -129,10 +130,17 @@ async def get_pipelines(request: Request,
         # Slice data based on page and results per page
         start_index = (page - 1) * items_per_page
         end_index = start_index + items_per_page
-        displayed_datasets = pipelines[start_index:end_index]
+        displayed_pipelines = pipelines[start_index:end_index]
+
+        # Process data for JSON response
+        for pipeline in displayed_pipelines:
+            # Split pipeline_components by semicolon, remove leading/trailing whitespaces
+            if len(pipeline['pipeline_components']) > 0:
+                pipeline['pipeline_components'] = [component.strip() for component in
+                                                   pipeline['pipeline_components'].split(';')]
 
         return JSONResponse({
-            "data": displayed_datasets,
+            "data": displayed_pipelines,
             "total_pages": total_pages,
         })
     elif format == 'csv':

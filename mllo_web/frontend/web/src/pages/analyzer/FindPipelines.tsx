@@ -12,7 +12,7 @@ import {DownloadIcon} from '../../components/Icons.tsx';
 interface PipelineData {
     pipelineName: string;
     pipelineType: string;
-    pipelineStructure: string;
+    pipelineComponents: string[];
     pipelineDataInput: string;
     pipelineAssociatedModel: string;
 }
@@ -27,7 +27,7 @@ const FindPipelines: React.FC = () => {
     const sorts = [
         {key: "Pipeline Name", direction: null},
         {key: "Pipeline Type", direction: null},
-        {key: "Pipeline Structure", direction: null},
+        {key: "Pipeline Components", direction: null},
         {key: "Pipeline Data Input", direction: null},
         {key: "Pipeline Associated Model", direction: null},
     ];
@@ -126,6 +126,16 @@ const FindPipelines: React.FC = () => {
         navigate('/pipelines/edit-pipeline');
     };
 
+    const mapItemToRow = (header: string, value: any) => {
+        if (header === "Pipeline Name") {
+            return <Link to={`/pipelines/edit-pipeline?pipeline-name=${value}`}>{value}</Link>;
+        } else if (header === "Pipeline Components") {
+            return (value) ? value.join('; ') : '';
+        } else {
+            return value;
+        }
+    };
+
     return (
         <div>
             <LoadingBar isLoading={isLoading} />
@@ -155,13 +165,7 @@ const FindPipelines: React.FC = () => {
                 }
                 <Table data={pipelines}
                        headers={headers}
-                       mapItemToRow={(header, value) => {
-                           if (header === "Pipeline Name") {
-                               return <Link to={`/pipelines/edit-pipeline?pipeline-name=${value}`}>{value}</Link>;
-                           } else {
-                               return (value);
-                           }
-                       }}
+                       mapItemToRow={mapItemToRow}
                        sorts={sorts}
                        currentSorts={currentSorts}
                        onSort={handleSort}

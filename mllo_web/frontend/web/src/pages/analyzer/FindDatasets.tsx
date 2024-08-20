@@ -14,7 +14,7 @@ interface DatasetData {
     datasetUsedAs: string;
     mlInputTimestamp: string;
     datasetShape: string;
-    datasetCharacteristics: string;
+    datasetCharacteristics: string[];
     datasetSource: string;
     modelType: string;
     modelOutput: string;
@@ -142,6 +142,14 @@ const FindDatasets: React.FC = () => {
         navigate('/datasets/plot-performance');
     };
 
+    const mapItemToRow = (header: string, value: any) => {
+        if (header === "Dataset Characteristics") {
+            return (value) ? value.join('; ') : '';
+        } else {
+            return value;
+        }
+    };
+
     return (
         <div>
             <LoadingBar isLoading={isLoading}/>
@@ -168,6 +176,7 @@ const FindDatasets: React.FC = () => {
                 }
                 <Table data={datasets}
                        headers={headers}
+                       mapItemToRow={mapItemToRow}
                        sorts={sorts}
                        currentSorts={currentSorts}
                        onSort={handleSort}
