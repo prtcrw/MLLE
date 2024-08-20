@@ -1,12 +1,10 @@
 import contextlib
 import re
 from abc import ABC, abstractmethod
-from typing import Optional, List
 
 import requests
 
 from mllo_web.app.api.config import AppConfig
-from mllo_web.app.api.routers.utilities import parse_sort_params
 
 
 class QueryBuilder(ABC):
@@ -29,22 +27,20 @@ class TotalRecordsQueryBuilder(QueryBuilder):
 
 class PaginationQueryBuilder(QueryBuilder):
 
-    def __init__(self, delegate: QueryBuilder, page: int, items_per_page: int, sort: Optional[List[str]]):
+    def __init__(self, delegate: QueryBuilder, page: int, items_per_page: int):
         self.delegate = delegate
         self.page = page
         self.items_per_page = items_per_page
-        self.sort = parse_sort_params(sort)
 
     def build_query(self) -> str:
         query = self.delegate.build_query()
-
-        # TODO: Handle 'sort'
 
         limit = self.items_per_page
         offset = (self.page - 1) * self.items_per_page
 
         query = query + f' LIMIT {limit} OFFSET {offset}'
 
+        print(query)
         return query
 
 

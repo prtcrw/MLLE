@@ -4,7 +4,7 @@ import {buildV1Url, downloadFromResponse} from '../../services/api';
 import LoadingBar from '../../components/LoadingBar.tsx';
 import ErrorMessage from '../../components/ErrorMessage.tsx';
 import Search from '../../components/Search.tsx';
-import Table from '../../components/Table.tsx';
+import Table, {SortDirection} from '../../components/Table.tsx';
 import Pagination from '../../components/Pagination.tsx';
 import {DownloadIcon} from '../../components/Icons.tsx';
 import FindModelsFilter from './FindModelsFilter.tsx';
@@ -29,7 +29,7 @@ const FindModels: React.FC = () => {
     const [totalPages, setTotalPages] = useState(0);
     const [itemsPerPage, setItemsPerPage] = useState(10);
     const sorts = [
-        {key: "Model Name", direction: null},
+        {key: "Model Name", direction: 'asc'},
         {key: "Model Type", direction: null},
         {key: "Model Performance Metric", direction: null},
         {key: "Model Performance Value", direction: null},
@@ -39,7 +39,8 @@ const FindModels: React.FC = () => {
         {key: "Dataset Used For", direction: null},
     ];
     const headers = sorts.map(sort => sort.key);
-    const [currentSorts, setCurrentSorts] = useState<{ key: string; direction: 'asc' | 'desc' | null }[]>([]);
+    const filteredSorts = sorts.filter(sort => sort.direction !== null);
+    const [currentSorts, setCurrentSorts] = useState<{ key: string; direction: SortDirection }[]>(filteredSorts);
     const [isLoading, setIsLoading] = useState(false);
     const [message, setMessage] = useState('');
     const [error, setError] = useState<string | null>(null);
@@ -49,7 +50,7 @@ const FindModels: React.FC = () => {
     const fetchData = async (searchTerm: string,
                              currentPage: number,
                              itemsPerPage: number,
-                             sorts: { key: string; direction: 'asc' | 'desc' | null }[],
+                             sorts: { key: string; direction: SortDirection }[],
                              format: string = '') => {
         setIsLoading(true); // Set loading to true
         try {
@@ -57,7 +58,7 @@ const FindModels: React.FC = () => {
                 search_term: searchTerm,
                 page: currentPage.toString(),
                 items_per_page: itemsPerPage.toString(),
-                
+
             });
 
             // Add sorts as query params
@@ -120,7 +121,7 @@ const FindModels: React.FC = () => {
         await fetchData(searchTerm, page, itemsPerPage, currentSorts);
     };
 
-    const handleSort = async (sorts: { key: string; direction: 'asc' | 'desc' | null }[]) => {
+    const handleSort = async (sorts: { key: string; direction: SortDirection }[]) => {
         setCurrentSorts(sorts);
         await fetchData(searchTerm, currentPage, itemsPerPage, sorts);
     }

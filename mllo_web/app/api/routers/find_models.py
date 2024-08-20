@@ -4,7 +4,7 @@ from typing import Optional, List
 from fastapi import APIRouter, Request, Query
 from fastapi.responses import Response, JSONResponse, StreamingResponse
 
-from mllo_web.app.api.routers.utilities import generate_csv_response
+from mllo_web.app.api.routers.utilities import generate_csv_response, to_order_by_string
 from mllo_web.app.api.services.sparql_client import QueryBuilder, TotalRecordsQueryBuilder, PaginationQueryBuilder
 
 router = APIRouter(prefix="/v1/models", tags=["models"])
@@ -56,13 +56,25 @@ WHERE {
 
 
 class FindModelsQueryBuilder(QueryBuilder):
+    SORT_KEY_MAPPING = {
+        "Model Name": "model_name",
+        "Model Type": "model_type",
+        "Model Performance Metric": "model_performance_metric",
+        "Model Performance Value": "model_performance_value",
+        "Model Objective": "model_objective",
+        "Data Preprocessing": "data_preprocessing_pipeline",
+        "ML Input Timestamp": "ml_input_timestamp",
+        "Dataset Used For": "dataset_used_as",
+    }
 
     def __init__(self,
                  search_term: str,
-                 specific_IRI=None):
+                 specific_IRI: str,
+                 sort: Optional[List[str]]):
 
         self.search_term = search_term
         self.specific_IRI = specific_IRI
+        self.sort_string = to_order_by_string(sort, self.SORT_KEY_MAPPING)
 
     def build_query(self) -> str:
         query = QUERY
@@ -78,6 +90,10 @@ class FindModelsQueryBuilder(QueryBuilder):
                 query = query.replace("VALUES ?dataset {#target_dataset_iri}",
                                       f"FILTER(STRAFTER(STR(?dataset),\"#\")={self.search_term}")
 
+        # Apply sort based on the mapping
+        if self.sort_string:
+            query += self.sort_string
+
         return query
 
 
@@ -91,7 +107,7 @@ async def get_models(request: Request,
                                                        description="Sort criteria (e.g., [dataset_name,asc,dataset_used_as,desc])"),
                      format: str = Query(default="json", description="Output format (json or csv)")) -> Response:
     app = request.app
-    query_builder = FindModelsQueryBuilder(search_term, specific_IRI=specific_IRI)
+    query_builder = FindModelsQueryBuilder(search_term, specific_IRI=specific_IRI, sort=sort)
 
     if format == 'json':
         total_records = int(
@@ -100,7 +116,7 @@ async def get_models(request: Request,
         # Calculate total pages based on results and page size
         total_pages = math.ceil(total_records / items_per_page) if total_records > 0 else 0
         models = app.sparql_client.query(
-            PaginationQueryBuilder(query_builder, page=page, items_per_page=items_per_page, sort=sort).build_query())
+            PaginationQueryBuilder(query_builder, page=page, items_per_page=items_per_page).build_query())
 
         return JSONResponse({
             "data": models,

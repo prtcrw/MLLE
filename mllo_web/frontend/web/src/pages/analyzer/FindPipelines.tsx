@@ -4,7 +4,7 @@ import {buildV1Url, downloadFromResponse} from '../../services/api';
 import LoadingBar from '../../components/LoadingBar.tsx';
 import ErrorMessage from '../../components/ErrorMessage.tsx';
 import Search from '../../components/Search.tsx';
-import Table from '../../components/Table.tsx';
+import Table, {SortDirection} from '../../components/Table.tsx';
 import Pagination from '../../components/Pagination.tsx';
 import ToggleSwitch from '../../components/ToggleSwitch.tsx';
 import {DownloadIcon} from '../../components/Icons.tsx';
@@ -25,26 +25,27 @@ const FindPipelines: React.FC = () => {
     const [totalPages, setTotalPages] = useState(0);
     const [itemsPerPage, setItemsPerPage] = useState(10);
     const sorts = [
-        {key: "Pipeline Name", direction: null},
+        {key: "Pipeline Name", direction: 'asc'},
         {key: "Pipeline Type", direction: null},
         {key: "Pipeline Components", direction: null},
         {key: "Pipeline Data Input", direction: null},
         {key: "Pipeline Associated Model", direction: null},
     ];
     const headers = sorts.map(sort => sort.key);
-    const [currentSorts, setCurrentSorts] = useState<{ key: string; direction: 'asc' | 'desc' | null }[]>([]);
+    const filteredSorts = sorts.filter(sort => sort.direction !== null);
+    const [currentSorts, setCurrentSorts] = useState<{ key: string; direction: SortDirection }[]>(filteredSorts);
     const [isLoading, setIsLoading] = useState(false);
     const [message, setMessage] = useState('');
     const [error, setError] = useState<string | null>(null);
     const navigate = useNavigate(); // Access useNavigate hook
 
     const fetchData = async (searchTerm: string,
-                            currentPage: number,
-                            itemsPerPage: number,
-                            sorts: { key: string; direction: 'asc' | 'desc' | null }[],
-                            toggleConstraint: boolean,
-                            format: string = '',) => {
-                            setIsLoading(true); // Set loading to true
+                             currentPage: number,
+                             itemsPerPage: number,
+                             sorts: { key: string; direction: SortDirection }[],
+                             toggleConstraint: boolean,
+                             format: string = '',) => {
+        setIsLoading(true); // Set loading to true
         try {
             const urlParams = new URLSearchParams({
                 search_term: searchTerm,
@@ -54,7 +55,7 @@ const FindPipelines: React.FC = () => {
             });
 
             // Add sorts as query params
-            for (const { key, direction } of sorts) {
+            for (const {key, direction} of sorts) {
                 urlParams.append('sort', `${key},${direction}`);
             }
 
@@ -103,7 +104,7 @@ const FindPipelines: React.FC = () => {
         await fetchData(searchTerm, page, itemsPerPage, currentSorts, toggleConstraint);
     };
 
-    const handleSort = async (sorts: { key: string; direction: 'asc' | 'desc' | null }[]) => {
+    const handleSort = async (sorts: { key: string; direction: SortDirection }[]) => {
         setCurrentSorts(sorts);
         await fetchData(searchTerm, currentPage, itemsPerPage, sorts, toggleConstraint);
     }
@@ -138,21 +139,21 @@ const FindPipelines: React.FC = () => {
 
     return (
         <div>
-            <LoadingBar isLoading={isLoading} />
+            <LoadingBar isLoading={isLoading}/>
             <h1>Find Pipelines</h1>
 
-            <div style={{ margin: '8px 0' }}>
-                <Search onSearch={handleSearch} placeholder={'Pipelines Constraint'} />
-                <div style={{ display: 'flex', alignItems: 'center' }}>
+            <div style={{margin: '8px 0'}}>
+                <Search onSearch={handleSearch} placeholder={'Pipelines Constraint'}/>
+                <div style={{display: 'flex', alignItems: 'center'}}>
                     <span className="toggle-label">Model Constraint</span>
-                    <ToggleSwitch isChecked={toggleConstraint} onToggle={handleToggleConstraint} />
+                    <ToggleSwitch isChecked={toggleConstraint} onToggle={handleToggleConstraint}/>
                     <span className="toggle-label">Dataset Constraint</span>
                 </div>
             </div>
             <div>
-                <div style={{ margin: '8px 0' }}>
+                <div style={{margin: '8px 0'}}>
                     <button onClick={handleComparePipelines}>Compare Pipelines</button>
-                    <button style={{ marginLeft: '4px' }} onClick={handleViewPipeline}>View Pipeline</button>
+                    <button style={{marginLeft: '4px'}} onClick={handleViewPipeline}>View Pipeline</button>
                 </div>
                 {pipelines.length > 0 &&
                     <div style={{display: 'flex', justifyContent: 'flex-end'}}>
@@ -177,7 +178,7 @@ const FindPipelines: React.FC = () => {
                     onPageChange={handlePageChange}
                 />
             </div>
-            {error && <ErrorMessage message={error} />}
+            {error && <ErrorMessage message={error}/>}
         </div>
     );
 };

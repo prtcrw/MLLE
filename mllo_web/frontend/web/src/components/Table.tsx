@@ -2,13 +2,15 @@ import React, {ReactNode} from 'react';
 import {ArrowDownIcon, ArrowUpIcon} from './Icons.tsx';
 import './styles/table.css';
 
+export type SortDirection = 'asc' | 'desc' | null;
+
 interface TableProps {
     data: any[]; // Assuming any data type for now
     headers: string[];
     mapItemToRow?: (header: string, value: any) => ReactNode;
-    sorts: { key: string; direction: 'asc' | 'desc' | null }[];
-    currentSorts: { key: string; direction: 'asc' | 'desc' | null }[];
-    onSort: (sorts: { key: string; direction: 'desc' | 'asc' | null }[]) => void;
+    sorts: { key: string; direction: SortDirection }[];
+    currentSorts: { key: string; direction: SortDirection }[];
+    onSort: (sorts: { key: string; direction: SortDirection }[]) => void;
     onRemoveSort: (key: string) => void;
     message?: string;
 }
@@ -60,7 +62,8 @@ const Table: React.FC<TableProps> = ({
                     <div key={sort.key} className="sort-item">
                         <span>{sort.key}</span>
                         <span className="sort-direction">{sort.direction === 'asc' ?
-                            <ArrowUpIcon width={12} height={12}/> : sort.direction === 'desc' ? <ArrowDownIcon width={12} height={12}/> : 'Unsorted'}</span>
+                            <ArrowUpIcon width={12} height={12}/> : sort.direction === 'desc' ?
+                                <ArrowDownIcon width={12} height={12}/> : 'Unsorted'}</span>
                         <button className="remove-button" onClick={() => onRemoveSort(sort.key)}>✕</button>
                     </div>
                 ))}

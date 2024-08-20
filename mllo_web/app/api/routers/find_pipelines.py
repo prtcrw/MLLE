@@ -4,7 +4,7 @@ from typing import Optional, List
 from fastapi import APIRouter, Request, Query
 from fastapi.responses import Response, JSONResponse, StreamingResponse
 
-from mllo_web.app.api.routers.utilities import generate_csv_response
+from mllo_web.app.api.routers.utilities import generate_csv_response, to_order_by_string
 from mllo_web.app.api.services.sparql_client import QueryBuilder, TotalRecordsQueryBuilder, PaginationQueryBuilder
 
 router = APIRouter(prefix="/v1/pipelines", tags=["pipelines"])
@@ -68,14 +68,23 @@ WHERE {
 
 
 class FindPipelinesQueryBuilder(QueryBuilder):
+    SORT_KEY_MAPPING = {
+        "Pipeline Name": "pipeline_name",
+        "Pipeline Type": "pipeline_type",
+        "Pipeline Components": "pipeline_components",
+        "Pipeline Data Input": "pipeline_data_input",
+        "Pipeline Associated Model": "pipeline_associated_model",
+    }
 
     def __init__(self,
                  search_term: str,
-                 toggle_constraint: bool):
+                 toggle_constraint: bool,
+                 sort: Optional[List[str]]):
 
         self.search_term = search_term.strip() if len(search_term) > 0 else None
         self.pipeline_constraint = self.search_term
         self.toggle_constraint = toggle_constraint
+        self.sort_string = to_order_by_string(sort, self.SORT_KEY_MAPPING)
 
     def build_query(self) -> str:
         query = QUERY
@@ -95,6 +104,10 @@ class FindPipelinesQueryBuilder(QueryBuilder):
             query = query.replace("#dataset_or_ml_filter",
                                   replacement_string_for_specific_model + replacement_string_for_model_association)
 
+        # Apply sort based on the mapping
+        if self.sort_string:
+            query += self.sort_string
+
         return query
 
 
@@ -108,7 +121,7 @@ async def get_pipelines(request: Request,
                                                           description="Sort criteria (e.g., [dataset_name,asc,dataset_used_as,desc])"),
                         format: str = Query(default="json", description="Output format (json or csv)")) -> Response:
     app = request.app
-    query_builder = FindPipelinesQueryBuilder(search_term, toggle_constraint=toggle_constraint)
+    query_builder = FindPipelinesQueryBuilder(search_term, toggle_constraint=toggle_constraint, sort=sort)
 
     if format == 'json':
         total_records = int(
@@ -117,7 +130,7 @@ async def get_pipelines(request: Request,
         # Calculate total pages based on results and page size
         total_pages = math.ceil(total_records / items_per_page) if total_records > 0 else 0
         pipelines = app.sparql_client.query(
-            PaginationQueryBuilder(query_builder, page=page, items_per_page=items_per_page, sort=sort).build_query())
+            PaginationQueryBuilder(query_builder, page=page, items_per_page=items_per_page).build_query())
 
         # Process data for JSON response
         for pipeline in pipelines:

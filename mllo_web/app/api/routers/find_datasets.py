@@ -4,7 +4,7 @@ from typing import Optional, List
 from fastapi import APIRouter, Request, Query
 from fastapi.responses import StreamingResponse, Response, JSONResponse
 
-from mllo_web.app.api.routers.utilities import generate_csv_response
+from mllo_web.app.api.routers.utilities import generate_csv_response, to_order_by_string
 from mllo_web.app.api.services.sparql_client import QueryBuilder, TotalRecordsQueryBuilder, PaginationQueryBuilder
 
 router = APIRouter(prefix="/v1/datasets", tags=["datasets"])
@@ -95,13 +95,33 @@ WHERE {
 
 
 class FindDatasetsQueryBuilder(QueryBuilder):
+    SORT_KEY_MAPPING = {
+        "Dataset Name": "dataset_name",
+        "Dataset Used As": "dataset_used_as",
+        "ML Input Timestamp": "ml_input_timestamp",
+        "Dataset Shape": "dataset_shape",
+        "Dataset Characteristics": "dataset_characteristics",
+        "Dataset Source": "dataset_source",
+        "Model Type": "model_type",
+        "Model Output": "model_output",
+        "Model Output Utilization": "model_output_utilization",
+        "Model Performance Metric": "model_performance_metric",
+        "Model Performance Value": "model_performance_value",
+    }
 
-    def __init__(self, search_term: str):
+    def __init__(self, search_term: str,
+                 sort: Optional[List[str]]):
         self.search_term = search_term
+        self.sort_string = to_order_by_string(sort, self.SORT_KEY_MAPPING)
 
     def build_query(self) -> str:
         query = QUERY
         # TODO: Handle 'search_term'
+
+        # Apply sort based on the mapping
+        if self.sort_string:
+            query += self.sort_string
+
         return query
 
 
@@ -114,7 +134,7 @@ async def get_datasets(request: Request,
                                                          description="Sort criteria (e.g., [dataset_name,asc,dataset_used_as,desc])"),
                        format: str = Query(default="json", description="Output format (json or csv)")) -> Response:
     app = request.app
-    query_builder = FindDatasetsQueryBuilder(search_term)
+    query_builder = FindDatasetsQueryBuilder(search_term, sort=sort)
 
     if format == 'json':
         total_records = int(
@@ -123,7 +143,7 @@ async def get_datasets(request: Request,
         # Calculate total pages based on results and page size
         total_pages = math.ceil(total_records / items_per_page) if total_records > 0 else 0
         datasets = app.sparql_client.query(
-            PaginationQueryBuilder(query_builder, page=page, items_per_page=items_per_page, sort=sort).build_query())
+            PaginationQueryBuilder(query_builder, page=page, items_per_page=items_per_page).build_query())
 
         # Process data for JSON response
         for dataset in datasets:
