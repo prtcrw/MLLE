@@ -8,7 +8,6 @@ interface TableProps {
     data: any[]; // Assuming any data type for now
     headers: string[];
     mapItemToRow?: (header: string, value: any) => ReactNode;
-    sorts: { key: string; direction: SortDirection }[];
     currentSorts: { key: string; direction: SortDirection }[];
     onSort: (sorts: { key: string; direction: SortDirection }[]) => void;
     onRemoveSort: (key: string) => void;
@@ -17,12 +16,12 @@ interface TableProps {
 
 const Table: React.FC<TableProps> = ({
                                          data, headers, mapItemToRow,
-                                         sorts, currentSorts,
+                                         currentSorts,
                                          onSort, onRemoveSort,
                                          message
                                      }) => {
     const handleSort = (column: string) => {
-        if (sorts?.findIndex(sort => sort.key === column) === -1) {
+        if (headers.findIndex(header => header === column) === -1) {
             return;
         }
 
@@ -47,7 +46,7 @@ const Table: React.FC<TableProps> = ({
     };
 
     const isSortedBy = (column: string) => {
-        return sorts?.find(sort => sort.key === column) !== undefined;
+        return headers.find(header => header === column) !== undefined;
     }
 
     const sortDirection = (column: string) => {

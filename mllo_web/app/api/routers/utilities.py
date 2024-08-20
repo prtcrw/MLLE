@@ -27,15 +27,18 @@ def parse_sort_params(sort: Optional[List[str]]) -> dict:
     return sort_params
 
 
-def to_order_by_string(sort: Optional[List[str]], mapping: dict) -> str:
+def to_order_by_string(sort: Optional[List[str]], mapping: dict) -> str | None:
     parsed_sort = []
     for key, direction in parse_sort_params(sort).items():
         mapped_key = mapping.get(key)
         if mapped_key:
             parsed_sort.append(f"{direction.upper()}(?{mapped_key})")
 
-    sort_string = " ".join(parsed_sort)
-    return f"\nORDER BY {sort_string}"
+    if len(parsed_sort) > 0:
+        sort_string = " ".join(parsed_sort)
+        return f"\nORDER BY {sort_string}"
+
+    return None
 
 
 async def generate_csv_response(header, values):

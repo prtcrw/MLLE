@@ -24,16 +24,16 @@ const FindPipelines: React.FC = () => {
     const [currentPage, setCurrentPage] = useState(1);
     const [totalPages, setTotalPages] = useState(0);
     const [itemsPerPage, setItemsPerPage] = useState(10);
-    const sorts = [
-        {key: "Pipeline Name", direction: 'asc'},
-        {key: "Pipeline Type", direction: null},
-        {key: "Pipeline Components", direction: null},
-        {key: "Pipeline Data Input", direction: null},
-        {key: "Pipeline Associated Model", direction: null},
+    const sortHeaders = [
+        "Pipeline Name",
+        "Pipeline Type",
+        "Pipeline Components",
+        "Pipeline Data Input",
+        "Pipeline Associated Model",
     ];
-    const headers = sorts.map(sort => sort.key);
-    const filteredSorts = sorts.filter(sort => sort.direction !== null);
-    const [currentSorts, setCurrentSorts] = useState<{ key: string; direction: SortDirection }[]>(filteredSorts);
+    const [currentSorts, setCurrentSorts] = useState<{ key: string; direction: SortDirection }[]>([
+        {key: "Pipeline Name", direction: 'asc'}
+    ]);
     const [isLoading, setIsLoading] = useState(false);
     const [message, setMessage] = useState('');
     const [error, setError] = useState<string | null>(null);
@@ -165,9 +165,8 @@ const FindPipelines: React.FC = () => {
                     </div>
                 }
                 <Table data={pipelines}
-                       headers={headers}
+                       headers={sortHeaders}
                        mapItemToRow={mapItemToRow}
-                       sorts={sorts}
                        currentSorts={currentSorts}
                        onSort={handleSort}
                        onRemoveSort={handleRemoveSort}

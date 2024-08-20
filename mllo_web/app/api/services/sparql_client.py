@@ -40,7 +40,6 @@ class PaginationQueryBuilder(QueryBuilder):
 
         query = query + f' LIMIT {limit} OFFSET {offset}'
 
-        print(query)
         return query
 
 

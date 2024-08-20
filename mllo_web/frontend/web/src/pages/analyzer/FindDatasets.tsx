@@ -30,22 +30,22 @@ const FindDatasets: React.FC = () => {
     const [currentPage, setCurrentPage] = useState(1);
     const [totalPages, setTotalPages] = useState(0);
     const [itemsPerPage, setItemsPerPage] = useState(10);
-    const sorts = [
-        {key: "Dataset Name", direction: 'asc'},
-        {key: "Dataset Used As", direction: null},
-        {key: "ML Input Timestamp", direction: null},
-        {key: "Dataset Shape", direction: null},
-        {key: "Dataset Characteristics", direction: null},
-        {key: "Dataset Source", direction: null},
-        {key: "Model Type", direction: null},
-        {key: "Model Output", direction: null},
-        {key: "Model Output Utilization", direction: null},
-        {key: "Model Performance Metric", direction: null},
-        {key: "Model Performance Value", direction: null},
+    const sortHeaders = [
+        "Dataset Name",
+        "Dataset Used As",
+        "ML Input Timestamp",
+        "Dataset Shape",
+        "Dataset Characteristics",
+        "Dataset Source",
+        "Model Type",
+        "Model Output",
+        "Model Output Utilization",
+        "Model Performance Metric",
+        "Model Performance Value",
     ];
-    const headers = sorts.map(sort => sort.key);
-    const filteredSorts = sorts.filter(sort => sort.direction !== null);
-    const [currentSorts, setCurrentSorts] = useState<{ key: string; direction: SortDirection }[]>(filteredSorts);
+    const [currentSorts, setCurrentSorts] = useState<{ key: string; direction: SortDirection }[]>([
+        {key: "Dataset Name", direction: "asc"}
+    ]);
     const [isLoading, setIsLoading] = useState(false);
     const [message, setMessage] = useState('');
     const [error, setError] = useState<string | null>(null);
@@ -176,9 +176,8 @@ const FindDatasets: React.FC = () => {
                     </div>
                 }
                 <Table data={datasets}
-                       headers={headers}
+                       headers={sortHeaders}
                        mapItemToRow={mapItemToRow}
-                       sorts={sorts}
                        currentSorts={currentSorts}
                        onSort={handleSort}
                        onRemoveSort={handleRemoveSort}

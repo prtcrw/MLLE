@@ -28,19 +28,19 @@ const FindModels: React.FC = () => {
     const [currentPage, setCurrentPage] = useState(1);
     const [totalPages, setTotalPages] = useState(0);
     const [itemsPerPage, setItemsPerPage] = useState(10);
-    const sorts = [
-        {key: "Model Name", direction: 'asc'},
-        {key: "Model Type", direction: null},
-        {key: "Model Performance Metric", direction: null},
-        {key: "Model Performance Value", direction: null},
-        {key: "Model Objective", direction: null},
-        {key: "Data Preprocessing", direction: null},
-        {key: "ML Input Timestamp", direction: null},
-        {key: "Dataset Used For", direction: null},
+    const sortHeaders = [
+        "Model Name",
+        "Model Type",
+        "Model Performance Metric",
+        "Model Performance Value",
+        "Model Objective",
+        "Data Preprocessing",
+        "ML Input Timestamp",
+        "Dataset Used For",
     ];
-    const headers = sorts.map(sort => sort.key);
-    const filteredSorts = sorts.filter(sort => sort.direction !== null);
-    const [currentSorts, setCurrentSorts] = useState<{ key: string; direction: SortDirection }[]>(filteredSorts);
+    const [currentSorts, setCurrentSorts] = useState<{ key: string; direction: SortDirection }[]>([
+        {key: "Model Name", direction: "asc"}
+    ]);
     const [isLoading, setIsLoading] = useState(false);
     const [message, setMessage] = useState('');
     const [error, setError] = useState<string | null>(null);
@@ -160,8 +160,7 @@ const FindModels: React.FC = () => {
                     </div>
                 }
                 <Table data={models}
-                       headers={headers}
-                       sorts={sorts}
+                       headers={sortHeaders}
                        currentSorts={currentSorts}
                        onSort={handleSort}
                        onRemoveSort={handleRemoveSort}
