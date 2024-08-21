@@ -2,7 +2,7 @@ import math
 from typing import Optional, List
 import json
 
-from fastapi import APIRouter, Request, Query, Body
+from fastapi import APIRouter, Request, Query
 from fastapi.responses import Response, JSONResponse, StreamingResponse
 
 from mllo_web.app.api.routers.utilities import generate_csv_response, to_order_by_string, dataset_role_filter
@@ -76,18 +76,23 @@ class FindModelsQueryBuilder(QueryBuilder):
                  dataset_role: str,
                  specific_IRI: Optional[str],
                  sort: Optional[List[str]] = None):
-        self.dataset_name = search_term
+        self.dataset_name = search_term.strip() if len(search_term) > 0 else None
+        print("datasetname",self.dataset_name)
         self.specific_IRI = specific_IRI
         self.sort_string = to_order_by_string(sort, self.SORT_KEY_MAPPING)
-        self.dataset_role = dataset_role
+        self.dataset_role = json.loads(dataset_role)
 
     def build_query(self) -> str:
         query = QUERY
 
-        replacement_string = dataset_role_filter(self.dataset_role["training_data"], self.dataset_role["test_data"], self.dataset_role["validation_data"], self.dataset_role["production_data"], self.dataset_role["raw_data"])
+        replacement_string = dataset_role_filter(training_data = self.dataset_role["training_data"],
+                                                 test_data = self.dataset_role["test_data"],
+                                                 validation_data = self.dataset_role["validation_data"], 
+                                                 production_data = self.dataset_role["production_data"],
+                                                 raw_data = self.dataset_role["raw_data"])
         query = query.replace("#DATASETTYPE_CONSTRAINT", replacement_string)   
 
-        if self.dataset_name == "":
+        if self.dataset_name == "" or self.dataset_name == None:
             query = query.replace("#DATASET_FILTER", "")
         elif self.specific_IRI:
             query = query.replace("#DATASET_FILTER", f"VALUES ?dataset {{{self.specific_IRI}{self.dataset_name}}}")
@@ -103,7 +108,7 @@ class FindModelsQueryBuilder(QueryBuilder):
 @router.get("/")  # Define a GET endpoint for "/models"
 async def get_models(request: Request,
                      search_term: str = Query(default=None, description="Search term"),
-                     dataset_role: str = Query(default="{'test_data': False, 'validation_data': False, 'training_data': False, 'production_data': False, 'raw_data': False}", description="Dataset roles as JSON string"),
+                     dataset_role: str = Query(default="{'test_data': false, 'validation_data': false, 'training_data': false, 'production_data': false, 'raw_data': false}", description="Dataset roles as JSON string"),
                      specific_IRI = Query(default=None, description="Specific IRI"),
                      page: int = Query(default=1, description="Page number"),
                      items_per_page: int = Query(default=10, description="Number of models to return per page"),
@@ -111,8 +116,6 @@ async def get_models(request: Request,
                                                        description="Sort criteria (e.g., [dataset_name,asc,dataset_used_as,desc])"),
                      format: str = Query(default="json", description="Output format (json or csv)")) -> Response:
     app = request.app
-    dataset_role = json.loads(dataset_role)
-    print(dataset_role)
     query_builder = FindModelsQueryBuilder(search_term = search_term, dataset_role = dataset_role, specific_IRI=specific_IRI, sort=sort)
 
     if format == 'json':

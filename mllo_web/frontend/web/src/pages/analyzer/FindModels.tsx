@@ -19,10 +19,17 @@ interface ModelData {
     mlInputTimestamp: string;
     datasetUsedFor: string;
 }
+const defaultSelectedCheckboxes = {
+    "test_data": false,
+    "validation_data": false,
+    "training_data": false,
+    "production_data": false,
+    "raw_data": false,
+};
 
 const FindModels: React.FC = () => {
     const [searchTerm, setSearchTerm] = useState('');
-    const [selectedCheckboxes, setSelectedCheckboxes] = useState<{ [key: string]: boolean }>({});
+    const [selectedCheckboxes, setSelectedCheckboxes] = useState<{ [key: string]: boolean }> (defaultSelectedCheckboxes);
     const [models, setModels] = useState<ModelData[]>([]);
     const [currentPage, setCurrentPage] = useState(1);
     const [totalPages, setTotalPages] = useState(0);
