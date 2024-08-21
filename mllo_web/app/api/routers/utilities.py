@@ -59,3 +59,19 @@ async def generate_csv_response(header, values):
     writer.writerows(values)
     csv_data.seek(0)
     yield csv_data.read()
+
+def dataset_role_filter(training_data: bool, 
+                        test_data: bool,
+                        validation_data: bool,
+                        production_data: bool,
+                        raw_data: bool) -> str:
+    roles = {
+        "ml:TrainingDataSet": training_data,
+        "ml:TestDataSet": test_data,
+        "ml:ValidationDataSet": validation_data,
+        "ml:ProductionMachineLearningDataSet": production_data,
+        "ml:RawDataSet": raw_data
+    }
+    replacement_string = " ".join(role for role, checked in roles.items() if checked)
+
+    return replacement_string

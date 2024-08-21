@@ -1,11 +1,13 @@
 import math
 from typing import Optional, List
+import json
 
-from fastapi import APIRouter, Request, Query
+from fastapi import APIRouter, Request, Query, Body
 from fastapi.responses import Response, JSONResponse, StreamingResponse
 
-from mllo_web.app.api.routers.utilities import generate_csv_response, to_order_by_string
+from mllo_web.app.api.routers.utilities import generate_csv_response, to_order_by_string, dataset_role_filter
 from mllo_web.app.api.services.sparql_client import QueryBuilder, TotalRecordsQueryBuilder, PaginationQueryBuilder
+
 
 router = APIRouter(prefix="/v1/models", tags=["models"])
 
@@ -15,43 +17,45 @@ PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
 PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
 PREFIX bfo: <http://purl.obolibrary.org/obo/>
 PREFIX iof-core: <https://spec.industrialontologies.org/ontology/core/Core/>
-SELECT DISTINCT 
-    (STRAFTER(STR(?model), "#") AS ?model_name) 
-    ?model_type 
-    ?model_performance_metric 
-    ?model_performance_value 
-    ?model_objective 
-    ?data_preprocessing_pipeline 
-    ?ml_input_timestamp 
-    ?dataset_used_as
-WHERE { 
-    ?dataset rdf:type/rdfs:subClassOf* <http://purl.obolibrary.org/obo/IAO_0000100>;
-    rdf:type/rdfs:label ?dataset_used_as.
-    VALUES ?dataset {#target_dataset_iri}
+SELECT DISTINCT (STRAFTER(STR(?model), "#" ) AS ?model_name) 
+    ?model_type
+    ?model_performance_metric
+    ?model_performance_value
+    ?model_objective
+    ?data_preprocessing_pipeline
+    ?ml_input_timestamp
+    ?dataset_used_as 
+WHERE {
+    VALUES ?dataset_type {#DATASETTYPE_CONSTRAINT}
+    ?dataset rdf:type ?dataset_type.
+    ?dataset_type rdfs:label ?dataset_used_as.
+    #DATASET_FILTER
     ?ml_process ml:hasDataInput ?dataset.
-    ?ml_process ml:executes ?model.
+    ?ml_process bfo:BFO_0000063*/(bfo:BFO_0000057 | ml:executes) ?model.
     OPTIONAL {
-        ?ml_process bfo:BFO_0000222/iof-core:hasValueExpressionAtAllTimes/iof-core:hasDateTimeValue ?ml_input_timestamp
+        ?ml_process bfo:BFO_0000222/iof-core:hasValueExpressionAtAllTimes/iof-core:hasDateTimeValue ?ml_input_timestamp}
+        ?model rdf:type ?model_type_iri.
+        ?model_type_iri rdfs:subClassOf+ ml:MachineLearningModel.
+        ?model_type_iri rdfs:label ?model_type.
+        OPTIONAL {
+        ?model bfo:BFO_0000178 ?model_objective.
+        ?model_objective rdf:type/rdfs:subClassOf* iof-core:ObjectiveSpecification.
     }
-    ?model rdf:type ?model_type_iri.
-    ?model bfo:BFO_0000178 ?model_objective.
-    ?model_objective rdf:type/rdfs:subClassOf+ iof-core:ObjectiveSpecification.
-    ?model_type_iri rdfs:subClassOf+ ml:MachineLearningModel.
-    ?model_type_iri rdfs:label ?model_type.
     OPTIONAL {
-        ?ml_process (ml:hasDataOutput/^ml:hasDataInput)+ ?model_performance_assessment.
-        ?model_performance_assessment bfo:BFO_0000059 ?model_performance_metric_iri.
-        ?model_performance_assessment rdf:type/rdfs:subClassOf+ ml:ModelPerformanceAssessment.
+        ?ml_process ml:hasDataOutput+/^ml:hasDataInput ?model_performance_assesment.
+        ?model_performance_assesment bfo:BFO_0000059 ?model_performance_metric_iri.
+        ?model_performance_assesment rdf:type/rdfs:subClassOf* ml:ModelPerformanceAssessment.
         ?model_performance_metric_iri rdf:type ?model_performance_metric_type.
         ?model_performance_metric_type rdfs:subClassOf+ ml:PerformanceMetric.
         ?model_performance_metric_type rdfs:label ?model_performance_metric.
-        ?model_performance_assessment ml:hasDataOutput/iof-core:hasSimpleExpressionValue ?model_performance_value
+        ?model_performance_assesment ml:hasDataOutput/iof-core:hasSimpleExpressionValue ?model_performance_value
     }
     OPTIONAL {
         ?data_preprocessing_pipeline ml:hasDataOutput ?dataset.
-        ?data_preprocessing_pipeline rdf:type ml:MachineLearningDataPreparationPipeline
+    	?data_preprocessing_pipeline rdf:type ml:MachineLearningDataPreparationPipeline
     }
 }
+
 """
 
 
@@ -69,45 +73,47 @@ class FindModelsQueryBuilder(QueryBuilder):
 
     def __init__(self,
                  search_term: str,
-                 specific_IRI: str,
-                 sort: Optional[List[str]]):
-
-        self.search_term = search_term
+                 dataset_role: str,
+                 specific_IRI: Optional[str],
+                 sort: Optional[List[str]] = None):
+        self.dataset_name = search_term
         self.specific_IRI = specific_IRI
         self.sort_string = to_order_by_string(sort, self.SORT_KEY_MAPPING)
+        self.dataset_role = dataset_role
 
     def build_query(self) -> str:
         query = QUERY
 
-        if not self.search_term:
-            query = query.replace("VALUES ?dataset {#target_dataset_iri}", "")
+        replacement_string = dataset_role_filter(self.dataset_role["training_data"], self.dataset_role["test_data"], self.dataset_role["validation_data"], self.dataset_role["production_data"], self.dataset_role["raw_data"])
+        query = query.replace("#DATASETTYPE_CONSTRAINT", replacement_string)   
 
+        if self.dataset_name == "":
+            query = query.replace("#DATASET_FILTER", "")
+        elif self.specific_IRI:
+            query = query.replace("#DATASET_FILTER", f"VALUES ?dataset {{{self.specific_IRI}{self.dataset_name}}}")
         else:
-            if self.specific_IRI != None:
-                query = query.replace("#target_dataset_iri", self.specific_IRI + self.search_term)
-            else:
-                self.search_term = "\"" + self.search_term + "\")"
-                query = query.replace("VALUES ?dataset {#target_dataset_iri}",
-                                      f"FILTER(STRAFTER(STR(?dataset),\"#\")={self.search_term}")
+            dataset_name = f"\"{self.dataset_name}\")"
+            query = query.replace("#DATASET_FILTER", f"FILTER(STRAFTER(STR(?dataset),\"#\")={dataset_name}")
 
-        # Apply sort based on the mapping
         if self.sort_string:
             query += self.sort_string
 
         return query
 
-
 @router.get("/")  # Define a GET endpoint for "/models"
 async def get_models(request: Request,
                      search_term: str = Query(default=None, description="Search term"),
-                     specific_IRI: str = Query(default=None, description="Specific IRI"),
+                     dataset_role: str = Query(default="{'test_data': False, 'validation_data': False, 'training_data': False, 'production_data': False, 'raw_data': False}", description="Dataset roles as JSON string"),
+                     specific_IRI = Query(default=None, description="Specific IRI"),
                      page: int = Query(default=1, description="Page number"),
                      items_per_page: int = Query(default=10, description="Number of models to return per page"),
                      sort: Optional[List[str]] = Query(default=None,
                                                        description="Sort criteria (e.g., [dataset_name,asc,dataset_used_as,desc])"),
                      format: str = Query(default="json", description="Output format (json or csv)")) -> Response:
     app = request.app
-    query_builder = FindModelsQueryBuilder(search_term, specific_IRI=specific_IRI, sort=sort)
+    dataset_role = json.loads(dataset_role)
+    print(dataset_role)
+    query_builder = FindModelsQueryBuilder(search_term = search_term, dataset_role = dataset_role, specific_IRI=specific_IRI, sort=sort)
 
     if format == 'json':
         total_records = int(
