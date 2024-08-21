@@ -6,7 +6,8 @@ from typing import Optional, List
 from fastapi import APIRouter, Request, Query
 from fastapi.responses import StreamingResponse, Response, JSONResponse
 
-from mllo_web.app.api.routers.utilities import generate_csv_response, to_order_by_string, dataset_role_filter
+from mllo_web.app.api.routers.utilities import generate_csv_response, to_order_by_string, dataset_role_filter, \
+    parse_option_params
 from mllo_web.app.api.services.sparql_client import QueryBuilder, TotalRecordsQueryBuilder, PaginationQueryBuilder
 
 router = APIRouter(prefix="/v1/datasets", tags=["datasets"])
@@ -101,7 +102,7 @@ class FindDatasetsQueryBuilder(QueryBuilder):
                  search_term: Optional[str] = None,
                  #  type_query: bool,
                  #  direct_type: bool,
-                 dataset_role: Optional[str] = None,
+                 dataset_role: Optional[List[str]] = None,
                  sort: Optional[List[str]] = None):
 
         self.query_variables = query_variables
@@ -109,7 +110,7 @@ class FindDatasetsQueryBuilder(QueryBuilder):
         self.type_query = type_query = True
         self.direct_type = direct_type = False
         self.sort_string = to_order_by_string(sort, self.SORT_KEY_MAPPING)
-        self.dataset_role = json.loads(dataset_role) if dataset_role and len(dataset_role) > 0 else None
+        self.dataset_role = parse_option_params(dataset_role)
 
     def build_query(self) -> str:
         query = QUERY
@@ -148,7 +149,7 @@ class FindDatasetsQueryBuilder(QueryBuilder):
 @router.get("/")  # Define a GET endpoint for "/datasets"
 async def get_datasets(request: Request,
                        search_term: str = Query(default=None, description="Search term"),
-                       dataset_role: str = Query(default="{}", description="Dataset roles as JSON string"),
+                       dataset_role: Optional[List[str]] = Query(default=None, description="Dataset roles"),
                        page: int = Query(default=1, description="Page number"),
                        items_per_page: int = Query(default=10, description="Number of datasets to return per page"),
                        sort: Optional[List[str]] = Query(default=None,
@@ -205,13 +206,14 @@ async def get_datasets(request: Request,
 
 @router.get("/performances")  # Define a GET endpoint for "/datasets/performances"
 async def get_datasets_performances(request: Request,
-                                    search_term: str = Query(default=None, description="Search term")) -> Response:
+                                    search_term: str = Query(default=None, description="Search term"),
+                                    dataset_role: str = Query(default=None, description="Dataset roles")) -> Response:
     app = request.app
     query_builder = FindDatasetsQueryBuilder(query_variables=[
         '(STRAFTER(STR(?dataset), "#") AS ?dataset_name)',
         '?model_performance_metric',
         '?model_performance_value',
-    ], search_term=search_term, sort=["Dataset Name, asc"])
+    ], search_term=search_term, dataset_role=dataset_role, sort=["Dataset Name, asc"])
     datasets = app.sparql_client.query(query_builder.build_query())
 
     datasets_group_by_model_performance_metric = defaultdict(list)

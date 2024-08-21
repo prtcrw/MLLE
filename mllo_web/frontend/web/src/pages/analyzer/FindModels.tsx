@@ -1,12 +1,12 @@
-import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { buildV1Url, downloadFromResponse } from '../../services/api';
+import React, {useState} from 'react';
+import {useNavigate} from 'react-router-dom';
+import {buildV1Url, downloadFromResponse} from '../../services/api';
 import LoadingBar from '../../components/LoadingBar.tsx';
 import ErrorMessage from '../../components/ErrorMessage.tsx';
 import Search from '../../components/Search.tsx';
-import Table, { SortDirection } from '../../components/Table.tsx';
+import Table, {SortDirection} from '../../components/Table.tsx';
 import Pagination from '../../components/Pagination.tsx';
-import { DownloadIcon } from '../../components/Icons.tsx';
+import {DownloadIcon} from '../../components/Icons.tsx';
 import FindModelsFilter from './FindModelsFilter.tsx';
 
 interface ModelData {
@@ -19,6 +19,7 @@ interface ModelData {
     mlInputTimestamp: string;
     datasetUsedFor: string;
 }
+
 const defaultSelectedCheckboxes = {
     "test_data": false,
     "validation_data": false,
@@ -29,7 +30,7 @@ const defaultSelectedCheckboxes = {
 
 const FindModels: React.FC = () => {
     const [searchTerm, setSearchTerm] = useState('');
-    const [selectedCheckboxes, setSelectedCheckboxes] = useState<{ [key: string]: boolean }> (defaultSelectedCheckboxes);
+    const [selectedCheckboxes, setSelectedCheckboxes] = useState<{ [key: string]: boolean }>(defaultSelectedCheckboxes);
     const [models, setModels] = useState<ModelData[]>([]);
     const [currentPage, setCurrentPage] = useState(1);
     const [totalPages, setTotalPages] = useState(0);
@@ -45,7 +46,7 @@ const FindModels: React.FC = () => {
         "Dataset Used For",
     ];
     const [currentSorts, setCurrentSorts] = useState<{ key: string; direction: SortDirection }[]>([
-        { key: "Model Name", direction: "asc" }
+        {key: "Model Name", direction: "asc"}
     ]);
     const [isLoading, setIsLoading] = useState(false);
     const [message, setMessage] = useState('');
@@ -71,13 +72,14 @@ const FindModels: React.FC = () => {
             });
 
             // Add sorts as query params
-            for (const { key, direction } of sorts) {
+            for (const {key, direction} of sorts) {
                 urlParams.append('sort', `${key},${direction}`);
             }
 
-            // Convert selectedCheckboxes object to JSON string
-            urlParams.append('dataset_role', JSON.stringify(selectedCheckboxes));
-
+            // Add dataset_role as query params
+            Object.keys(selectedCheckboxes).map((key) => {
+                urlParams.append('dataset_role', `${key},${selectedCheckboxes[key]}`);
+            });
 
             if (format !== '') {
                 urlParams.append('format', format);
@@ -119,7 +121,7 @@ const FindModels: React.FC = () => {
     };
 
     const handleCheckboxChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const { name, checked } = e.target;
+        const {name, checked} = e.target;
         setSelectedCheckboxes(prev => ({
             ...prev,
             [name]: checked
@@ -149,40 +151,40 @@ const FindModels: React.FC = () => {
 
     return (
         <div>
-            <LoadingBar isLoading={isLoading} />
+            <LoadingBar isLoading={isLoading}/>
             <h1>Find Models</h1>
-            <div style={{ margin: '8px 0' }}>
-                <Search onSearch={handleSearch} placeholder={'Dataset Name'} />
+            <div style={{margin: '8px 0'}}>
+                <Search onSearch={handleSearch} placeholder={'Dataset Name'}/>
                 <FindModelsFilter
                     selectedFilters={selectedCheckboxes}
-                    onFilterChange={handleCheckboxChange} />
+                    onFilterChange={handleCheckboxChange}/>
             </div>
             <div>
-                <div style={{ margin: '8px 0' }}>
+                <div style={{margin: '8px 0'}}>
                     <button onClick={handleAnalyzeDeployedModel}>Analyze Deployed Model</button>
                 </div>
                 {models.length > 0 &&
-                    <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                    <div style={{display: 'flex', justifyContent: 'flex-end'}}>
                         <button onClick={handleDownload}
-                            style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                            <span style={{ marginRight: '4px' }}>Download Results</span>
-                            <DownloadIcon width={14} height={14} />
+                                style={{display: 'flex', alignItems: 'center', justifyContent: 'space-between'}}>
+                            <span style={{marginRight: '4px'}}>Download Results</span>
+                            <DownloadIcon width={14} height={14}/>
                         </button>
                     </div>
                 }
                 <Table data={models}
-                    headers={sortHeaders}
-                    currentSorts={currentSorts}
-                    onSort={handleSort}
-                    onRemoveSort={handleRemoveSort}
-                    message={message} />
+                       headers={sortHeaders}
+                       currentSorts={currentSorts}
+                       onSort={handleSort}
+                       onRemoveSort={handleRemoveSort}
+                       message={message}/>
                 <Pagination
                     currentPage={currentPage}
                     totalPages={totalPages}
                     onPageChange={handlePageChange}
                 />
             </div>
-            {error && <ErrorMessage message={error} />}
+            {error && <ErrorMessage message={error}/>}
         </div>
     );
 };

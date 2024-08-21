@@ -76,7 +76,10 @@ const FindDatasets: React.FC = () => {
                 urlParams.append('sort', `${key},${direction}`);
             }
 
-            urlParams.append('dataset_role', JSON.stringify(selectedCheckboxes));
+            // Add dataset_role as query params
+            Object.keys(selectedCheckboxes).map((key) => {
+                urlParams.append('dataset_role', `${key},${selectedCheckboxes[key]}`);
+            });
 
             if (format !== '') {
                 urlParams.append('format', format);

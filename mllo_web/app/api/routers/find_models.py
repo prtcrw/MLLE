@@ -1,11 +1,11 @@
 import math
 from typing import Optional, List
-import json
 
 from fastapi import APIRouter, Request, Query
 from fastapi.responses import Response, JSONResponse, StreamingResponse
 
-from mllo_web.app.api.routers.utilities import generate_csv_response, to_order_by_string, dataset_role_filter
+from mllo_web.app.api.routers.utilities import generate_csv_response, to_order_by_string, dataset_role_filter, \
+    parse_option_params
 from mllo_web.app.api.services.sparql_client import QueryBuilder, TotalRecordsQueryBuilder, PaginationQueryBuilder
 
 router = APIRouter(prefix="/v1/models", tags=["models"])
@@ -73,13 +73,13 @@ class FindModelsQueryBuilder(QueryBuilder):
 
     def __init__(self,
                  search_term: str,
-                 dataset_role: Optional[str] = None,
+                 dataset_role: Optional[List[str]] = None,
                  specific_IRI: Optional[str] = None,
                  sort: Optional[List[str]] = None):
         self.dataset_name = search_term.strip() if search_term and len(search_term) > 0 else None
         self.specific_IRI = specific_IRI.strip() if specific_IRI and len(specific_IRI) > 0 else None
         self.sort_string = to_order_by_string(sort, self.SORT_KEY_MAPPING)
-        self.dataset_role = json.loads(dataset_role) if dataset_role and len(dataset_role) > 0 else None
+        self.dataset_role = parse_option_params(dataset_role)
 
     def build_query(self) -> str:
         query = QUERY
@@ -109,7 +109,7 @@ class FindModelsQueryBuilder(QueryBuilder):
 @router.get("/")  # Define a GET endpoint for "/models"
 async def get_models(request: Request,
                      search_term: str = Query(default=None, description="Search term"),
-                     dataset_role: str = Query(default="{}", description="Dataset roles as JSON string"),
+                     dataset_role: Optional[List[str]] = Query(default=None, description="Dataset roles as JSON string"),
                      specific_IRI=Query(default=None, description="Specific IRI"),
                      page: int = Query(default=1, description="Page number"),
                      items_per_page: int = Query(default=10, description="Number of models to return per page"),

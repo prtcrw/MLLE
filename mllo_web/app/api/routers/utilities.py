@@ -3,33 +3,9 @@ from io import StringIO
 from typing import Optional, List
 
 
-def parse_sort_params(sort: Optional[List[str]]) -> dict:
-    """Parses sort parameters from a list of strings.
-
-    Args:
-        sort: A list of strings representing sort criteria.
-
-    Returns:
-        A dictionary of parsed sort parameters, or an error message if the format is invalid.
-    """
-
-    sort_params = {}
-
-    if sort:
-        for sort_item in sort:
-            try:
-                sort_key, sort_direction = sort_item.split(",")
-                sort_params[sort_key] = sort_direction.lower()
-            except ValueError:
-                raise ValueError(
-                    "Invalid sort parameter format. Use comma-separated key and direction (e.g., column_name,asc).")
-
-    return sort_params
-
-
 def to_order_by_string(sort: Optional[List[str]], mapping: dict) -> str | None:
     parsed_sort = []
-    for key, direction in parse_sort_params(sort).items():
+    for key, direction in parse_option_params(sort).items():
         mapped_key = mapping.get(key)
         if mapped_key:
             parsed_sort.append(f"{direction.upper()}(?{mapped_key})")
@@ -39,6 +15,35 @@ def to_order_by_string(sort: Optional[List[str]], mapping: dict) -> str | None:
         return f"\nORDER BY {sort_string}"
 
     return None
+
+
+def parse_option_params(option: Optional[List[str]]) -> dict:
+    """Parses option parameters from a list of strings.
+
+    Args:
+        option: A list of strings representing option criteria.
+
+    Returns:
+        A dictionary of parsed option parameters, or an error message if the format is invalid.
+    """
+
+    option_params = {}
+
+    if option:
+        for option_item in option:
+            try:
+                option_key, option_value = option_item.split(",")
+                if option_value == 'true':
+                    option_value = True
+                elif option_value == 'false':
+                    option_value = False
+
+                option_params[option_key] = option_value
+            except ValueError:
+                raise ValueError(
+                    "Invalid option parameter format. Use comma-separated key and value (e.g., name,value).")
+
+    return option_params
 
 
 async def generate_csv_response(header, values):
@@ -60,11 +65,12 @@ async def generate_csv_response(header, values):
     csv_data.seek(0)
     yield csv_data.read()
 
-def dataset_role_filter(training_data: bool, 
-                        test_data: bool,
-                        validation_data: bool,
-                        production_data: bool,
-                        raw_data: bool) -> str:
+
+def dataset_role_filter(training_data: bool = False,
+                        test_data: bool = False,
+                        validation_data: bool = False,
+                        production_data: bool = False,
+                        raw_data: bool = False) -> str:
     roles = {
         "ml:TrainingDataSet": training_data,
         "ml:TestDataSet": test_data,
