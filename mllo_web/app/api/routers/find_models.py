@@ -27,7 +27,7 @@ SELECT DISTINCT
     ?ml_input_timestamp
     ?dataset_used_as 
 WHERE {
-    VALUES ?dataset_type {#DATASETTYPE_CONSTRAINT}
+    #DATASETTYPE_CONSTRAINT
     ?dataset rdf:type ?dataset_type.
     ?dataset_type rdfs:label ?dataset_used_as.
     #DATASET_FILTER
@@ -90,9 +90,10 @@ class FindModelsQueryBuilder(QueryBuilder):
                                                  validation_data = self.dataset_role["validation_data"], 
                                                  production_data = self.dataset_role["production_data"],
                                                  raw_data = self.dataset_role["raw_data"])
-        query = query.replace("#DATASETTYPE_CONSTRAINT", replacement_string)   
+        query = query.replace("#DATASETTYPE_CONSTRAINT",
+                              f"VALUES ?dataset_type {{{replacement_string}}}" if replacement_string else '')
 
-        if self.dataset_name == "" or self.dataset_name == None:
+        if not self.dataset_name:
             query = query.replace("#DATASET_FILTER", "")
         elif self.specific_IRI:
             query = query.replace("#DATASET_FILTER", f"VALUES ?dataset {{{self.specific_IRI}{self.dataset_name}}}")
@@ -103,6 +104,7 @@ class FindModelsQueryBuilder(QueryBuilder):
         if self.sort_string:
             query += self.sort_string
 
+        print(query)
         return query
 
 @router.get("/")  # Define a GET endpoint for "/models"

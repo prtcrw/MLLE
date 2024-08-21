@@ -38,7 +38,7 @@ WHERE {
             ?dataset ?model ?ml_process
     }
     ?model rdf:type/rdfs:label ?model_type.
-    VALUES ?dataset_type {#DATASETTYPE_CONSTRAINT}
+    #DATASETTYPE_CONSTRAINT
     ?dataset rdf:type ?dataset_type.
     ?dataset_type rdfs:label ?dataset_used_as.
     ?dataset ml:specifiesDimensionShape ?dataset_shape.
@@ -131,21 +131,23 @@ class FindDatasetsQueryBuilder(QueryBuilder):
                                                  validation_data = self.dataset_role["validation_data"], 
                                                  production_data = self.dataset_role["production_data"],
                                                  raw_data = False)
-        query= query.replace("#DATASETTYPE_CONSTRAINT",replacement_string)
+        query = query.replace("#DATASETTYPE_CONSTRAINT",
+                              f"VALUES ?dataset_type {{{replacement_string}}}" if replacement_string else '')
 
-
-        if self.model_input == "" or self.model_input == None:
+        if not self.model_input:
             query = query.replace("#ml_input_constraint","+ ml:MachineLearningModel")
 
-        else:    
+        else:
             if self.type_query:
                 if self.direct_type:
-                    query = query.replace("#ml_input_constraint"," ml:"+self.model_input)
+                    query = query.replace("#ml_input_constraint", " ml:" + self.model_input)
                 else:
-                    query = query.replace("#ml_input_constraint","* ml:"+self.model_input)
+                    query = query.replace("#ml_input_constraint", "* ml:" + self.model_input)
             else:
-                self.model_input= "{" + self.model_input + "}"
-                query = query.replace( "?model rdf:type/rdfs:subClassOf#ml_input_constraint.","VALUES ?model "+ self.model_input)
+                self.model_input = "{" + self.model_input + "}"
+                query = query.replace("?model rdf:type/rdfs:subClassOf#ml_input_constraint.",
+                                      "VALUES ?model " + self.model_input)
+
         # Apply sort based on the mapping
         if self.sort_string:
             query += self.sort_string
