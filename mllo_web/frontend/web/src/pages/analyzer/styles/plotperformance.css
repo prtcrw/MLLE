@@ -27,14 +27,17 @@
     margin-bottom: 10px;
 }
 
-.filter-item select, .filter-item input[type="range"] {
+.filter-item select {
     margin-top: 5px;
     padding: 8px;
     border: 1px solid #ddd;
     border-radius: 4px;
 }
 
-.range-slider {
+.filter-item input[type="range"] {
+    margin-top: 5px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
 }
 
 .cutoff-value {
