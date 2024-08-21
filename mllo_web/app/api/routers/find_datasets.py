@@ -1,7 +1,7 @@
+import json
 import math
 from collections import defaultdict
 from typing import Optional, List
-import json
 
 from fastapi import APIRouter, Request, Query
 from fastapi.responses import StreamingResponse, Response, JSONResponse
@@ -82,19 +82,8 @@ WHERE {
 }
 """
 
-class FindDatasetsQueryBuilder(QueryBuilder):
-    QUERY_VARIABLES = [
-        '(STRAFTER(STR(?dataset), "#") AS ?dataset_name)',
-        '?dataset_used_as'
-        '?ml_input_timestamp',
-        '?dataset_shape',
-        '?dataset_characteristics',
-        '?dataset_source',
-        '?model_type',
-        '?model_output',
-        '?model_output_utilization'
-    ]
 
+class FindDatasetsQueryBuilder(QueryBuilder):
     SORT_KEY_MAPPING = {
         "Dataset Name": "dataset_name",
         "Dataset Used As": "dataset_used_as",
@@ -107,36 +96,37 @@ class FindDatasetsQueryBuilder(QueryBuilder):
         "Model Output Utilization": "model_output_utilization"
     }
 
-    def __init__(self, 
-                 search_term: str,
-                #  type_query: bool,
-                #  direct_type: bool,
-                 dataset_role: str,
-                 sort: Optional[List[str]]):
-        
-        self.model_input = search_term.strip() if len(search_term) > 0 else None
+    def __init__(self,
+                 query_variables: List[str],
+                 search_term: Optional[str] = None,
+                 #  type_query: bool,
+                 #  direct_type: bool,
+                 dataset_role: Optional[str] = None,
+                 sort: Optional[List[str]] = None):
+
+        self.query_variables = query_variables
+        self.model_input = search_term.strip() if search_term and len(search_term) > 0 else None
         self.type_query = type_query = True
         self.direct_type = direct_type = False
         self.sort_string = to_order_by_string(sort, self.SORT_KEY_MAPPING)
-        self.dataset_role = json.loads(dataset_role)
+        self.dataset_role = json.loads(dataset_role) if dataset_role and len(dataset_role) > 0 else None
 
     def build_query(self) -> str:
         query = QUERY
-        query = query.replace('#variables', '\n\t'.join(self.QUERY_VARIABLES))
+        query = query.replace('#variables', '\n\t'.join(self.query_variables))
 
         # Apply sort based on the mapping
-
-        replacement_string = dataset_role_filter(training_data = self.dataset_role["training_data"],
-                                                 test_data = self.dataset_role["test_data"],
-                                                 validation_data = self.dataset_role["validation_data"], 
-                                                 production_data = self.dataset_role["production_data"],
-                                                 raw_data = False)
-        query = query.replace("#DATASETTYPE_CONSTRAINT",
-                              f"VALUES ?dataset_type {{{replacement_string}}}" if replacement_string else '')
+        if self.dataset_role:
+            replacement_string = dataset_role_filter(training_data=self.dataset_role["training_data"],
+                                                     test_data=self.dataset_role["test_data"],
+                                                     validation_data=self.dataset_role["validation_data"],
+                                                     production_data=self.dataset_role["production_data"],
+                                                     raw_data=False)
+            query = query.replace("#DATASETTYPE_CONSTRAINT",
+                                  f"VALUES ?dataset_type {{{replacement_string}}}" if replacement_string else '')
 
         if not self.model_input:
-            query = query.replace("#ml_input_constraint","+ ml:MachineLearningModel")
-
+            query = query.replace("#ml_input_constraint", "+ ml:MachineLearningModel")
         else:
             if self.type_query:
                 if self.direct_type:
@@ -154,6 +144,7 @@ class FindDatasetsQueryBuilder(QueryBuilder):
 
         return query
 
+
 @router.get("/")  # Define a GET endpoint for "/datasets"
 async def get_datasets(request: Request,
                        search_term: str = Query(default=None, description="Search term"),
@@ -164,7 +155,17 @@ async def get_datasets(request: Request,
                                                          description="Sort criteria (e.g., [dataset_name,asc,dataset_used_as,desc])"),
                        format: str = Query(default="json", description="Output format (json or csv)")) -> Response:
     app = request.app
-    query_builder = FindDatasetsQueryBuilder(search_term = search_term, dataset_role = dataset_role, sort=sort)
+    query_builder = FindDatasetsQueryBuilder(query_variables=[
+        '(STRAFTER(STR(?dataset), "#") AS ?dataset_name)',
+        '?dataset_used_as'
+        '?ml_input_timestamp',
+        '?dataset_shape',
+        '?dataset_characteristics',
+        '?dataset_source',
+        '?model_type',
+        '?model_output',
+        '?model_output_utilization'
+    ], search_term=search_term, dataset_role=dataset_role, sort=sort)
 
     if format == 'json':
         total_records = int(
@@ -201,42 +202,16 @@ async def get_datasets(request: Request,
     else:
         return Response(content="Unsupported format", status_code=400)
 
-class DatasetPerformancesQueryBuilder(QueryBuilder):
-    QUERY_VARIABLES = [
-        '(STRAFTER(STR(?dataset), "#") AS ?dataset_name)',
-        '?model_performance_metric',
-        '?model_performance_value',
-    ]
-
-    SORT_KEY_MAPPING = {
-        "Dataset Name": "dataset_name",
-        "Model Performance Metric": "model_performance_metric",
-        "Model Performance Value": "model_performance_value",
-    }
-
-    def __init__(self, search_term: str):
-        self.search_term = search_term
-        self.sort_string = to_order_by_string(["Dataset Name, asc"], self.SORT_KEY_MAPPING)
-
-    def build_query(self) -> str:
-        query = QUERY
-        query = query.replace('#variables', '\n\t'.join(self.QUERY_VARIABLES))
-
-        # TODO: Handle 'search_term'
-
-        # Apply sort based on the mapping
-        if self.sort_string:
-            query += self.sort_string
-
-        return query
-
 
 @router.get("/performances")  # Define a GET endpoint for "/datasets/performances"
 async def get_datasets_performances(request: Request,
                                     search_term: str = Query(default=None, description="Search term")) -> Response:
     app = request.app
-    query_builder = DatasetPerformancesQueryBuilder(search_term)
-
+    query_builder = FindDatasetsQueryBuilder(query_variables=[
+        '(STRAFTER(STR(?dataset), "#") AS ?dataset_name)',
+        '?model_performance_metric',
+        '?model_performance_value',
+    ], search_term=search_term, sort=["Dataset Name, asc"])
     datasets = app.sparql_client.query(query_builder.build_query())
 
     datasets_group_by_model_performance_metric = defaultdict(list)

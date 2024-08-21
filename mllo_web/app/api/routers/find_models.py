@@ -8,7 +8,6 @@ from fastapi.responses import Response, JSONResponse, StreamingResponse
 from mllo_web.app.api.routers.utilities import generate_csv_response, to_order_by_string, dataset_role_filter
 from mllo_web.app.api.services.sparql_client import QueryBuilder, TotalRecordsQueryBuilder, PaginationQueryBuilder
 
-
 router = APIRouter(prefix="/v1/models", tags=["models"])
 
 QUERY = """
@@ -74,22 +73,22 @@ class FindModelsQueryBuilder(QueryBuilder):
 
     def __init__(self,
                  search_term: str,
-                 dataset_role: str,
-                 specific_IRI: Optional[str],
+                 dataset_role: Optional[str] = None,
+                 specific_IRI: Optional[str] = None,
                  sort: Optional[List[str]] = None):
-        self.dataset_name = search_term.strip() if len(search_term) > 0 else None
-        self.specific_IRI = specific_IRI
+        self.dataset_name = search_term.strip() if search_term and len(search_term) > 0 else None
+        self.specific_IRI = specific_IRI.strip() if specific_IRI and len(specific_IRI) > 0 else None
         self.sort_string = to_order_by_string(sort, self.SORT_KEY_MAPPING)
-        self.dataset_role = json.loads(dataset_role)
+        self.dataset_role = json.loads(dataset_role) if dataset_role and len(dataset_role) > 0 else None
 
     def build_query(self) -> str:
         query = QUERY
 
-        replacement_string = dataset_role_filter(training_data = self.dataset_role["training_data"],
-                                                 test_data = self.dataset_role["test_data"],
-                                                 validation_data = self.dataset_role["validation_data"], 
-                                                 production_data = self.dataset_role["production_data"],
-                                                 raw_data = self.dataset_role["raw_data"])
+        replacement_string = dataset_role_filter(training_data=self.dataset_role["training_data"],
+                                                 test_data=self.dataset_role["test_data"],
+                                                 validation_data=self.dataset_role["validation_data"],
+                                                 production_data=self.dataset_role["production_data"],
+                                                 raw_data=self.dataset_role["raw_data"])
         query = query.replace("#DATASETTYPE_CONSTRAINT",
                               f"VALUES ?dataset_type {{{replacement_string}}}" if replacement_string else '')
 
@@ -104,21 +103,22 @@ class FindModelsQueryBuilder(QueryBuilder):
         if self.sort_string:
             query += self.sort_string
 
-        print(query)
         return query
+
 
 @router.get("/")  # Define a GET endpoint for "/models"
 async def get_models(request: Request,
                      search_term: str = Query(default=None, description="Search term"),
                      dataset_role: str = Query(default="{}", description="Dataset roles as JSON string"),
-                     specific_IRI = Query(default=None, description="Specific IRI"),
+                     specific_IRI=Query(default=None, description="Specific IRI"),
                      page: int = Query(default=1, description="Page number"),
                      items_per_page: int = Query(default=10, description="Number of models to return per page"),
                      sort: Optional[List[str]] = Query(default=None,
                                                        description="Sort criteria (e.g., [dataset_name,asc,dataset_used_as,desc])"),
                      format: str = Query(default="json", description="Output format (json or csv)")) -> Response:
     app = request.app
-    query_builder = FindModelsQueryBuilder(search_term = search_term, dataset_role = dataset_role, specific_IRI=specific_IRI, sort=sort)
+    query_builder = FindModelsQueryBuilder(search_term=search_term, dataset_role=dataset_role,
+                                           specific_IRI=specific_IRI, sort=sort)
 
     if format == 'json':
         total_records = int(

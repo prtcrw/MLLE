@@ -31,7 +31,7 @@ const defaultSelectedCheckboxes = {
 
 const FindDatasets: React.FC = () => {
     const [searchTerm, setSearchTerm] = useState('');
-    const [selectedCheckboxes, setSelectedCheckboxes] = useState<{ [key: string]: boolean }> (defaultSelectedCheckboxes);
+    const [selectedCheckboxes, setSelectedCheckboxes] = useState<{ [key: string]: boolean }>(defaultSelectedCheckboxes);
     const [datasets, setDatasets] = useState<DatasetData[]>([]);
     const [currentPage, setCurrentPage] = useState(1);
     const [totalPages, setTotalPages] = useState(0);
@@ -55,7 +55,6 @@ const FindDatasets: React.FC = () => {
     const [error, setError] = useState<string | null>(null);
     const navigate = useNavigate(); // Access useNavigate hook
 
-
     const fetchData = async (searchTerm: string,
                              currentPage: number,
                              itemsPerPage: number,
@@ -63,6 +62,8 @@ const FindDatasets: React.FC = () => {
                              selectedCheckboxes: { [key: string]: boolean },
                              format: string = '') => {
         setIsLoading(true); // Set loading to true
+        setMessage('');
+        setError(null);
         try {
             const urlParams = new URLSearchParams({
                 search_term: searchTerm,
@@ -113,7 +114,7 @@ const FindDatasets: React.FC = () => {
     };
 
     const handleDownload = async () => {
-        await fetchData(searchTerm, 1, itemsPerPage, currentSorts, selectedCheckboxes,'csv');
+        await fetchData(searchTerm, 1, itemsPerPage, currentSorts, selectedCheckboxes, 'csv');
     };
 
     const handlePageChange = async (page: number = 1, itemsPerPage: number = 10) => {
@@ -134,7 +135,7 @@ const FindDatasets: React.FC = () => {
     };
 
     const handleCheckboxChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const { name, checked } = e.target;
+        const {name, checked} = e.target;
         setSelectedCheckboxes(prev => ({
             ...prev,
             [name]: checked

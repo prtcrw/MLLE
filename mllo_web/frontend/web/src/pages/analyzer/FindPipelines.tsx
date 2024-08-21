@@ -46,6 +46,8 @@ const FindPipelines: React.FC = () => {
                              toggleConstraint: boolean,
                              format: string = '',) => {
         setIsLoading(true); // Set loading to true
+        setMessage('');
+        setError(null);
         try {
             const urlParams = new URLSearchParams({
                 search_term: searchTerm,

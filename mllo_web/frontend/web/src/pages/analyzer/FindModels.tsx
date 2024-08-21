@@ -61,6 +61,8 @@ const FindModels: React.FC = () => {
         format: string = ''
     ) => {
         setIsLoading(true);
+        setMessage('');
+        setError(null);
         try {
             const urlParams = new URLSearchParams({
                 search_term: searchTerm,

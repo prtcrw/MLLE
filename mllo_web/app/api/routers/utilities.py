@@ -74,4 +74,4 @@ def dataset_role_filter(training_data: bool,
     }
     replacement_string = " ".join(role for role, checked in roles.items() if checked)
 
-    return replacement_string
+    return replacement_string.strip()

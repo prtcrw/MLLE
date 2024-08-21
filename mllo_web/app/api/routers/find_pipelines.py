@@ -77,11 +77,11 @@ class FindPipelinesQueryBuilder(QueryBuilder):
     }
 
     def __init__(self,
-                 search_term: str,
-                 toggle_constraint: bool,
-                 sort: Optional[List[str]]):
+                 search_term: Optional[str] = None,
+                 toggle_constraint: Optional[bool] = False,
+                 sort: Optional[List[str]] = None):
 
-        self.search_term = search_term.strip() if len(search_term) > 0 else None
+        self.search_term = search_term.strip() if search_term and len(search_term) > 0 else None
         self.pipeline_constraint = self.search_term
         self.toggle_constraint = toggle_constraint
         self.sort_string = to_order_by_string(sort, self.SORT_KEY_MAPPING)
