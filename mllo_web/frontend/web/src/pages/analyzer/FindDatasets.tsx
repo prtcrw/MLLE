@@ -19,11 +19,21 @@ interface DatasetData {
     modelType: string;
     modelOutput: string;
     modelOutputUtilization: string;
+    modelPerformanceMetric: string;
+    modelPerformanceValue: string;
 }
+
+const defaultSelectedCheckboxes = {
+    "test_data": false,
+    "validation_data": false,
+    "training_data": false,
+    "production_data": false,
+    "raw_data": false,
+};
 
 const FindDatasets: React.FC = () => {
     const [searchTerm, setSearchTerm] = useState('');
-    const [selectedCheckboxes, setSelectedCheckboxes] = useState<string[]>([]);
+    const [selectedCheckboxes, setSelectedCheckboxes] = useState<{ [key: string]: boolean }> (defaultSelectedCheckboxes);
     const [datasets, setDatasets] = useState<DatasetData[]>([]);
     const [currentPage, setCurrentPage] = useState(1);
     const [totalPages, setTotalPages] = useState(0);
@@ -38,6 +48,8 @@ const FindDatasets: React.FC = () => {
         "Model Type",
         "Model Output",
         "Model Output Utilization",
+        "Model Performance Metric",
+        "Model Performance Value",
     ];
     const [currentSorts, setCurrentSorts] = useState<{ key: string; direction: SortDirection }[]>([
         {key: "Dataset Name", direction: "asc"}
@@ -52,6 +64,7 @@ const FindDatasets: React.FC = () => {
                              currentPage: number,
                              itemsPerPage: number,
                              sorts: { key: string; direction: SortDirection }[],
+                             selectedCheckboxes: { [key: string]: boolean },
                              format: string = '') => {
         setIsLoading(true); // Set loading to true
         try {
@@ -65,6 +78,8 @@ const FindDatasets: React.FC = () => {
             for (const {key, direction} of sorts) {
                 urlParams.append('sort', `${key},${direction}`);
             }
+
+            urlParams.append('dataset_role', JSON.stringify(selectedCheckboxes));
 
             if (format !== '') {
                 urlParams.append('format', format);
@@ -98,37 +113,36 @@ const FindDatasets: React.FC = () => {
 
     const handleSearch = async (searchTerm: string) => {
         setSearchTerm(searchTerm);
-        await fetchData(searchTerm, 1, itemsPerPage, currentSorts);
+        await fetchData(searchTerm, 1, itemsPerPage, currentSorts, selectedCheckboxes);
     };
 
     const handleDownload = async () => {
-        await fetchData(searchTerm, 1, itemsPerPage, currentSorts, 'csv');
+        await fetchData(searchTerm, 1, itemsPerPage, currentSorts, selectedCheckboxes,'csv');
     };
 
     const handlePageChange = async (page: number = 1, itemsPerPage: number = 10) => {
         setCurrentPage(page);
         setItemsPerPage(itemsPerPage);
-        await fetchData(searchTerm, page, itemsPerPage, currentSorts);
+        await fetchData(searchTerm, page, itemsPerPage, currentSorts, selectedCheckboxes);
     };
 
     const handleSort = async (sorts: { key: string; direction: SortDirection }[]) => {
         setCurrentSorts(sorts);
-        await fetchData(searchTerm, currentPage, itemsPerPage, sorts);
+        await fetchData(searchTerm, currentPage, itemsPerPage, sorts, selectedCheckboxes);
     }
 
     const handleRemoveSort = async (key: string) => {
         const newSorts = currentSorts.filter(sort => sort.key !== key);
         setCurrentSorts(newSorts);
-        await fetchData(searchTerm, currentPage, itemsPerPage, newSorts); // Update data with new sorts
+        await fetchData(searchTerm, currentPage, itemsPerPage, newSorts, selectedCheckboxes); // Update data with new sorts
     };
 
     const handleCheckboxChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const {value, checked} = e.target;
-        setSelectedCheckboxes(prev =>
-            checked
-                ? [...prev, value]
-                : prev.filter(item => item !== value)
-        );
+        const { name, checked } = e.target;
+        setSelectedCheckboxes(prev => ({
+            ...prev,
+            [name]: checked
+        }));
     };
 
     const handleAnalyzeModelOutput = () => {

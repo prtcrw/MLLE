@@ -77,7 +77,6 @@ class FindModelsQueryBuilder(QueryBuilder):
                  specific_IRI: Optional[str],
                  sort: Optional[List[str]] = None):
         self.dataset_name = search_term.strip() if len(search_term) > 0 else None
-        print("datasetname",self.dataset_name)
         self.specific_IRI = specific_IRI
         self.sort_string = to_order_by_string(sort, self.SORT_KEY_MAPPING)
         self.dataset_role = json.loads(dataset_role)
@@ -108,7 +107,7 @@ class FindModelsQueryBuilder(QueryBuilder):
 @router.get("/")  # Define a GET endpoint for "/models"
 async def get_models(request: Request,
                      search_term: str = Query(default=None, description="Search term"),
-                     dataset_role: str = Query(default="{'test_data': false, 'validation_data': false, 'training_data': false, 'production_data': false, 'raw_data': false}", description="Dataset roles as JSON string"),
+                     dataset_role: str = Query(default="{}", description="Dataset roles as JSON string"),
                      specific_IRI = Query(default=None, description="Specific IRI"),
                      page: int = Query(default=1, description="Page number"),
                      items_per_page: int = Query(default=10, description="Number of models to return per page"),

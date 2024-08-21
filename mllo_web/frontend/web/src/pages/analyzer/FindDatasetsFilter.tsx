@@ -6,17 +6,17 @@ interface FilterOption {
 }
 
 const FindDatasetsFilter: React.FC<{
-    selectedFilters: string[];
-    onFilterChange: (e: React.ChangeEvent<HTMLInputElement>) => void
+    selectedFilters: { [key: string]: boolean };
+    onFilterChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
 }> = ({
-          selectedFilters,
-          onFilterChange,
-      }) => {
+    selectedFilters,
+    onFilterChange,
+}) => {
     const filterOptions: FilterOption[] = [
-        {label: 'Test Data', value: 'Test Data'},
-        {label: 'Validation Data', value: 'Validation Data'},
-        {label: 'Training Data', value: 'Training Data'},
-        {label: 'Production Data', value: 'Production Data'},
+        {label: 'Test Data', value: 'test_data'},
+        {label: 'Validation Data', value: 'validation_data'},
+        {label: 'Training Data', value: 'training_data'},
+        {label: 'Production Data', value: 'production_data'}
     ];
 
     return (
@@ -25,9 +25,9 @@ const FindDatasetsFilter: React.FC<{
                 <label key={option.value}>
                     <input
                         type="checkbox"
-                        value={option.value}
-                        checked={selectedFilters.includes(option.value)}
-                        onChange={(e) => onFilterChange(e)}
+                        name={option.value}
+                        checked={selectedFilters[option.value] || false}
+                        onChange={onFilterChange}
                     />
                     <span>{option.label}</span>
                 </label>

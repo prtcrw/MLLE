@@ -1,11 +1,12 @@
 import math
 from collections import defaultdict
 from typing import Optional, List
+import json
 
 from fastapi import APIRouter, Request, Query
 from fastapi.responses import StreamingResponse, Response, JSONResponse
 
-from mllo_web.app.api.routers.utilities import generate_csv_response, to_order_by_string
+from mllo_web.app.api.routers.utilities import generate_csv_response, to_order_by_string, dataset_role_filter
 from mllo_web.app.api.services.sparql_client import QueryBuilder, TotalRecordsQueryBuilder, PaginationQueryBuilder
 
 router = APIRouter(prefix="/v1/datasets", tags=["datasets"])
@@ -16,74 +17,49 @@ PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
 PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
 PREFIX bfo: <http://purl.obolibrary.org/obo/>
 PREFIX iof-core: <https://spec.industrialontologies.org/ontology/core/Core/>
-SELECT DISTINCT
+SELECT DISTINCT 
     #variables
-WHERE { 
-    {
-        SELECT 
-            ?dataset
-            ?model
-            ?ml_process
-            (GROUP_CONCAT(?dataset_characteristic; separator=";") AS ?dataset_characteristics)
-        WHERE {
-            ?model rdf:type/rdfs:subClassOf ml:ArtificialNeuralNetwork.
-            ?ml_process ml:hasDataInput ?dataset.
-            ?ml_process ml:executes | bfo:BFO_0000057 ?model.
-            OPTIONAL {
-                ?dataset ml:hasInformationContentEntityCharacteristic ?dataset_characteristic
-            }
+    WHERE { 
+    {SELECT ?dataset ?model ?ml_process (GROUP_CONCAT(?dataset_characteristic; separator= ";") as ?dataset_characteristics)
+        WHERE{
+    ?model rdf:type/rdfs:subClassOf#ml_input_constraint.
+    ?ml_process ml:hasDataInput ?dataset.
+    ?ml_process ml:executes | bfo:BFO_0000057 ?model.
+            OPTIONAL{?dataset ml:hasInformationContentEntityCharacteristic ?dataset_characteristic}
         }
-        GROUP BY
-            ?dataset ?model ?ml_process
-    }
+        GROUP BY ?dataset ?model ?ml_process}
     ?model rdf:type/rdfs:label ?model_type.
-    ?dataset rdf:type/rdfs:label ?dataset_used_as.
+    VALUES ?dataset_type {#DATASETTYPE_CONSTRAINT}
+    ?dataset rdf:type ?dataset_type.
+    ?dataset_type rdfs:label ?dataset_used_as.
     ?dataset ml:specifiesDimensionShape ?dataset_shape.
-    OPTIONAL {
-        ?ml_process bfo:BFO_0000222/iof-core:hasValueExpressionAtAllTimes/iof-core:hasDateTimeValue ?ml_input_timestamp
-    }
-    OPTIONAL {
-        ?dataset ml:informationContentEntityDerivedFrom ?dataset_source
-    }
-    OPTIONAL {
-        ?ml_process ml:executes ?model.
-        ?ml_process ml:hasDataInput ?dataset.
-        ?ml_process ml:hasDataOutput ?model_output
-        OPTIONAL { 
-            ?model_performance_assessment bfo:BFO_0000059 ?model_performance_metric_iri.
-            ?model_performance_assessment ml:hasDataInput ?model_output.
-            ?model_performance_assessment rdf:type/rdfs:subClassOf+ ml:ModelPerformanceAssessment.
-            ?model_performance_metric_iri rdf:type ?model_performance_metric_type.
-            ?model_performance_metric_type rdfs:subClassOf+ ml:PerformanceMetric.
-            ?model_performance_metric_type rdfs:label ?model_performance_metric.
-            ?model_performance_assessment ml:hasDataOutput/iof-core:hasSimpleExpressionValue ?model_performance_value
-        }
-        OPTIONAL {
-            ?utilization_process ml:hasDataInput ?model_output.
-            ?utilization_process rdf:type/rdfs:label ?model_output_utilization
-        }
-    }
-    ?model rdf:type ?model_type_iri.
-    ?model bfo:BFO_0000178 ?model_objective.
-    ?model_objective rdf:type/rdfs:subClassOf+ iof-core:ObjectiveSpecification.
-    ?model_type_iri rdfs:subClassOf+ ml:MachineLearningModel.
-    ?model_type_iri rdfs:label ?model_type.
-    OPTIONAL {
-        ?ml_process (ml:hasDataOutput/^ml:hasDataInput)+ ?model_performance_assessment.
-        ?model_performance_assessment bfo:BFO_0000059 ?model_performance_metric_iri.
-        ?model_performance_assessment rdf:type/rdfs:subClassOf+ ml:ModelPerformanceAssessment.
-        ?model_performance_metric_iri rdf:type ?model_performance_metric_type.
-        ?model_performance_metric_type rdfs:subClassOf+ ml:PerformanceMetric.
-        ?model_performance_metric_type rdfs:label ?model_performance_metric.
-        ?model_performance_assessment ml:hasDataOutput/iof-core:hasSimpleExpressionValue ?model_performance_value
-    }
-    OPTIONAL {
+    OPTIONAL{?ml_process bfo:BFO_0000222/iof-core:hasValueExpressionAtAllTimes/iof-core:hasDateTimeValue ?ml_input_timestamp}
+    OPTIONAL{?dataset ml:informationContentEntityDerivedFrom ?dataset_source}
+    OPTIONAL{?ml_process ml:executes ?model.
+        	?ml_process ml:hasDataInput ?dataset.
+    		?ml_process ml:hasDataOutput ?model_output
+        OPTIONAL{ ?model_performance_assesment bfo:BFO_0000059 ?model_performance_metric_iri.
+            ?model_performance_assesment ml:hasDataInput ?model_output.
+     ?model_performance_assesment rdf:type/rdfs:subClassOf+ ml:ModelPerformanceAssessment.
+	?model_performance_metric_iri rdf:type ?model_performance_metric_type.
+    ?model_performance_metric_type rdfs:subClassOf+ ml:PerformanceMetric.
+    ?model_performance_metric_type rdfs:label ?model_performance_metric.
+    ?model_performance_assesment ml:hasDataOutput/iof-core:hasSimpleExpressionValue ?model_performance_value}
+        OPTIONAL{?utilization_process ml:hasDataInput ?model_output.
+        		 ?utilization_process rdf:type/rdfs:label ?model_output_utilization}}
+    OPTIONAL{?ml_process (ml:hasDataOutput/^ml:hasDataInput)+ ?model_performance_assesment.
+     ?model_performance_assesment bfo:BFO_0000059 ?model_performance_metric_iri.
+     ?model_performance_assesment rdf:type/rdfs:subClassOf+ ml:ModelPerformanceAssessment.
+	?model_performance_metric_iri rdf:type ?model_performance_metric_type.
+    ?model_performance_metric_type rdfs:subClassOf+ ml:PerformanceMetric.
+    ?model_performance_metric_type rdfs:label ?model_performance_metric.
+    ?model_performance_assesment ml:hasDataOutput/iof-core:hasSimpleExpressionValue ?model_performance_value}
+    OPTIONAL{
         ?data_preprocessing_pipeline ml:hasDataOutput ?dataset.
         ?data_preprocessing_pipeline rdf:type ml:MachineLearningDataPreparationPipeline
-    }
+            }
 }
 """
-
 
 class FindDatasetsQueryBuilder(QueryBuilder):
     QUERY_VARIABLES = [
@@ -110,34 +86,62 @@ class FindDatasetsQueryBuilder(QueryBuilder):
         "Model Output Utilization": "model_output_utilization"
     }
 
-    def __init__(self, search_term: str,
+    def __init__(self, 
+                 search_term: str,
+                #  type_query: bool,
+                #  direct_type: bool,
+                 dataset_role: str,
                  sort: Optional[List[str]]):
-        self.search_term = search_term
+        
+        self.model_input = search_term.strip() if len(search_term) > 0 else None
+        self.type_query = type_query = True
+        self.direct_type = direct_type = False
         self.sort_string = to_order_by_string(sort, self.SORT_KEY_MAPPING)
+        self.dataset_role = json.loads(dataset_role)
 
     def build_query(self) -> str:
         query = QUERY
         query = query.replace('#variables', '\n\t'.join(self.QUERY_VARIABLES))
 
-        # TODO: Handle 'search_term'
+        # Apply sort based on the mapping
 
+        replacement_string = dataset_role_filter(training_data = self.dataset_role["training_data"],
+                                                 test_data = self.dataset_role["test_data"],
+                                                 validation_data = self.dataset_role["validation_data"], 
+                                                 production_data = self.dataset_role["production_data"],
+                                                 raw_data = False)
+        query= query.replace("#DATASETTYPE_CONSTRAINT",replacement_string)
+
+
+        if self.model_input == "" or self.model_input == None:
+            query = query.replace("#ml_input_constraint","+ ml:MachineLearningModel")
+
+        else:    
+            if self.type_query:
+                if self.direct_type:
+                    query = query.replace("#ml_input_constraint"," ml:"+self.model_input)
+                else:
+                    query = query.replace("#ml_input_constraint","* ml:"+self.model_input)
+            else:
+                self.model_input= "{" + self.model_input + "}"
+                query = query.replace( "?model rdf:type/rdfs:subClassOf#ml_input_constraint.","VALUES ?model "+ self.model_input)
         # Apply sort based on the mapping
         if self.sort_string:
             query += self.sort_string
 
         return query
 
-
 @router.get("/")  # Define a GET endpoint for "/datasets"
 async def get_datasets(request: Request,
                        search_term: str = Query(default=None, description="Search term"),
+                       dataset_role: str = Query(default="{}", description="Dataset roles as JSON string"),
                        page: int = Query(default=1, description="Page number"),
                        items_per_page: int = Query(default=10, description="Number of datasets to return per page"),
                        sort: Optional[List[str]] = Query(default=None,
                                                          description="Sort criteria (e.g., [dataset_name,asc,dataset_used_as,desc])"),
                        format: str = Query(default="json", description="Output format (json or csv)")) -> Response:
     app = request.app
-    query_builder = FindDatasetsQueryBuilder(search_term, sort=sort)
+    query_builder = FindDatasetsQueryBuilder(search_term = search_term, dataset_role = dataset_role, sort=sort)
 
     if format == 'json':
         total_records = int(
@@ -173,7 +177,6 @@ async def get_datasets(request: Request,
         )
     else:
         return Response(content="Unsupported format", status_code=400)
-
 
 class DatasetPerformancesQueryBuilder(QueryBuilder):
     QUERY_VARIABLES = [
