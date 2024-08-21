@@ -19,45 +19,66 @@ PREFIX bfo: <http://purl.obolibrary.org/obo/>
 PREFIX iof-core: <https://spec.industrialontologies.org/ontology/core/Core/>
 SELECT DISTINCT 
     #variables
-    WHERE { 
-    {SELECT ?dataset ?model ?ml_process (GROUP_CONCAT(?dataset_characteristic; separator= ";") as ?dataset_characteristics)
-        WHERE{
-    ?model rdf:type/rdfs:subClassOf#ml_input_constraint.
-    ?ml_process ml:hasDataInput ?dataset.
-    ?ml_process ml:executes | bfo:BFO_0000057 ?model.
-            OPTIONAL{?dataset ml:hasInformationContentEntityCharacteristic ?dataset_characteristic}
+WHERE {
+    {
+        SELECT 
+            ?dataset
+            ?model
+            ?ml_process
+            (GROUP_CONCAT(?dataset_characteristic; separator=";") as ?dataset_characteristics)
+        WHERE {
+            ?model rdf:type/rdfs:subClassOf#ml_input_constraint.
+            ?ml_process ml:hasDataInput ?dataset.
+            ?ml_process ml:executes | bfo:BFO_0000057 ?model.
+            OPTIONAL {
+                ?dataset ml:hasInformationContentEntityCharacteristic ?dataset_characteristic
+            }
         }
-        GROUP BY ?dataset ?model ?ml_process}
+        GROUP BY
+            ?dataset ?model ?ml_process
+    }
     ?model rdf:type/rdfs:label ?model_type.
     VALUES ?dataset_type {#DATASETTYPE_CONSTRAINT}
     ?dataset rdf:type ?dataset_type.
     ?dataset_type rdfs:label ?dataset_used_as.
     ?dataset ml:specifiesDimensionShape ?dataset_shape.
-    OPTIONAL{?ml_process bfo:BFO_0000222/iof-core:hasValueExpressionAtAllTimes/iof-core:hasDateTimeValue ?ml_input_timestamp}
-    OPTIONAL{?dataset ml:informationContentEntityDerivedFrom ?dataset_source}
-    OPTIONAL{?ml_process ml:executes ?model.
-        	?ml_process ml:hasDataInput ?dataset.
-    		?ml_process ml:hasDataOutput ?model_output
-        OPTIONAL{ ?model_performance_assesment bfo:BFO_0000059 ?model_performance_metric_iri.
-            ?model_performance_assesment ml:hasDataInput ?model_output.
-     ?model_performance_assesment rdf:type/rdfs:subClassOf+ ml:ModelPerformanceAssessment.
-	?model_performance_metric_iri rdf:type ?model_performance_metric_type.
-    ?model_performance_metric_type rdfs:subClassOf+ ml:PerformanceMetric.
-    ?model_performance_metric_type rdfs:label ?model_performance_metric.
-    ?model_performance_assesment ml:hasDataOutput/iof-core:hasSimpleExpressionValue ?model_performance_value}
-        OPTIONAL{?utilization_process ml:hasDataInput ?model_output.
-        		 ?utilization_process rdf:type/rdfs:label ?model_output_utilization}}
-    OPTIONAL{?ml_process (ml:hasDataOutput/^ml:hasDataInput)+ ?model_performance_assesment.
-     ?model_performance_assesment bfo:BFO_0000059 ?model_performance_metric_iri.
-     ?model_performance_assesment rdf:type/rdfs:subClassOf+ ml:ModelPerformanceAssessment.
-	?model_performance_metric_iri rdf:type ?model_performance_metric_type.
-    ?model_performance_metric_type rdfs:subClassOf+ ml:PerformanceMetric.
-    ?model_performance_metric_type rdfs:label ?model_performance_metric.
-    ?model_performance_assesment ml:hasDataOutput/iof-core:hasSimpleExpressionValue ?model_performance_value}
-    OPTIONAL{
+    OPTIONAL {
+        ?ml_process bfo:BFO_0000222/iof-core:hasValueExpressionAtAllTimes/iof-core:hasDateTimeValue ?ml_input_timestamp
+    }
+    OPTIONAL {
+        ?dataset ml:informationContentEntityDerivedFrom ?dataset_source
+    }
+    OPTIONAL {
+        ?ml_process ml:executes ?model.
+        ?ml_process ml:hasDataInput ?dataset.
+        ?ml_process ml:hasDataOutput ?model_output
+        OPTIONAL { 
+            ?model_performance_assessment bfo:BFO_0000059 ?model_performance_metric_iri.
+            ?model_performance_assessment ml:hasDataInput ?model_output.
+            ?model_performance_assessment rdf:type/rdfs:subClassOf+ ml:ModelPerformanceAssessment.
+            ?model_performance_metric_iri rdf:type ?model_performance_metric_type.
+            ?model_performance_metric_type rdfs:subClassOf+ ml:PerformanceMetric.
+            ?model_performance_metric_type rdfs:label ?model_performance_metric.
+            ?model_performance_assessment ml:hasDataOutput/iof-core:hasSimpleExpressionValue ?model_performance_value
+        }
+        OPTIONAL {
+            ?utilization_process ml:hasDataInput ?model_output.
+            ?utilization_process rdf:type/rdfs:label ?model_output_utilization
+        }
+    }
+    OPTIONAL {
+        ?ml_process (ml:hasDataOutput/^ml:hasDataInput)+ ?model_performance_assessment.
+        ?model_performance_assessment bfo:BFO_0000059 ?model_performance_metric_iri.
+        ?model_performance_assessment rdf:type/rdfs:subClassOf+ ml:ModelPerformanceAssessment.
+        ?model_performance_metric_iri rdf:type ?model_performance_metric_type.
+        ?model_performance_metric_type rdfs:subClassOf+ ml:PerformanceMetric.
+        ?model_performance_metric_type rdfs:label ?model_performance_metric.
+        ?model_performance_assessment ml:hasDataOutput/iof-core:hasSimpleExpressionValue ?model_performance_value
+    }
+    OPTIONAL {
         ?data_preprocessing_pipeline ml:hasDataOutput ?dataset.
         ?data_preprocessing_pipeline rdf:type ml:MachineLearningDataPreparationPipeline
-            }
+    }
 }
 """
 

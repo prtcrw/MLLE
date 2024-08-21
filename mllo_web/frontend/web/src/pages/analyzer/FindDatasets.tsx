@@ -19,8 +19,6 @@ interface DatasetData {
     modelType: string;
     modelOutput: string;
     modelOutputUtilization: string;
-    modelPerformanceMetric: string;
-    modelPerformanceValue: string;
 }
 
 const defaultSelectedCheckboxes = {
@@ -48,8 +46,6 @@ const FindDatasets: React.FC = () => {
         "Model Type",
         "Model Output",
         "Model Output Utilization",
-        "Model Performance Metric",
-        "Model Performance Value",
     ];
     const [currentSorts, setCurrentSorts] = useState<{ key: string; direction: SortDirection }[]>([
         {key: "Dataset Name", direction: "asc"}

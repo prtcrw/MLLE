@@ -63,7 +63,7 @@ WHERE {
             ?pipeline bfo:BFO_0000063+/(bfo:BFO_0000057 | ml:executes) ?pipeline_associated_model_iri
         }
     }
-} 
+}
 """
 
 

@@ -17,7 +17,8 @@ PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
 PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
 PREFIX bfo: <http://purl.obolibrary.org/obo/>
 PREFIX iof-core: <https://spec.industrialontologies.org/ontology/core/Core/>
-SELECT DISTINCT (STRAFTER(STR(?model), "#" ) AS ?model_name) 
+SELECT DISTINCT 
+    (STRAFTER(STR(?model), "#") AS ?model_name) 
     ?model_type
     ?model_performance_metric
     ?model_performance_value
@@ -33,29 +34,29 @@ WHERE {
     ?ml_process ml:hasDataInput ?dataset.
     ?ml_process bfo:BFO_0000063*/(bfo:BFO_0000057 | ml:executes) ?model.
     OPTIONAL {
-        ?ml_process bfo:BFO_0000222/iof-core:hasValueExpressionAtAllTimes/iof-core:hasDateTimeValue ?ml_input_timestamp}
-        ?model rdf:type ?model_type_iri.
-        ?model_type_iri rdfs:subClassOf+ ml:MachineLearningModel.
-        ?model_type_iri rdfs:label ?model_type.
-        OPTIONAL {
+        ?ml_process bfo:BFO_0000222/iof-core:hasValueExpressionAtAllTimes/iof-core:hasDateTimeValue ?ml_input_timestamp
+    }
+    ?model rdf:type ?model_type_iri.
+    ?model_type_iri rdfs:subClassOf+ ml:MachineLearningModel.
+    ?model_type_iri rdfs:label ?model_type.
+    OPTIONAL {
         ?model bfo:BFO_0000178 ?model_objective.
         ?model_objective rdf:type/rdfs:subClassOf* iof-core:ObjectiveSpecification.
     }
     OPTIONAL {
-        ?ml_process ml:hasDataOutput+/^ml:hasDataInput ?model_performance_assesment.
-        ?model_performance_assesment bfo:BFO_0000059 ?model_performance_metric_iri.
-        ?model_performance_assesment rdf:type/rdfs:subClassOf* ml:ModelPerformanceAssessment.
+        ?ml_process ml:hasDataOutput+/^ml:hasDataInput ?model_performance_assessment.
+        ?model_performance_assessment bfo:BFO_0000059 ?model_performance_metric_iri.
+        ?model_performance_assessment rdf:type/rdfs:subClassOf* ml:ModelPerformanceAssessment.
         ?model_performance_metric_iri rdf:type ?model_performance_metric_type.
         ?model_performance_metric_type rdfs:subClassOf+ ml:PerformanceMetric.
         ?model_performance_metric_type rdfs:label ?model_performance_metric.
-        ?model_performance_assesment ml:hasDataOutput/iof-core:hasSimpleExpressionValue ?model_performance_value
+        ?model_performance_assessment ml:hasDataOutput/iof-core:hasSimpleExpressionValue ?model_performance_value
     }
     OPTIONAL {
         ?data_preprocessing_pipeline ml:hasDataOutput ?dataset.
     	?data_preprocessing_pipeline rdf:type ml:MachineLearningDataPreparationPipeline
     }
 }
-
 """
 
 
