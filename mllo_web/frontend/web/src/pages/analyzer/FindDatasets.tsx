@@ -19,8 +19,6 @@ interface DatasetData {
     modelType: string;
     modelOutput: string;
     modelOutputUtilization: string;
-    modelPerformanceMetric: string;
-    modelPerformanceValue: string;
 }
 
 const FindDatasets: React.FC = () => {
@@ -40,8 +38,6 @@ const FindDatasets: React.FC = () => {
         "Model Type",
         "Model Output",
         "Model Output Utilization",
-        "Model Performance Metric",
-        "Model Performance Value",
     ];
     const [currentSorts, setCurrentSorts] = useState<{ key: string; direction: SortDirection }[]>([
         {key: "Dataset Name", direction: "asc"}
@@ -140,7 +136,11 @@ const FindDatasets: React.FC = () => {
     };
 
     const handlePlotPerformance = () => {
-        navigate('/datasets/plot-performance');
+        let url = '/datasets/plot-performance'
+        if (searchTerm) {
+            url += '?search-term=' + searchTerm
+        }
+        navigate(url);
     };
 
     const mapItemToRow = (header: string, value: any) => {

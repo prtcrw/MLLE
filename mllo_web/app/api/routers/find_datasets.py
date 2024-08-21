@@ -1,4 +1,5 @@
 import math
+from collections import defaultdict
 from typing import Optional, List
 
 from fastapi import APIRouter, Request, Query
@@ -16,17 +17,7 @@ PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
 PREFIX bfo: <http://purl.obolibrary.org/obo/>
 PREFIX iof-core: <https://spec.industrialontologies.org/ontology/core/Core/>
 SELECT DISTINCT
-    (STRAFTER(STR(?dataset), "#") AS ?dataset_name)
-    ?dataset_used_as
-    ?ml_input_timestamp
-    ?dataset_shape
-    ?dataset_characteristics
-    ?dataset_source
-    ?model_type
-    ?model_output
-    ?model_output_utilization
-    ?model_performance_metric
-    ?model_performance_value
+    #variables
 WHERE { 
     {
         SELECT 
@@ -95,6 +86,18 @@ WHERE {
 
 
 class FindDatasetsQueryBuilder(QueryBuilder):
+    QUERY_VARIABLES = [
+        '(STRAFTER(STR(?dataset), "#") AS ?dataset_name)',
+        '?dataset_used_as'
+        '?ml_input_timestamp',
+        '?dataset_shape',
+        '?dataset_characteristics',
+        '?dataset_source',
+        '?model_type',
+        '?model_output',
+        '?model_output_utilization'
+    ]
+
     SORT_KEY_MAPPING = {
         "Dataset Name": "dataset_name",
         "Dataset Used As": "dataset_used_as",
@@ -104,9 +107,7 @@ class FindDatasetsQueryBuilder(QueryBuilder):
         "Dataset Source": "dataset_source",
         "Model Type": "model_type",
         "Model Output": "model_output",
-        "Model Output Utilization": "model_output_utilization",
-        "Model Performance Metric": "model_performance_metric",
-        "Model Performance Value": "model_performance_value",
+        "Model Output Utilization": "model_output_utilization"
     }
 
     def __init__(self, search_term: str,
@@ -116,6 +117,8 @@ class FindDatasetsQueryBuilder(QueryBuilder):
 
     def build_query(self) -> str:
         query = QUERY
+        query = query.replace('#variables', '\n\t'.join(self.QUERY_VARIABLES))
+
         # TODO: Handle 'search_term'
 
         # Apply sort based on the mapping
@@ -170,3 +173,56 @@ async def get_datasets(request: Request,
         )
     else:
         return Response(content="Unsupported format", status_code=400)
+
+
+class DatasetPerformancesQueryBuilder(QueryBuilder):
+    QUERY_VARIABLES = [
+        '(STRAFTER(STR(?dataset), "#") AS ?dataset_name)',
+        '?model_performance_metric',
+        '?model_performance_value',
+    ]
+
+    SORT_KEY_MAPPING = {
+        "Dataset Name": "dataset_name",
+        "Model Performance Metric": "model_performance_metric",
+        "Model Performance Value": "model_performance_value",
+    }
+
+    def __init__(self, search_term: str):
+        self.search_term = search_term
+        self.sort_string = to_order_by_string(["Dataset Name, asc"], self.SORT_KEY_MAPPING)
+
+    def build_query(self) -> str:
+        query = QUERY
+        query = query.replace('#variables', '\n\t'.join(self.QUERY_VARIABLES))
+
+        # TODO: Handle 'search_term'
+
+        # Apply sort based on the mapping
+        if self.sort_string:
+            query += self.sort_string
+
+        return query
+
+
+@router.get("/performances")  # Define a GET endpoint for "/datasets/performances"
+async def get_datasets_performances(request: Request,
+                                    search_term: str = Query(default=None, description="Search term")) -> Response:
+    app = request.app
+    query_builder = DatasetPerformancesQueryBuilder(search_term)
+
+    datasets = app.sparql_client.query(query_builder.build_query())
+
+    datasets_group_by_model_performance_metric = defaultdict(list)
+    for entry in datasets:
+        metric = entry.pop("model_performance_metric")  # Remove the metric key and get its value
+        if metric:
+            datasets_group_by_model_performance_metric[metric].append(entry)
+
+    # Sort each group by 'dataset_name'
+    for metric in datasets_group_by_model_performance_metric:
+        datasets_group_by_model_performance_metric[metric].sort(key=lambda x: x["dataset_name"])
+
+    return JSONResponse({
+        "model_performance_metric": dict(datasets_group_by_model_performance_metric)
+    })

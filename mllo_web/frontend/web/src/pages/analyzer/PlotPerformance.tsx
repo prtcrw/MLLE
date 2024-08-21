@@ -1,41 +1,98 @@
-import React, { useState } from 'react';
+import React, {useEffect, useState} from 'react';
 import {buildV1Url} from '../../services/api';
 import LoadingBar from '../../components/LoadingBar.tsx';
-import { Bar, Line } from 'react-chartjs-2';
-import { BarElement, CategoryScale, Chart as ChartJS, Legend, LinearScale, LineElement, PointElement, Title, Tooltip } from 'chart.js';
+import {Bar, Line} from 'react-chartjs-2';
+import {
+    BarElement,
+    CategoryScale,
+    Chart as ChartJS,
+    Legend,
+    LinearScale,
+    LineElement,
+    PointElement,
+    Title,
+    Tooltip
+} from 'chart.js';
 
 // Register Chart.js components
 ChartJS.register(CategoryScale, LinearScale, BarElement, LineElement, PointElement, Title, Tooltip, Legend);
 
-interface PerformanceData {
+type PerformanceData = {
     datasetName: string;
-    accuracy: number;
-    precision: number;
-    recall: number;
+    modelPerformanceValue: number;
 }
+
+type PerformanceMetrics = {
+    [metric: string]: PerformanceData[];
+};
+
+// Convert snake_case to camelCase
+const convertToCamelCase = (data: any): PerformanceMetrics => {
+    const camelCaseData: PerformanceMetrics = {};
+
+    for (const metric in data) {
+        if (data.hasOwnProperty(metric)) {
+            camelCaseData[metric] = data[metric].map((item: any) => ({
+                datasetName: item['dataset_name'],
+                modelPerformanceValue: parseFloat(item['model_performance_value']),
+            }));
+        }
+    }
+
+    return camelCaseData;
+};
 
 const PlotPerformance: React.FC = () => {
     const [plotType, setPlotType] = useState('Bar');
-    const [yAxisMetric, setYAxisMetric] = useState('accuracy');
+    const [yAxisMetric, setYAxisMetric] = useState(''); // Initially empty
     const [performanceCutoff, setPerformanceCutoff] = useState(50);
     const [orderBy, setOrderBy] = useState('Ascending');
     const [groupBy, setGroupBy] = useState('datasetName');
     const [isLoading, setIsLoading] = useState(false);
+    const [fetchedData, setFetchedData] = useState<PerformanceMetrics>({});
     const [data, setData] = useState<any>(null);
+    const [yAxisMetricOptions, setYAxisMetricOptions] = useState<string[]>([]);
+    const [minCutoff, setMinCutoff] = useState(0);
+    const [maxCutoff, setMaxCutoff] = useState(100);
 
-    const handlePlot = async () => {
+    useEffect(() => {
+        fetchData();
+    }, []);
+
+    useEffect(() => {
+        if (yAxisMetric) {
+            updateCutoffValues();
+            drawChart();
+        }
+    }, [yAxisMetric]);
+
+    const fetchData = async () => {
         setIsLoading(true); // Set loading to true
         try {
             // Fetch data with filters
-            const response = await fetch(buildV1Url(`performances/?yAxisMetric=${yAxisMetric}&performanceCutoff=${performanceCutoff}&orderBy=${orderBy}&groupBy=${groupBy}`));
-            const fetchedData: PerformanceData[] = await response.json();
+            const response = await fetch(buildV1Url(`datasets/performances`));
+            let fetchedData = await response.json();
+            fetchedData = convertToCamelCase(fetchedData['model_performance_metric']);
+            setFetchedData(fetchedData);
 
+            // Extract the first metric key as the default yAxisMetric
+            const initialMetric = Object.keys(fetchedData)[0];
+            setYAxisMetric(initialMetric);
+            setYAxisMetricOptions(Object.keys(fetchedData));
+        } finally {
+            setIsLoading(false); // Set loading to false after fetching
+        }
+    };
+
+    const drawChart = async () => {
+        setIsLoading(true); // Set loading to true
+        try {
             // Prepare the chart data
             const chartData = {
-                labels: fetchedData.map(item => item[groupBy as keyof PerformanceData]),
+                labels: fetchedData[yAxisMetric].map(item => item.datasetName),
                 datasets: [{
                     label: yAxisMetric.charAt(0).toUpperCase() + yAxisMetric.slice(1), // Capitalize the label
-                    data: fetchedData.map(item => item[yAxisMetric as keyof PerformanceData]),
+                    data: fetchedData[yAxisMetric].map(item => item.modelPerformanceValue),
                     backgroundColor: plotType === 'Bar' ? 'rgba(75, 192, 192, 0.2)' : 'rgba(153, 102, 255, 0.2)',
                     borderColor: plotType === 'Bar' ? 'rgba(75, 192, 192, 1)' : 'rgba(153, 102, 255, 1)',
                     borderWidth: 1,
@@ -46,6 +103,24 @@ const PlotPerformance: React.FC = () => {
         } finally {
             setIsLoading(false); // Set loading to false after fetching
         }
+    };
+
+    const updateCutoffValues = () => {
+        const values = fetchedData[yAxisMetric].map(item => item.modelPerformanceValue);
+        const minModelPerformanceValue = Math.min(...values);
+        const maxModelPerformanceValue = Math.max(...values);
+
+        setMinCutoff(minModelPerformanceValue);
+        setMaxCutoff(maxModelPerformanceValue);
+
+        if (performanceCutoff < minModelPerformanceValue || performanceCutoff > maxModelPerformanceValue) {
+            setPerformanceCutoff(minModelPerformanceValue);
+        }
+    };
+
+    const handleYAxisMetricChange = (metric: string) => {
+        setYAxisMetric(metric);
+        updateCutoffValues();
     };
 
     return (
@@ -67,11 +142,11 @@ const PlotPerformance: React.FC = () => {
                     <div>
                         <label>
                             Y axis (Performance Metric):
-                            <select value={yAxisMetric} onChange={(e) => setYAxisMetric(e.target.value)}>
-                                <option value="accuracy">Accuracy</option>
-                                <option value="precision">Precision</option>
-                                <option value="recall">Recall</option>
-                                {/* Add more metrics as needed */}
+                            <select value={yAxisMetric} onChange={(e) => handleYAxisMetricChange(e.target.value)}>
+                                {yAxisMetricOptions.map(metric => (
+                                    <option key={metric}
+                                            value={metric}>{metric.charAt(0).toUpperCase() + metric.slice(1)}</option>
+                                ))}
                             </select>
                         </label>
                     </div>
@@ -80,8 +155,8 @@ const PlotPerformance: React.FC = () => {
                             Performance Cutoff:
                             <input
                                 type="range"
-                                min="0"
-                                max="100"
+                                min={minCutoff}
+                                max={maxCutoff}
                                 value={performanceCutoff}
                                 onChange={(e) => setPerformanceCutoff(Number(e.target.value))}
                             />
@@ -107,7 +182,7 @@ const PlotPerformance: React.FC = () => {
                             </select>
                         </label>
                     </div>
-                    <button onClick={handlePlot}>Plot</button>
+                    <button onClick={drawChart}>Plot</button>
                 </div>
                 <div style={{width: '65%'}}>
                     <h2>Plot</h2>
