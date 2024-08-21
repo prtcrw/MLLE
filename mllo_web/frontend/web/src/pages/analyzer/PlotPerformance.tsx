@@ -2,6 +2,7 @@ import React, {useEffect, useState} from 'react';
 import {buildV1Url} from '../../services/api';
 import LoadingBar from '../../components/LoadingBar.tsx';
 import {Bar, Line} from 'react-chartjs-2';
+import ChartDataLabels from 'chartjs-plugin-datalabels';
 import {
     BarElement,
     CategoryScale,
@@ -13,9 +14,10 @@ import {
     Title,
     Tooltip
 } from 'chart.js';
+import './styles/plotperformance.css';
 
 // Register Chart.js components
-ChartJS.register(CategoryScale, LinearScale, BarElement, LineElement, PointElement, Title, Tooltip, Legend);
+ChartJS.register(CategoryScale, LinearScale, BarElement, LineElement, PointElement, Title, Tooltip, Legend, ChartDataLabels);
 
 type PerformanceData = {
     datasetName: string;
@@ -52,19 +54,19 @@ const PlotPerformance: React.FC = () => {
     const [fetchedData, setFetchedData] = useState<PerformanceMetrics>({});
     const [data, setData] = useState<any>(null);
     const [yAxisMetricOptions, setYAxisMetricOptions] = useState<string[]>([]);
-    const [minCutoff, setMinCutoff] = useState(0);
-    const [maxCutoff, setMaxCutoff] = useState(100);
+    const [minCutoff, setMinCutoff] = useState(0.0);
+    const [maxCutoff, setMaxCutoff] = useState(100.0);
 
     useEffect(() => {
         fetchData();
     }, []);
 
     useEffect(() => {
-        if (yAxisMetric) {
+        if (yAxisMetric && orderBy && groupBy) {
             updateCutoffValues();
             drawChart();
         }
-    }, [yAxisMetric]);
+    }, [yAxisMetric, orderBy, groupBy]);
 
     const fetchData = async () => {
         setIsLoading(true); // Set loading to true
@@ -99,10 +101,38 @@ const PlotPerformance: React.FC = () => {
                     fill: plotType === 'Line', // Fill the area under the line only if it's a Line chart
                 }]
             };
-            setData(chartData);
+
+            // Sort the chart data based on orderBy and groupBy
+            const sortedData = sortChartData(chartData, orderBy, groupBy);
+            setData(sortedData);
         } finally {
             setIsLoading(false); // Set loading to false after fetching
         }
+    };
+
+    const sortChartData = (chartData: any, orderBy: string, groupBy: string) => {
+        // Sort the data based on orderBy and groupBy
+        const data = chartData.datasets[0].data as PerformanceData[];
+        const sortedData = data.map((item, index) => ({
+            datasetName: chartData.labels[index],
+            modelPerformanceValue: item,
+        }));
+
+        if (groupBy === 'datasetName') {
+            sortedData.sort((a, b) => {
+                if (orderBy === 'Ascending') {
+                    return a.datasetName.localeCompare(b.datasetName);
+                } else {
+                    return b.datasetName.localeCompare(a.datasetName);
+                }
+            });
+        }
+
+        // Update labels and data in the chartData object
+        chartData.labels = sortedData.map(item => item.datasetName);
+        chartData.datasets[0].data = sortedData.map(item => item.modelPerformanceValue);
+
+        return chartData;
     };
 
     const updateCutoffValues = () => {
@@ -126,10 +156,10 @@ const PlotPerformance: React.FC = () => {
     return (
         <>
             <LoadingBar isLoading={isLoading}/>
-            <div style={{display: 'flex', justifyContent: 'space-between'}}>
-                <div style={{width: '30%'}}>
+            <div className="plot-performance-container">
+                <div className="filters-section">
                     <h2>Filters</h2>
-                    <div>
+                    <div className="filter-item">
                         <label>
                             Plot Type:
                             <select value={plotType} onChange={(e) => setPlotType(e.target.value)}>
@@ -139,7 +169,7 @@ const PlotPerformance: React.FC = () => {
                             </select>
                         </label>
                     </div>
-                    <div>
+                    <div className="filter-item">
                         <label>
                             Y axis (Performance Metric):
                             <select value={yAxisMetric} onChange={(e) => handleYAxisMetricChange(e.target.value)}>
@@ -150,7 +180,7 @@ const PlotPerformance: React.FC = () => {
                             </select>
                         </label>
                     </div>
-                    <div>
+                    <div className="filter-item">
                         <label>
                             Performance Cutoff:
                             <input
@@ -158,12 +188,14 @@ const PlotPerformance: React.FC = () => {
                                 min={minCutoff}
                                 max={maxCutoff}
                                 value={performanceCutoff}
+                                step={0.01}
                                 onChange={(e) => setPerformanceCutoff(Number(e.target.value))}
+                                className="range-slider"
                             />
-                            <span>{performanceCutoff}</span>
+                            <span className="cutoff-value">{performanceCutoff.toFixed(2)}</span>
                         </label>
                     </div>
-                    <div>
+                    <div className="filter-item">
                         <label>
                             Order By:
                             <select value={orderBy} onChange={(e) => setOrderBy(e.target.value)}>
@@ -172,19 +204,16 @@ const PlotPerformance: React.FC = () => {
                             </select>
                         </label>
                     </div>
-                    <div>
+                    <div className="filter-item">
                         <label>
                             Group By:
                             <select value={groupBy} onChange={(e) => setGroupBy(e.target.value)}>
                                 <option value="datasetName">Dataset Name</option>
-                                <option value="modelName">Model Name</option>
-                                {/* Add more group by options as needed */}
                             </select>
                         </label>
                     </div>
-                    <button onClick={drawChart}>Plot</button>
                 </div>
-                <div style={{width: '65%'}}>
+                <div className="plot-section" style={{width: '65%'}}>
                     <h2>Plot</h2>
                     {data && (
                         plotType === 'Bar' ? (
