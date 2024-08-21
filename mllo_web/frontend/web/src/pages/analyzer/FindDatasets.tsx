@@ -77,7 +77,7 @@ const FindDatasets: React.FC = () => {
             }
 
             // Add dataset_role as query params
-            Object.keys(selectedCheckboxes).map((key) => {
+            Object.keys(selectedCheckboxes).filter(key => selectedCheckboxes[key]).map((key) => {
                 urlParams.append('dataset_role', `${key},${selectedCheckboxes[key]}`);
             });
 

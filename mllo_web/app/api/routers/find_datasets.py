@@ -118,10 +118,10 @@ class FindDatasetsQueryBuilder(QueryBuilder):
 
         # Apply sort based on the mapping
         if self.dataset_role:
-            replacement_string = dataset_role_filter(training_data=self.dataset_role["training_data"],
-                                                     test_data=self.dataset_role["test_data"],
-                                                     validation_data=self.dataset_role["validation_data"],
-                                                     production_data=self.dataset_role["production_data"],
+            replacement_string = dataset_role_filter(training_data=self.dataset_role.get("training_data", False),
+                                                     test_data=self.dataset_role.get("test_data", False),
+                                                     validation_data=self.dataset_role.get("validation_data", False),
+                                                     production_data=self.dataset_role.get("production_data", False),
                                                      raw_data=False)
             query = query.replace("#DATASETTYPE_CONSTRAINT",
                                   f"VALUES ?dataset_type {{{replacement_string}}}" if replacement_string else '')
