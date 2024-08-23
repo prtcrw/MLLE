@@ -55,6 +55,7 @@ const FindModels: React.FC = () => {
     const navigate = useNavigate(); // Access useNavigate hook
     const [isPopupOpen, setIsPopupOpen] = useState(false);
     const [iriQueryResult, setQueryResult] = useState<string | null>(null);
+    const [clickedIri, setClickedIri] = useState<string | null>(null); 
 
     const fetchData = async (
         searchTerm: string,
@@ -172,6 +173,7 @@ const FindModels: React.FC = () => {
     };
     const handleIriClick = async (iri: string) => {
         try {
+            setClickedIri(iri);
             const encodedIri = encodeURIComponent(iri);
             const response = await fetch(buildV1Url(`models/query-iri?iri=${encodedIri}`));
             if (!response.ok) {
@@ -228,8 +230,13 @@ const FindModels: React.FC = () => {
             </div>
             {isPopupOpen && (
                 <Modal onClose={closePopup}>
-                    <h2>SPARQL Query Result</h2>
-                    <pre style={{ whiteSpace: 'pre-wrap' }}>{iriQueryResult}</pre> 
+                    <h2 style={{ wordBreak: 'break-all', whiteSpace: 'normal' }}>
+                        {clickedIri}
+                    </h2>
+                    <h3>
+                        Details:
+                    </h3>
+                    <pre style={{ whiteSpace: 'pre-wrap' }}>{iriQueryResult}</pre>
                 </Modal>
             )}
             {error && <ErrorMessage message={error}/>}

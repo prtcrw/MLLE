@@ -54,14 +54,12 @@ async def execute_iri_query(request: Request, iri: str) -> Response:
         if result:
             for item in result:
                 for key, value in item.items():
-                    # Format the key (e.g., converting snake_case to Title Case)
-                    print(key, value)
-                    formatted_key = key.replace('_', ' ').title()
-                    formatted_result += f"{formatted_key}:{value or 'N/A'}\n"
-
+                    if value:
+                        formatted_key = key.replace('_', ' ').title()
+                        formatted_result += f"{formatted_key}:{value}\n"
         else:
             formatted_result += "No data available."
 
-        return Response(content=formatted_result, media_type="text/plain")
+        return Response(content=formatted_result.strip(), media_type="text/plain")
     except Exception as e:
         return Response(content=f"An error occurred: {str(e)}", status_code=500)

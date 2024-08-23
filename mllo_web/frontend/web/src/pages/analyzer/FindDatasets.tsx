@@ -57,6 +57,7 @@ const FindDatasets: React.FC = () => {
     const navigate = useNavigate(); // Access useNavigate hook
     const [isPopupOpen, setIsPopupOpen] = useState(false);
     const [iriQueryResult, setQueryResult] = useState<string | null>(null);
+    const [clickedIri, setClickedIri] = useState<string | null>(null);
 
     const fetchData = async (searchTerm: string,
         currentPage: number,
@@ -201,6 +202,7 @@ const FindDatasets: React.FC = () => {
     };
     const handleIriClick = async (iri: string) => {
         try {
+            setClickedIri(iri);
             const encodedIri = encodeURIComponent(iri);
             const response = await fetch(buildV1Url(`datasets/query-iri?iri=${encodedIri}`));
             if (!response.ok) {
@@ -259,8 +261,13 @@ const FindDatasets: React.FC = () => {
             </div>
             {isPopupOpen && (
                 <Modal onClose={closePopup}>
-                    <h2>SPARQL Query Result</h2>
-                    <pre style={{ whiteSpace: 'pre-wrap' }}>{iriQueryResult}</pre>   {/* Display the formatted text result in a <pre> tag */}
+                    <h2 style={{ wordBreak: 'break-all', whiteSpace: 'normal' }}>
+                        {clickedIri}
+                    </h2>
+                    <h3>
+                        Details:
+                    </h3>
+                    <pre style={{ whiteSpace: 'pre-wrap' }}>{iriQueryResult}</pre>
                 </Modal>
             )}
 
