@@ -5,7 +5,7 @@ from typing import Optional, List
 
 from fastapi import APIRouter, Request, Query
 from fastapi.responses import StreamingResponse, Response, JSONResponse
-
+from .query_iri import execute_iri_query 
 from mllo_web.app.api.routers.utilities import generate_csv_response, to_order_by_string, dataset_role_filter, \
     parse_option_params
 from mllo_web.app.api.services.sparql_client import QueryBuilder, TotalRecordsQueryBuilder, PaginationQueryBuilder
@@ -229,3 +229,8 @@ async def get_datasets_performances(request: Request,
     return JSONResponse({
         "model_performance_metric": dict(datasets_group_by_model_performance_metric)
     })
+
+
+@router.get("/query-iri")
+async def get_query_iri(request: Request, iri: str):
+    return await execute_iri_query(request, iri)

@@ -8,6 +8,7 @@ import Table, {SortDirection} from '../../components/Table.tsx';
 import Pagination from '../../components/Pagination.tsx';
 import {DownloadIcon} from '../../components/Icons.tsx';
 import FindModelsFilter from './FindModelsFilter.tsx';
+import Modal from '../../components/Modal.tsx';
 
 interface ModelData {
     modelName: string;
@@ -52,6 +53,8 @@ const FindModels: React.FC = () => {
     const [message, setMessage] = useState('');
     const [error, setError] = useState<string | null>(null);
     const navigate = useNavigate(); // Access useNavigate hook
+    const [isPopupOpen, setIsPopupOpen] = useState(false);
+    const [iriQueryResult, setQueryResult] = useState<string | null>(null);
 
     const fetchData = async (
         searchTerm: string,
@@ -149,6 +152,44 @@ const FindModels: React.FC = () => {
         navigate('/models/analyze-deployed-model');
     };
 
+    const mapItemToRow = (header: string, value: any) => {
+        if (typeof value === 'string' && value.startsWith('http')) {
+            return (
+                <a
+                    href="#"
+                    onClick={(e) => {
+                        e.preventDefault();
+                        handleIriClick(value);
+                    }}
+                    style={{ color: 'blue', textDecoration: 'underline' }}
+                >
+                    {value}
+                </a>
+            );
+        } else {
+            return value;
+        }
+    };
+    const handleIriClick = async (iri: string) => {
+        try {
+            const encodedIri = encodeURIComponent(iri);
+            const response = await fetch(buildV1Url(`models/query-iri?iri=${encodedIri}`));
+            if (!response.ok) {
+                throw new Error('Failed to fetch IRI details');
+            }
+            const result = await response.text();
+            setQueryResult(result);
+            setIsPopupOpen(true);
+        } catch (error) {
+            console.error('Error fetching IRI details:', error);
+            setError((error as Error).message);
+        }
+    };
+
+    const closePopup = () => {
+        setIsPopupOpen(false);
+        setQueryResult(null);
+    };
     return (
         <div>
             <LoadingBar isLoading={isLoading}/>
@@ -173,17 +214,24 @@ const FindModels: React.FC = () => {
                     </div>
                 }
                 <Table data={models}
-                       headers={sortHeaders}
-                       currentSorts={currentSorts}
-                       onSort={handleSort}
-                       onRemoveSort={handleRemoveSort}
-                       message={message}/>
+                    headers={sortHeaders}
+                    mapItemToRow={mapItemToRow}
+                    currentSorts={currentSorts}
+                    onSort={handleSort}
+                    onRemoveSort={handleRemoveSort}
+                    message={message} />
                 <Pagination
                     currentPage={currentPage}
                     totalPages={totalPages}
                     onPageChange={handlePageChange}
                 />
             </div>
+            {isPopupOpen && (
+                <Modal onClose={closePopup}>
+                    <h2>SPARQL Query Result</h2>
+                    <pre style={{ whiteSpace: 'pre-wrap' }}>{iriQueryResult}</pre> 
+                </Modal>
+            )}
             {error && <ErrorMessage message={error}/>}
         </div>
     );

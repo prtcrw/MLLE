@@ -1,13 +1,14 @@
-import React, {useState} from 'react';
-import {useNavigate} from 'react-router-dom';
-import {buildV1Url, downloadFromResponse} from '../../services/api';
+import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { buildV1Url, downloadFromResponse } from '../../services/api';
 import LoadingBar from '../../components/LoadingBar.tsx';
 import ErrorMessage from '../../components/ErrorMessage.tsx';
 import Search from '../../components/Search.tsx';
-import Table, {SortDirection} from '../../components/Table.tsx';
+import Table, { SortDirection } from '../../components/Table.tsx';
 import Pagination from '../../components/Pagination.tsx';
-import {DownloadIcon} from '../../components/Icons.tsx';
+import { DownloadIcon } from '../../components/Icons.tsx';
 import FindDatasetsFilter from './FindDatasetsFilter.tsx';
+import Modal from '../../components/Modal.tsx';
 
 interface DatasetData {
     datasetName: string;
@@ -48,19 +49,21 @@ const FindDatasets: React.FC = () => {
         "Model Output Utilization",
     ];
     const [currentSorts, setCurrentSorts] = useState<{ key: string; direction: SortDirection }[]>([
-        {key: "Dataset Name", direction: "asc"}
+        { key: "Dataset Name", direction: "asc" }
     ]);
     const [isLoading, setIsLoading] = useState(false);
     const [message, setMessage] = useState('');
     const [error, setError] = useState<string | null>(null);
     const navigate = useNavigate(); // Access useNavigate hook
+    const [isPopupOpen, setIsPopupOpen] = useState(false);
+    const [iriQueryResult, setQueryResult] = useState<string | null>(null);
 
     const fetchData = async (searchTerm: string,
-                             currentPage: number,
-                             itemsPerPage: number,
-                             sorts: { key: string; direction: SortDirection }[],
-                             selectedCheckboxes: { [key: string]: boolean },
-                             format: string = '') => {
+        currentPage: number,
+        itemsPerPage: number,
+        sorts: { key: string; direction: SortDirection }[],
+        selectedCheckboxes: { [key: string]: boolean },
+        format: string = '') => {
         setIsLoading(true); // Set loading to true
         setMessage('');
         setError(null);
@@ -72,7 +75,7 @@ const FindDatasets: React.FC = () => {
             });
 
             // Add sorts as query params
-            for (const {key, direction} of sorts) {
+            for (const { key, direction } of sorts) {
                 urlParams.append('sort', `${key},${direction}`);
             }
 
@@ -138,7 +141,7 @@ const FindDatasets: React.FC = () => {
     };
 
     const handleCheckboxChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const {name, checked} = e.target;
+        const { name, checked } = e.target;
         setSelectedCheckboxes(prev => ({
             ...prev,
             [name]: checked
@@ -158,51 +161,110 @@ const FindDatasets: React.FC = () => {
     };
 
     const mapItemToRow = (header: string, value: any) => {
-        if (header === "Dataset Characteristics") {
-            return (value) ? value.join('; ') : '';
+        if (typeof value === 'string' && value.startsWith('http')) {
+            return (
+                <a
+                    href="#"
+                    onClick={(e) => {
+                        e.preventDefault();
+                        handleIriClick(value);
+                    }}
+                    style={{ color: 'blue', textDecoration: 'underline' }}
+                >
+                    {value}
+                </a>
+            );
+        }
+        if (header === "Dataset Characteristics" && Array.isArray(value)) {
+            return (
+                <div>
+                    {value.map((iri: string, index: number) => (
+                        <div key={index}>
+                            <a
+                                href="#"
+                                onClick={(e) => {
+                                    e.preventDefault();
+                                    handleIriClick(iri);
+                                }}
+                                style={{ color: 'blue', textDecoration: 'underline', marginRight: '8px' }}
+                            >
+                                {iri}
+                            </a>
+                        </div>
+                    ))}
+                </div>
+            );
+
         } else {
             return value;
         }
     };
+    const handleIriClick = async (iri: string) => {
+        try {
+            const encodedIri = encodeURIComponent(iri);
+            const response = await fetch(buildV1Url(`datasets/query-iri?iri=${encodedIri}`));
+            if (!response.ok) {
+                throw new Error('Failed to fetch IRI details');
+            }
+            const result = await response.text();
+            setQueryResult(result);
+            setIsPopupOpen(true);
+        } catch (error) {
+            console.error('Error fetching IRI details:', error);
+            setError((error as Error).message);
+        }
+    };
+
+    const closePopup = () => {
+        setIsPopupOpen(false);
+        setQueryResult(null);
+    };
 
     return (
         <div>
-            <LoadingBar isLoading={isLoading}/>
+            <LoadingBar isLoading={isLoading} />
             <h1>Find Datasets</h1>
             <div>
-                <Search onSearch={handleSearch} placeholder={'Model Name/Model Type'}/>
+                <Search onSearch={handleSearch} placeholder={'Model Name/Model Type'} />
                 <FindDatasetsFilter
                     selectedFilters={selectedCheckboxes}
-                    onFilterChange={handleCheckboxChange}/>
+                    onFilterChange={handleCheckboxChange} />
             </div>
             <div>
-                <div style={{margin: '8px 0'}}>
+                <div style={{ margin: '8px 0' }}>
                     <button onClick={handleAnalyzeModelOutput}>Analyze Model Output</button>
-                    <button style={{marginLeft: '4px'}} onClick={handlePlotPerformance}>Plot Performance</button>
+                    <button style={{ marginLeft: '4px' }} onClick={handlePlotPerformance}>Plot Performance</button>
                 </div>
                 {datasets.length > 0 &&
-                    <div style={{display: 'flex', justifyContent: 'flex-end'}}>
+                    <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
                         <button onClick={handleDownload}
-                                style={{display: 'flex', alignItems: 'center', justifyContent: 'space-between'}}>
-                            <span style={{marginRight: '4px'}}>Download Results</span>
-                            <DownloadIcon width={14} height={14}/>
+                            style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                            <span style={{ marginRight: '4px' }}>Download Results</span>
+                            <DownloadIcon width={14} height={14} />
                         </button>
                     </div>
                 }
                 <Table data={datasets}
-                       headers={sortHeaders}
-                       mapItemToRow={mapItemToRow}
-                       currentSorts={currentSorts}
-                       onSort={handleSort}
-                       onRemoveSort={handleRemoveSort}
-                       message={message}/>
+                    headers={sortHeaders}
+                    mapItemToRow={mapItemToRow}
+                    currentSorts={currentSorts}
+                    onSort={handleSort}
+                    onRemoveSort={handleRemoveSort}
+                    message={message} />
                 <Pagination
                     currentPage={currentPage}
                     totalPages={totalPages}
                     onPageChange={handlePageChange}
                 />
             </div>
-            {error && <ErrorMessage message={error}/>}
+            {isPopupOpen && (
+                <Modal onClose={closePopup}>
+                    <h2>SPARQL Query Result</h2>
+                    <pre style={{ whiteSpace: 'pre-wrap' }}>{iriQueryResult}</pre>   {/* Display the formatted text result in a <pre> tag */}
+                </Modal>
+            )}
+
+            {error && <ErrorMessage message={error} />}
         </div>
     );
 };

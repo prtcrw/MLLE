@@ -69,6 +69,7 @@ class MobiSparqlClient(SparqlClient):
             response = session.get(self.endpoint, params={
                 'query': statement,
             }, auth=self.auth, verify=False)
+            print(response)
             res = response.json()
             if 'error' in res:
                 errorMessage, errorDetails = res['errorMessage'], res['errorDetails']
