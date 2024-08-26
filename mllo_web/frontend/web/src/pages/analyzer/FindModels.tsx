@@ -236,39 +236,29 @@ const FindModels: React.FC = () => {
             </div>
             {(isPopupOpen && iriQueryResult) && (
                 <Modal onClose={closePopup}>
-                    <h2 style={{wordBreak: 'break-all', whiteSpace: 'normal'}}>
+                    <h2 style={{ wordBreak: 'break-all', whiteSpace: 'normal' }}>
                         {clickedIri}
                     </h2>
                     <div className="divider"></div>
                     {iriQueryResult.map((value, index) => (
-                        <pre style={{whiteSpace: 'pre-wrap'}}>
+                        <pre style={{ whiteSpace: 'pre-wrap' }}>
                             <div key={index}>
                                 <ul>
-                                    {value.dataPropertyValuePairs &&
-                                        <li key={'data-property-value-pairs-' + index}>
-                                            <span className="item-name">Data Property Value Pairs</span>
-                                            <span className="item-value">{value.dataPropertyValuePairs}</span>
-                                        </li>
-                                    }
-                                    {value.annotationPropertyValuePairs &&
-                                        <li key={'annotation-property-value-pairs-' + index}>
-                                            <span className="item-name">Annotation Property Value Pairs</span>
-                                            <span className="item-value">{value.annotationPropertyValuePairs}</span>
-                                        </li>
-                                    }
-                                    {value.types &&
-                                        <li key={'types-' + index}>
-                                            <span className="item-name">Types</span>
-                                            <span className="item-value">{value.types}</span>
-                                        </li>
-                                    }
+                                    {Object.entries(value).map(([key, val], idx) => (
+                                        val && (
+                                            <li key={key + '-' + idx}>
+                                                <span className="item-name">{key}</span>
+                                                <span className="item-value">{val}</span>
+                                            </li>
+                                        )
+                                    ))}
                                 </ul>
                             </div>
                         </pre>
                     ))}
                 </Modal>
             )}
-            {error && <ErrorMessage message={error}/>}
+            {error && <ErrorMessage message={error} />}
         </div>
     );
 };
