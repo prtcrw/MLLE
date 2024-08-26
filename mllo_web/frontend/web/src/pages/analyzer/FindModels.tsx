@@ -179,7 +179,7 @@ const FindModels: React.FC = () => {
             if (!response.ok) {
                 throw new Error('Failed to fetch IRI details');
             }
-            const result = await response.text();
+            const result = await response.json();
             setQueryResult(result);
             setIsPopupOpen(true);
         } catch (error) {
