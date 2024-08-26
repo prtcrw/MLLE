@@ -22,6 +22,12 @@ interface DatasetData {
     modelOutputUtilization: string;
 }
 
+interface IRIQueryData {
+    dataPropertyValuePairs: string;
+    annotationPropertyValuePairs: string;
+    types: string;
+}
+
 const defaultSelectedCheckboxes = {
     "test_data": false,
     "validation_data": false,
@@ -56,7 +62,7 @@ const FindDatasets: React.FC = () => {
     const [error, setError] = useState<string | null>(null);
     const navigate = useNavigate(); // Access useNavigate hook
     const [isPopupOpen, setIsPopupOpen] = useState(false);
-    const [iriQueryResult, setQueryResult] = useState<string | null>(null);
+    const [iriQueryResult, setQueryResult] = useState<IRIQueryData[] | null>(null);
     const [clickedIri, setClickedIri] = useState<string | null>(null);
 
     const fetchData = async (searchTerm: string,
@@ -264,10 +270,33 @@ const FindDatasets: React.FC = () => {
                     <h2 style={{ wordBreak: 'break-all', whiteSpace: 'normal' }}>
                         {clickedIri}
                     </h2>
-                    <h3>
-                        Details:
-                    </h3>
-                    <pre style={{ whiteSpace: 'pre-wrap' }}>{iriQueryResult}</pre>
+                    <div className="divider"></div>
+                    {iriQueryResult.map((value, index) => (
+                        <pre style={{whiteSpace: 'pre-wrap'}}>
+                            <div key={index}>
+                                <ul>
+                                    {value.dataPropertyValuePairs &&
+                                        <li key={'data-property-value-pairs-' + index}>
+                                            <span className="item-name">Data Property Value Pairs</span>
+                                            <span className="item-value">{value.dataPropertyValuePairs}</span>
+                                        </li>
+                                    }
+                                    {value.annotationPropertyValuePairs &&
+                                        <li key={'annotation-property-value-pairs-' + index}>
+                                            <span className="item-name">Annotation Property Value Pairs</span>
+                                            <span className="item-value">{value.annotationPropertyValuePairs}</span>
+                                        </li>
+                                    }
+                                    {value.types &&
+                                        <li key={'types-' + index}>
+                                            <span className="item-name">Types</span>
+                                            <span className="item-value">{value.types}</span>
+                                        </li>
+                                    }
+                                </ul>
+                            </div>
+                        </pre>
+                    ))}
                 </Modal>
             )}
 

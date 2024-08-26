@@ -21,6 +21,12 @@ interface ModelData {
     datasetUsedFor: string;
 }
 
+interface IRIQueryData {
+    dataPropertyValuePairs: string;
+    annotationPropertyValuePairs: string;
+    types: string;
+}
+
 const defaultSelectedCheckboxes = {
     "test_data": false,
     "validation_data": false,
@@ -54,8 +60,8 @@ const FindModels: React.FC = () => {
     const [error, setError] = useState<string | null>(null);
     const navigate = useNavigate(); // Access useNavigate hook
     const [isPopupOpen, setIsPopupOpen] = useState(false);
-    const [iriQueryResult, setQueryResult] = useState<string | null>(null);
-    const [clickedIri, setClickedIri] = useState<string | null>(null); 
+    const [iriQueryResult, setQueryResult] = useState<IRIQueryData[] | null>(null);
+    const [clickedIri, setClickedIri] = useState<string | null>(null);
 
     const fetchData = async (
         searchTerm: string,
@@ -153,7 +159,7 @@ const FindModels: React.FC = () => {
         navigate('/models/analyze-deployed-model');
     };
 
-    const mapItemToRow = (header: string, value: any) => {
+    const mapItemToRow = (_header: string, value: any) => {
         if (typeof value === 'string' && value.startsWith('http')) {
             return (
                 <a
@@ -162,7 +168,7 @@ const FindModels: React.FC = () => {
                         e.preventDefault();
                         handleIriClick(value);
                     }}
-                    style={{ color: 'blue', textDecoration: 'underline' }}
+                    style={{color: 'blue', textDecoration: 'underline'}}
                 >
                     {value}
                 </a>
@@ -216,27 +222,50 @@ const FindModels: React.FC = () => {
                     </div>
                 }
                 <Table data={models}
-                    headers={sortHeaders}
-                    mapItemToRow={mapItemToRow}
-                    currentSorts={currentSorts}
-                    onSort={handleSort}
-                    onRemoveSort={handleRemoveSort}
-                    message={message} />
+                       headers={sortHeaders}
+                       mapItemToRow={mapItemToRow}
+                       currentSorts={currentSorts}
+                       onSort={handleSort}
+                       onRemoveSort={handleRemoveSort}
+                       message={message}/>
                 <Pagination
                     currentPage={currentPage}
                     totalPages={totalPages}
                     onPageChange={handlePageChange}
                 />
             </div>
-            {isPopupOpen && (
+            {(isPopupOpen && iriQueryResult) && (
                 <Modal onClose={closePopup}>
-                    <h2 style={{ wordBreak: 'break-all', whiteSpace: 'normal' }}>
+                    <h2 style={{wordBreak: 'break-all', whiteSpace: 'normal'}}>
                         {clickedIri}
                     </h2>
-                    <h3>
-                        Details:
-                    </h3>
-                    <pre style={{ whiteSpace: 'pre-wrap' }}>{iriQueryResult}</pre>
+                    <div className="divider"></div>
+                    {iriQueryResult.map((value, index) => (
+                        <pre style={{whiteSpace: 'pre-wrap'}}>
+                            <div key={index}>
+                                <ul>
+                                    {value.dataPropertyValuePairs &&
+                                        <li key={'data-property-value-pairs-' + index}>
+                                            <span className="item-name">Data Property Value Pairs</span>
+                                            <span className="item-value">{value.dataPropertyValuePairs}</span>
+                                        </li>
+                                    }
+                                    {value.annotationPropertyValuePairs &&
+                                        <li key={'annotation-property-value-pairs-' + index}>
+                                            <span className="item-name">Annotation Property Value Pairs</span>
+                                            <span className="item-value">{value.annotationPropertyValuePairs}</span>
+                                        </li>
+                                    }
+                                    {value.types &&
+                                        <li key={'types-' + index}>
+                                            <span className="item-name">Types</span>
+                                            <span className="item-value">{value.types}</span>
+                                        </li>
+                                    }
+                                </ul>
+                            </div>
+                        </pre>
+                    ))}
                 </Modal>
             )}
             {error && <ErrorMessage message={error}/>}

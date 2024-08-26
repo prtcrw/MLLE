@@ -1,5 +1,5 @@
 from fastapi import Request, Response
-from starlette.responses import JSONResponse
+from fastapi.responses import JSONResponse
 
 from mllo_web.app.api.services.sparql_client import QueryBuilder
 

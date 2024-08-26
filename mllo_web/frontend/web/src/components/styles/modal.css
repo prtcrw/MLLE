@@ -35,3 +35,21 @@
 .modal-close:hover {
     color: #ff0000;
 }
+
+.modal-content ul {
+    padding: 0;
+}
+
+.modal-content li {
+    list-style: none;
+    padding: 0;
+    display: flex;
+    justify-content: space-between;
+}
+
+.modal-content li .item-name {
+    font-weight: bold;
+}
+
+.modal-content li .item-value {
+}
