@@ -10,7 +10,7 @@ import FindPipelines from './pages/analyzer/FindPipelines.tsx';
 import FindDatasets from './pages/analyzer/FindDatasets.tsx';
 import PlotPerformance from './pages/analyzer/PlotPerformance.tsx';
 import AnalyzeModelOutput from './pages/analyzer/AnalyzeModelOutput.tsx';
-import AnalyzeDeployedModel from './pages/analyzer/AnalyzeDeployedModel.tsx';
+import AnalyzeDeployedModels from './pages/analyzer/AnalyzeDeployedModels.tsx';
 import ComparePipelines from './pages/analyzer/ComparePipelines.tsx';
 
 const Dashboard: React.FC = () => {
@@ -30,7 +30,7 @@ const Dashboard: React.FC = () => {
                     <Routes>
                         <Route path="/" element={<Home/>}/>
                         <Route path="/models" element={<FindModels/>}/>
-                        <Route path="/models/analyze-deployed-model" element={<AnalyzeDeployedModel/>}/>
+                        <Route path="/models/analyze-deployed-models" element={<AnalyzeDeployedModels/>}/>
                         <Route path="/pipelines" element={<FindPipelines/>}/>
                         <Route path="/pipelines/compare-pipelines" element={<ComparePipelines/>}/>
                         <Route path="/pipelines/edit-pipeline" element={<PipelineEditor/>}/>

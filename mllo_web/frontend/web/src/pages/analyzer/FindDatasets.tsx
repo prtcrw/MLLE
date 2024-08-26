@@ -265,7 +265,7 @@ const FindDatasets: React.FC = () => {
                     onPageChange={handlePageChange}
                 />
             </div>
-            {isPopupOpen && (
+            {(isPopupOpen && iriQueryResult) && (
                 <Modal onClose={closePopup}>
                 <h2 style={{ wordBreak: 'break-all', whiteSpace: 'normal' }}>
                     {clickedIri}

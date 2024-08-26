@@ -3,14 +3,15 @@ from typing import Optional, List
 
 from fastapi import APIRouter, Request, Query
 from fastapi.responses import Response, JSONResponse, StreamingResponse
-from .query_iri import execute_iri_query 
+
 from mllo_web.app.api.routers.utilities import generate_csv_response, to_order_by_string, dataset_role_filter, \
     parse_option_params
 from mllo_web.app.api.services.sparql_client import QueryBuilder, TotalRecordsQueryBuilder, PaginationQueryBuilder
+from .query_iri import execute_iri_query
 
 router = APIRouter(prefix="/v1/models", tags=["models"])
 
-QUERY = """
+FIND_MODELS_QUERY = """
 PREFIX ml: <http://www.semanticweb.org/mnd14/ml/>
 PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
 PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
@@ -82,7 +83,7 @@ class FindModelsQueryBuilder(QueryBuilder):
         self.dataset_role = parse_option_params(dataset_role)
 
     def build_query(self) -> str:
-        query = QUERY
+        query = FIND_MODELS_QUERY
 
         replacement_string = dataset_role_filter(training_data=self.dataset_role.get("training_data", False),
                                                  test_data=self.dataset_role.get("test_data", False),
@@ -109,7 +110,8 @@ class FindModelsQueryBuilder(QueryBuilder):
 @router.get("/")  # Define a GET endpoint for "/models"
 async def get_models(request: Request,
                      search_term: str = Query(default=None, description="Search term"),
-                     dataset_role: Optional[List[str]] = Query(default=None, description="Dataset roles as JSON string"),
+                     dataset_role: Optional[List[str]] = Query(default=None,
+                                                               description="Dataset roles as JSON string"),
                      specific_IRI=Query(default=None, description="Specific IRI"),
                      page: int = Query(default=1, description="Page number"),
                      items_per_page: int = Query(default=10, description="Number of models to return per page"),
@@ -147,6 +149,125 @@ async def get_models(request: Request,
     else:
         return Response(content="Unsupported format", status_code=400)
 
+
 @router.get("/query-iri")
 async def get_query_iri(request: Request, iri: str):
     return await execute_iri_query(request, iri)
+
+
+ANALYZE_DEPLOYED_MODELS_QUERY = """
+PREFIX ml: <http://www.semanticweb.org/mnd14/ml/>
+PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+PREFIX bfo: <http://purl.obolibrary.org/obo/>
+PREFIX iof-core: <https://spec.industrialontologies.org/ontology/core/Core/>
+SELECT DISTINCT
+    (STRAFTER(STR(?model), "#") AS ?model_name)
+    ?model_deployed_on_system
+    ?last_model_update
+    ?model_execution_timestamp
+    ?model_input_data
+    ?model_output_data
+    ?model_output_utilization
+    ?model_performance_metric
+    ?model_performance_value
+WHERE {
+    ?dataset rdf:type ?dataset_type.
+    ?dataset_type rdfs:label ?dataset_used_as.
+    ?ml_process ml:hasDataInput ?dataset.
+    ?ml_process bfo:BFO_0000063*/(bfo:BFO_0000057 | ml:executes) ?model.
+    OPTIONAL {
+        ?ml_process bfo:BFO_0000222/iof-core:hasValueExpressionAtAllTimes/iof-core:hasDateTimeValue ?ml_input_timestamp
+    }
+    ?model rdf:type ?model_type_iri.
+    ?model_type_iri rdfs:subClassOf+ ml:MachineLearningModel.
+    ?model_type_iri rdfs:label ?model_type.
+    OPTIONAL {
+        ?model bfo:BFO_0000178 ?model_objective.
+        ?model_objective rdf:type/rdfs:subClassOf* iof-core:ObjectiveSpecification.
+    }
+    OPTIONAL {
+        ?ml_process ml:hasDataOutput+/^ml:hasDataInput ?model_performance_assessment.
+        ?model_performance_assessment bfo:BFO_0000059 ?model_performance_metric_iri.
+        ?model_performance_assessment rdf:type/rdfs:subClassOf* ml:ModelPerformanceAssessment.
+        ?model_performance_metric_iri rdf:type ?model_performance_metric_type.
+        ?model_performance_metric_type rdfs:subClassOf+ ml:PerformanceMetric.
+        ?model_performance_metric_type rdfs:label ?model_performance_metric.
+        ?model_performance_assessment ml:hasDataOutput/iof-core:hasSimpleExpressionValue ?model_performance_value
+    }
+    OPTIONAL {
+        ?data_preprocessing_pipeline ml:hasDataOutput ?dataset.
+    	?data_preprocessing_pipeline rdf:type ml:MachineLearningDataPreparationPipeline
+    }
+}    
+"""
+
+
+class DeployedModelsQueryBuilder(QueryBuilder):
+    SORT_KEY_MAPPING = {
+        "Model Name": "model_name",
+        "Model Deployed on System": "model_deployed_on_system",
+        "Last Model Update": "last_model_update",
+        "Model Execution Timestamp": "model_execution_timestamp",
+        "Model Input Data": "model_input_data",
+        "Model Output Data": "model_output_data",
+        "Model Output Utilization": "model_output_utilization",
+        "Model Performance Metric": "model_performance_metric",
+        "Model Performance Value": "model_performance_value",
+    }
+
+    def __init__(self,
+                 search_term: str,
+                 sort: Optional[List[str]] = None):
+        self.search_term = search_term.strip() if search_term and len(search_term) > 0 else None
+        self.sort_string = to_order_by_string(sort, self.SORT_KEY_MAPPING)
+
+    def build_query(self) -> str:
+        query = ANALYZE_DEPLOYED_MODELS_QUERY
+
+        if self.sort_string:
+            query += self.sort_string
+
+        return query
+
+
+@router.get("/deployed")  # Define a GET endpoint for "/models/deployed"
+async def get_deployed_models(request: Request,
+                              search_term: str = Query(default=None, description="Search term"),
+                              page: int = Query(default=1, description="Page number"),
+                              items_per_page: int = Query(default=10,
+                                                          description="Number of models to return per page"),
+                              sort: Optional[List[str]] = Query(default=None,
+                                                                description="Sort criteria (e.g., [model_name,asc,last_model_update,desc])"),
+                              format: str = Query(default="json",
+                                                  description="Output format (json or csv)")) -> Response:
+    app = request.app
+    query_builder = DeployedModelsQueryBuilder(search_term=search_term, sort=sort)
+
+    if format == 'json':
+        total_records = int(
+            app.sparql_client.query(TotalRecordsQueryBuilder(query_builder).build_query())[0]['total_records'])
+
+        # Calculate total pages based on results and page size
+        total_pages = math.ceil(total_records / items_per_page) if total_records > 0 else 0
+        models = app.sparql_client.query(
+            PaginationQueryBuilder(query_builder, page=page, items_per_page=items_per_page).build_query())
+
+        return JSONResponse({
+            "data": models,
+            "total_pages": total_pages,
+        })
+    elif format == 'csv':
+        models = app.sparql_client.query(query_builder.build_query())
+
+        return StreamingResponse(
+            generate_csv_response(
+                header=['model_name', 'model_deployed_on_system', 'last_model_update', 'model_execution_timestamp',
+                        'model_input_data', 'model_output_data', 'model_output_utilization',
+                        'model_performance_metric', 'model_performance_value'],
+                values=[x.values() for x in models]),
+            media_type='text/csv',
+            headers={'Content-Disposition': f'attachment; filename=deployed_models.csv'}
+        )
+    else:
+        return Response(content="Unsupported format", status_code=400)
