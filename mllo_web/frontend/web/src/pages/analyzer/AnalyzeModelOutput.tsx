@@ -18,7 +18,7 @@ Chart.register(CategoryScale, LinearScale, BarElement, PointElement, Title, Tool
 
 
 const AnalyzeModelOutput: React.FC = () => {
-    const [plotType, setPlotType] = useState('Bar');
+    const [plotType, setPlotType] = useState('scatter');
     const [isLoading, setIsLoading] = useState(false);
     const [metadata, setMetadata] = useState<any>(null);
     const [data, setData] = useState<any>(null);
@@ -44,28 +44,61 @@ const AnalyzeModelOutput: React.FC = () => {
     const chartRef = useRef(null);
 
     useEffect(() => {
-        if (data && chartRef.current) {
+        if (data && metadata && chartRef.current) {
             const ctx = chartRef.current.getContext('2d');
 
-            const chart = new Chart(ctx, {
-                type: 'scatter', // Change to 'scatter' for scatter plot
-                data: {
-                    datasets: metadata.labels.map((label, i) => ({
-                        label,
-                        data: data.filter(point => point.label === label),
-                        backgroundColor: `rgba(${Math.floor(Math.random() * 256)}, ${Math.floor(Math.random() * 256)}, ${Math.floor(Math.random() * 256)}, 0.7)`,
-                        borderColor: `rgba(${Math.floor(Math.random() * 256)}, ${Math.floor(Math.random() * 256)}, ${Math.floor(Math.random() * 256)}, 1)`,
-                        borderWidth: 0,
-                    })),
-                },
-                options: {}
-            });
+            const chartConfig = {
+                type: plotType, // Use the state variable
+                data: {},
+                options: {},
+            };
+
+            // Update data based on plot type (explained below)
+            updateChartData(data, metadata, chartConfig);
+
+            const chart = new Chart(ctx, chartConfig);
 
             return () => {
                 chart.destroy();
             };
         }
-    }, [data]);
+    }, [data, metadata, chartRef, plotType]);
+
+    const updateChartData = (data, metadata, chartConfig) => {
+        if (chartConfig.type === 'scatter') {
+            // Existing scatter plot data logic (unchanged)
+            chartConfig.data = {
+                datasets: metadata.labels.map((label, i) => ({
+                    label,
+                    data: data.filter(point => point.label === label),
+                    backgroundColor: `rgba(${Math.floor(Math.random() * 256)}, ${Math.floor(Math.random() * 256)}, ${Math.floor(Math.random() * 256)}, 0.7)`,
+                    borderColor: `rgba(${Math.floor(Math.random() * 256)}, ${Math.floor(Math.random() * 256)}, ${Math.floor(Math.random() * 256)}, 1)`,
+                    borderWidth: 0,
+                })),
+            };
+        } else if (chartConfig.type === 'bar') {
+            // Count occurrences of each label
+            const labelCounts = data.reduce((counts, point) => {
+                counts[point.label] = (counts[point.label] || 0) + 1;
+                return counts;
+            }, {});
+
+            // Create histogram data based on counts
+            const histogramData = metadata.labels.map(label => labelCounts[label] || 0);
+
+            chartConfig.data = {
+                labels: metadata.labels,
+                datasets: [{
+                    label: 'Frequency',
+                    data: histogramData,
+                    backgroundColor: `rgba(${Math.floor(Math.random() * 256)}, ${Math.floor(Math.random() * 256)}, ${Math.floor(Math.random() * 256)}, 0.7)`,
+                    borderColor: `rgba(${Math.floor(Math.random()
+                        * 256)}, ${Math.floor(Math.random() * 256)}, ${Math.floor(Math.random() * 256)}, 1)`,
+                    borderWidth: 0,
+                }],
+            };
+        }
+    };
 
     return (
         <>
@@ -77,7 +110,8 @@ const AnalyzeModelOutput: React.FC = () => {
                         <label>
                             Plot Type:
                             <select value={plotType} onChange={(e) => setPlotType(e.target.value)}>
-                                <option value="Value">Value</option>
+                                <option value="scatter">Scatter</option>
+                                <option value="bar">Bar</option>
                             </select>
                         </label>
                     </div>
