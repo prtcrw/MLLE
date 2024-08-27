@@ -9,6 +9,8 @@ import Pagination from '../../components/Pagination.tsx';
 import {DownloadIcon} from '../../components/Icons.tsx';
 import FindModelsFilter from './FindModelsFilter.tsx';
 import Modal from '../../components/Modal.tsx';
+import { pascalCaseToWords, lowercaseToPascalCase } from '../../components/FormatUtilities';
+
 
 interface ModelData {
     modelName: string;
@@ -159,6 +161,18 @@ const FindModels: React.FC = () => {
         navigate('/models/analyze-deployed-model');
     };
 
+    const getUniqueIriPart = (iri: string | string[]): string | string[] => {
+        if (Array.isArray(iri)) {
+            return iri.map(singleIri => {
+                const parts = singleIri.split('#');
+                return parts.length > 1 ? parts[1] : singleIri;  // Return the fragment if exists, else the full IRI
+            });
+        } else {
+            const parts = iri.split('#');
+            return parts.length > 1 ? parts[1] : iri;  // Return the fragment if exists, else the full IRI
+        }
+    };
+
     const mapItemToRow = (_header: string, value: any) => {
         if (typeof value === 'string' && value.startsWith('http')) {
             return (
@@ -168,15 +182,30 @@ const FindModels: React.FC = () => {
                         e.preventDefault();
                         handleIriClick(value);
                     }}
-                    style={{color: 'blue', textDecoration: 'underline'}}
+                    style={{ color: 'blue', textDecoration: 'underline' }}
                 >
-                    {value}
+                    {getUniqueIriPart(value)}
                 </a>
             );
-        } else {
+        }
+        if (typeof value === 'string') {
+            // Check if the string is in PascalCase
+            if (/^[A-Z][a-z0-9]+([A-Z][a-z0-9]*)*$/.test(value)) {
+                value = pascalCaseToWords(value);
+            } else if (/^[a-z ]+$/.test(value)) {
+                // If the string is in lowercase with spaces, convert to PascalCase
+                value = lowercaseToPascalCase(value);
+            }
+    
+            return (
+                <span>{value}</span>
+            );
+        }
+        else {
             return value;
         }
     };
+
     const handleIriClick = async (iri: string) => {
         try {
             setClickedIri(iri);

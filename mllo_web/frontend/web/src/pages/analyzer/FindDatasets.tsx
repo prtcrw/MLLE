@@ -9,6 +9,7 @@ import Pagination from '../../components/Pagination.tsx';
 import { DownloadIcon } from '../../components/Icons.tsx';
 import FindDatasetsFilter from './FindDatasetsFilter.tsx';
 import Modal from '../../components/Modal.tsx';
+import { pascalCaseToWords, lowercaseToPascalCase } from '../../components/FormatUtilities';
 
 interface DatasetData {
     datasetName: string;
@@ -167,6 +168,18 @@ const FindDatasets: React.FC = () => {
         navigate(url);
     };
 
+    const getUniqueIriPart = (iri: string | string[]): string | string[] => {
+        if (Array.isArray(iri)) {
+            return iri.map(singleIri => {
+                const parts = singleIri.split('#');
+                return parts.length > 1 ? parts[1] : singleIri;  // Return the fragment if exists, else the full IRI
+            });
+        } else {
+            const parts = iri.split('#');
+            return parts.length > 1 ? parts[1] : iri;  // Return the fragment if exists, else the full IRI
+        }
+    };
+
     const mapItemToRow = (header: string, value: any) => {
         if (typeof value === 'string' && value.startsWith('http')) {
             return (
@@ -178,34 +191,45 @@ const FindDatasets: React.FC = () => {
                     }}
                     style={{ color: 'blue', textDecoration: 'underline' }}
                 >
-                    {value}
+                    {pascalCaseToWords(getUniqueIriPart(value))}
                 </a>
             );
         }
         if (header === "Dataset Characteristics" && Array.isArray(value)) {
             return (
                 <div>
-                    {value.map((iri: string, index: number) => (
+                    {getUniqueIriPart(value).map((iri: string, index: number) => (
                         <div key={index}>
                             <a
                                 href="#"
                                 onClick={(e) => {
                                     e.preventDefault();
-                                    handleIriClick(iri);
+                                    handleIriClick(value[index]);
                                 }}
                                 style={{ color: 'blue', textDecoration: 'underline', marginRight: '8px' }}
                             >
-                                {iri}
+                                {pascalCaseToWords(getUniqueIriPart(iri))}
                             </a>
                         </div>
                     ))}
                 </div>
             );
 
+        }
+        if (typeof value === 'string') {
+            if (/^[A-Z][a-z0-9]+([A-Z][a-z0-9]*)*$/.test(value)) {
+                value = pascalCaseToWords(value);
+            } else if (/^[a-z ]+$/.test(value)) {
+                value = lowercaseToPascalCase(value);
+            }
+            return (
+                <span>{value}</span>
+            );
         } else {
             return value;
         }
     };
+    
     const handleIriClick = async (iri: string) => {
         try {
             setClickedIri(iri);
