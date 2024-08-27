@@ -1,14 +1,18 @@
 import json
 import math
 from collections import defaultdict
+from contextlib import closing
 from typing import Optional, List
 
 from fastapi import APIRouter, Request, Query
 from fastapi.responses import StreamingResponse, Response, JSONResponse
-from .query_iri import execute_iri_query 
+from sklearn.datasets import fetch_openml
+from sklearn.decomposition import PCA
+
 from mllo_web.app.api.routers.utilities import generate_csv_response, to_order_by_string, dataset_role_filter, \
     parse_option_params
 from mllo_web.app.api.services.sparql_client import QueryBuilder, TotalRecordsQueryBuilder, PaginationQueryBuilder
+from .query_iri import execute_iri_query
 
 router = APIRouter(prefix="/v1/datasets", tags=["datasets"])
 
@@ -204,6 +208,11 @@ async def get_datasets(request: Request,
         return Response(content="Unsupported format", status_code=400)
 
 
+@router.get("/query-iri")
+async def get_query_iri(request: Request, iri: str):
+    return await execute_iri_query(request, iri)
+
+
 @router.get("/performances")  # Define a GET endpoint for "/datasets/performances"
 async def get_datasets_performances(request: Request,
                                     search_term: str = Query(default=None, description="Search term"),
@@ -231,6 +240,21 @@ async def get_datasets_performances(request: Request,
     })
 
 
-@router.get("/query-iri")
-async def get_query_iri(request: Request, iri: str):
-    return await execute_iri_query(request, iri)
+@router.get("/model-output")
+async def get_model_output(request: Request) -> Response:
+    mnist = fetch_openml('mnist_784', version=1)
+    data = mnist.data / 255.0  # Normalize pixel values
+
+    # Apply PCA with 2 components for 2D plot
+    pca = PCA(n_components=2)
+    pca.fit(data)
+    pca_data = pca.transform(data)
+
+    # Prepare data for JSON serialization
+    data_dict = {
+        "labels": mnist.target.tolist(),
+        "pca1": pca_data[:, 0].tolist(),
+        "pca2": pca_data[:, 1].tolist()
+    }
+
+    return JSONResponse(data_dict)

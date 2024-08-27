@@ -1,100 +1,97 @@
-import React, {useState} from 'react';
+import React, {useEffect, useRef, useState} from 'react';
 import {buildV1Url} from '../../services/api';
 import LoadingBar from '../../components/LoadingBar.tsx';
-import {Bar, Line} from 'react-chartjs-2';
 import {
     BarElement,
     CategoryScale,
-    Chart as ChartJS,
+    Chart,
     Legend,
     LinearScale,
-    LineElement,
     PointElement,
     Title,
-    Tooltip
+    Tooltip,
 } from 'chart.js';
+import './styles/analyze_model_output.css';
 
 // Register Chart.js components
-ChartJS.register(CategoryScale, LinearScale, BarElement, LineElement, PointElement, Title, Tooltip, Legend);
+Chart.register(CategoryScale, LinearScale, BarElement, PointElement, Title, Tooltip, Legend);
 
-interface PerformanceData {
-    datasetName: string;
-    accuracy: number;
-    precision: number;
-    recall: number;
-}
 
 const AnalyzeModelOutput: React.FC = () => {
     const [plotType, setPlotType] = useState('Bar');
-    const [yAxisMetric] = useState('accuracy');
-    const [groupBy] = useState('datasetName');
     const [isLoading, setIsLoading] = useState(false);
     const [data, setData] = useState<any>(null);
 
-    const handlePlot = async () => {
+    useEffect(() => {
+        fetchData();
+    }, []);
+
+    const fetchData = async () => {
         setIsLoading(true); // Set loading to true
         try {
             // Fetch data with filters
-            const response = await fetch(buildV1Url(`performances/`));
-            const fetchedData: PerformanceData[] = await response.json();
-
-            // Prepare the chart data
-            const chartData = {
-                labels: fetchedData.map(item => item[groupBy as keyof PerformanceData]),
-                datasets: [{
-                    label: yAxisMetric.charAt(0).toUpperCase() + yAxisMetric.slice(1), // Capitalize the label
-                    data: fetchedData.map(item => item[yAxisMetric as keyof PerformanceData]),
-                    backgroundColor: plotType === 'Bar' ? 'rgba(75, 192, 192, 0.2)' : 'rgba(153, 102, 255, 0.2)',
-                    borderColor: plotType === 'Bar' ? 'rgba(75, 192, 192, 1)' : 'rgba(153, 102, 255, 1)',
-                    borderWidth: 1,
-                    fill: plotType === 'Line', // Fill the area under the line only if it's a Line chart
-                }]
-            };
-            setData(chartData);
+            const response = await fetch(buildV1Url(`datasets/model-output`));
+            const data = await response.json();
+            setData(data);
         } finally {
             setIsLoading(false); // Set loading to false after fetching
         }
     };
 
+    // Assuming you have a reference to a canvas element
+    const chartRef = useRef(null);
+
+    useEffect(() => {
+        if (data && chartRef.current) {
+            const ctx = chartRef.current.getContext('2d');
+
+            // Limit data points to the first 100
+            const limitedData = data.pca1.map((pca1, index) => ({
+                x: pca1,
+                y: data.pca2[index],
+                label: data.labels[index],
+            }));
+
+            const uniqueLabels = [...new Set(data.labels)].sort((a, b) => a.localeCompare(b));
+
+            const chart = new Chart(ctx, {
+                type: 'scatter', // Change to 'scatter' for scatter plot
+                data: {
+                    datasets: uniqueLabels.map((label, i) => ({
+                        label,
+                        data: limitedData.filter(point => point.label === label),
+                        backgroundColor: `rgba(${Math.floor(Math.random() * 256)}, ${Math.floor(Math.random() * 256)}, ${Math.floor(Math.random() * 256)}, 0.2)`,
+                        borderColor: `rgba(${Math.floor(Math.random() * 256)}, ${Math.floor(Math.random() * 256)}, ${Math.floor(Math.random() * 256)}, 1)`,
+                        borderWidth: 0,
+                    })),
+                },
+                options: {}
+            });
+
+            return () => {
+                chart.destroy();
+            };
+        }
+    }, [data]);
+
     return (
         <>
             <LoadingBar isLoading={isLoading}/>
-            <div style={{display: 'flex', justifyContent: 'space-between'}}>
-                <div style={{width: '30%'}}>
+            <div className="analyze-model-output-container">
+                <div className="filters-section">
                     <h2>Filters</h2>
-                    <div>
+                    <div className="filter-item">
                         <label>
                             Plot Type:
                             <select value={plotType} onChange={(e) => setPlotType(e.target.value)}>
-                                <option value="Bar">Bar</option>
-                                <option value="Line">Line</option>
-                                {/* Add more plot types as needed */}
+                                <option value="Value">Value</option>
                             </select>
                         </label>
                     </div>
-                    <button onClick={handlePlot}>Plot</button>
                 </div>
-                <div style={{width: '65%'}}>
+                <div className="plot-section" style={{width: '65%'}}>
                     <h2>Plot</h2>
-                    {data && (
-                        plotType === 'Bar' ? (
-                            <Bar data={data} options={{
-                                responsive: true,
-                                plugins: {
-                                    legend: {position: 'top'},
-                                    tooltip: {callbacks: {label: (context) => `${context.dataset.label}: ${context.raw}`}}
-                                }
-                            }}/>
-                        ) : (
-                            <Line data={data} options={{
-                                responsive: true,
-                                plugins: {
-                                    legend: {position: 'top'},
-                                    tooltip: {callbacks: {label: (context) => `${context.dataset.label}: ${context.raw}`}}
-                                }
-                            }}/>
-                        )
-                    )}
+                    <canvas ref={chartRef}/>
                 </div>
             </div>
         </>

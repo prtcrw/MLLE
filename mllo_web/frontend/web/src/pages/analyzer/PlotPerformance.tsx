@@ -2,7 +2,6 @@ import React, {useEffect, useState} from 'react';
 import {buildV1Url} from '../../services/api';
 import LoadingBar from '../../components/LoadingBar.tsx';
 import {Bar, Line} from 'react-chartjs-2';
-import ChartDataLabels from 'chartjs-plugin-datalabels';
 import {
     BarElement,
     CategoryScale,
@@ -16,9 +15,10 @@ import {
     Tooltip
 } from 'chart.js';
 import './styles/plotperformance.css';
+import ChartDataLabels from "chartjs-plugin-datalabels";
 
 // Register Chart.js components
-ChartJS.register(CategoryScale, LinearScale, BarElement, LineElement, Filler, PointElement, Title, Tooltip, Legend, ChartDataLabels);
+ChartJS.register(CategoryScale, LinearScale, BarElement, LineElement, Filler, PointElement, Title, Tooltip, Legend);
 
 type PerformanceData = {
     datasetName: string;
@@ -269,9 +269,9 @@ const PlotPerformance: React.FC = () => {
                     <h2>Plot</h2>
                     {data && (
                         plotType === 'Bar' ? (
-                            <Bar data={data} options={options}/>
+                            <Bar data={data} plugins={[ChartDataLabels]} options={options}/>
                         ) : (
-                            <Line data={data} options={options}/>
+                            <Line data={data} plugins={[ChartDataLabels]} options={options}/>
                         )
                     )}
                 </div>
