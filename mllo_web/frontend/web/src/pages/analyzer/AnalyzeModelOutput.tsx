@@ -1,103 +1,52 @@
-import React, {useEffect, useRef, useState} from 'react';
+import React, {useState} from 'react';
 import {buildV1Url} from '../../services/api';
 import LoadingBar from '../../components/LoadingBar.tsx';
-import {
-    BarElement,
-    CategoryScale,
-    Chart,
-    Legend,
-    LinearScale,
-    PointElement,
-    Title,
-    Tooltip,
-} from 'chart.js';
 import './styles/analyze_model_output.css';
-
-// Register Chart.js components
-Chart.register(CategoryScale, LinearScale, BarElement, PointElement, Title, Tooltip, Legend);
+import PCAChart from "../../charts/PCAChart.tsx";
+import PDFChart from "../../charts/PDFChart.tsx";
+import HistogramChart from "../../charts/HistogramChart.tsx";
 
 
 const AnalyzeModelOutput: React.FC = () => {
-    const [plotType, setPlotType] = useState('scatter');
+    const [plotType, setPlotType] = useState('PCA');
     const [isLoading, setIsLoading] = useState(false);
-    const [metadata, setMetadata] = useState<any>(null);
-    const [data, setData] = useState<any>(null);
-
-    useEffect(() => {
-        fetchData();
-    }, []);
+    const [results, setResults] = useState<any>(null);
 
     const fetchData = async () => {
         setIsLoading(true); // Set loading to true
         try {
             // Fetch data with filters
-            const response = await fetch(buildV1Url(`datasets/model-output`));
+            const url = plotType === 'PCA' ? 'datasets/model-input' : 'datasets/model-output';
+            const response = await fetch(buildV1Url(url));
             const result = await response.json();
-            setMetadata(result.metadata);
-            setData(result.data);
+            setResults(result.results);
         } finally {
             setIsLoading(false); // Set loading to false after fetching
         }
     };
 
-    // Assuming you have a reference to a canvas element
-    const chartRef = useRef(null);
+    const renderChart = () => {
+        if (!results) return null;
 
-    useEffect(() => {
-        if (data && metadata && chartRef.current) {
-            const ctx = chartRef.current.getContext('2d');
-
-            const chartConfig = {
-                type: plotType, // Use the state variable
-                data: {},
-                options: {},
-            };
-
-            // Update data based on plot type (explained below)
-            updateChartData(data, metadata, chartConfig);
-
-            const chart = new Chart(ctx, chartConfig);
-
-            return () => {
-                chart.destroy();
-            };
+        switch (plotType) {
+            case 'PCA':
+                return <PCAChart results={results} />;
+            case 'PDF':
+                return <PDFChart results={results} />;
+            case 'Histogram':
+                return <HistogramChart results={results} />;
+            default:
+                return null;
         }
-    }, [data, metadata, chartRef, plotType]);
+    };
 
-    const updateChartData = (data, metadata, chartConfig) => {
-        if (chartConfig.type === 'scatter') {
-            // Existing scatter plot data logic (unchanged)
-            chartConfig.data = {
-                datasets: metadata.labels.map((label, i) => ({
-                    label,
-                    data: data.filter(point => point.label === label),
-                    backgroundColor: `rgba(${Math.floor(Math.random() * 256)}, ${Math.floor(Math.random() * 256)}, ${Math.floor(Math.random() * 256)}, 0.7)`,
-                    borderColor: `rgba(${Math.floor(Math.random() * 256)}, ${Math.floor(Math.random() * 256)}, ${Math.floor(Math.random() * 256)}, 1)`,
-                    borderWidth: 0,
-                })),
-            };
-        } else if (chartConfig.type === 'bar') {
-            // Count occurrences of each label
-            const labelCounts = data.reduce((counts, point) => {
-                counts[point.label] = (counts[point.label] || 0) + 1;
-                return counts;
-            }, {});
+    const handlePlot = () => {
+        fetchData();
+    };
 
-            // Create histogram data based on counts
-            const histogramData = metadata.labels.map(label => labelCounts[label] || 0);
-
-            chartConfig.data = {
-                labels: metadata.labels,
-                datasets: [{
-                    label: 'Frequency',
-                    data: histogramData,
-                    backgroundColor: `rgba(${Math.floor(Math.random() * 256)}, ${Math.floor(Math.random() * 256)}, ${Math.floor(Math.random() * 256)}, 0.7)`,
-                    borderColor: `rgba(${Math.floor(Math.random()
-                        * 256)}, ${Math.floor(Math.random() * 256)}, ${Math.floor(Math.random() * 256)}, 1)`,
-                    borderWidth: 0,
-                }],
-            };
-        }
+    const handlePlotTypeChange = (event: React.ChangeEvent<HTMLSelectElement>) => {
+        setPlotType(event.target.value);
+        setResults(null);
     };
 
     return (
@@ -109,16 +58,20 @@ const AnalyzeModelOutput: React.FC = () => {
                     <div className="filter-item">
                         <label>
                             Plot Type:
-                            <select value={plotType} onChange={(e) => setPlotType(e.target.value)}>
-                                <option value="scatter">Scatter</option>
-                                <option value="bar">Bar</option>
+                            <select value={plotType} onChange={handlePlotTypeChange}>
+                                <option value="PCA">PCA</option>
+                                <option value="PDF">PDF</option>
+                                <option value="Histogram">Histogram</option>
                             </select>
                         </label>
+                    </div>
+                    <div className="filter-item">
+                        <button onClick={handlePlot}>Plot</button>
                     </div>
                 </div>
                 <div className="plot-section" style={{width: '65%'}}>
                     <h2>Plot</h2>
-                    <canvas ref={chartRef}/>
+                    {results && renderChart()}
                 </div>
             </div>
         </>

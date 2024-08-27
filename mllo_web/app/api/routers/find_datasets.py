@@ -1,13 +1,16 @@
-import json
 import math
 from collections import defaultdict
-from contextlib import closing
 from typing import Optional, List
 
+import numpy as np
 from fastapi import APIRouter, Request, Query
 from fastapi.responses import StreamingResponse, Response, JSONResponse
 from sklearn.datasets import fetch_openml
 from sklearn.decomposition import PCA
+from tensorflow.keras.datasets import mnist
+from tensorflow.keras.layers import Conv2D, MaxPooling2D, Flatten, Dense
+from tensorflow.keras.models import Sequential
+from tensorflow.keras.utils import to_categorical
 
 from mllo_web.app.api.routers.utilities import generate_csv_response, to_order_by_string, dataset_role_filter, \
     parse_option_params
@@ -146,8 +149,8 @@ class FindDatasetsQueryBuilder(QueryBuilder):
                 query = query.replace("?model rdf:type/rdfs:subClassOf#ml_input_constraint.",
                                       "VALUES ?model " + self.model_input)
                 print(4)
-        
-        print('tq',self.type_query,'dt',self.direct_type)
+
+        print('tq', self.type_query, 'dt', self.direct_type)
         print(query)
         # Apply sort based on the mapping
         if self.sort_string:
@@ -178,7 +181,7 @@ async def get_datasets(request: Request,
         '?model_type',
         '?model_output',
         '?model_output_utilization'
-    ], search_term=search_term, dataset_role=dataset_role,type_query=type_query, direct_type=direct_type, sort=sort)
+    ], search_term=search_term, dataset_role=dataset_role, type_query=type_query, direct_type=direct_type, sort=sort)
 
     if format == 'json':
         total_records = int(
@@ -248,8 +251,8 @@ async def get_datasets_performances(request: Request,
     })
 
 
-@router.get("/model-output")
-async def get_model_output(request: Request) -> Response:
+@router.get("/model-input")
+async def get_model_input(request: Request) -> Response:
     mnist = fetch_openml('mnist_784', version=1)
     data = mnist.data / 255.0  # Normalize pixel values
 
@@ -262,7 +265,7 @@ async def get_model_output(request: Request) -> Response:
     labels = mnist.target.tolist()
     unique_labels = list(set(labels))
 
-    return JSONResponse({
+    results = {
         "metadata": {
             "algorithm": "PCA",
             "n_components": n_components,
@@ -271,4 +274,51 @@ async def get_model_output(request: Request) -> Response:
         },
         "data": [{"label": label, "x": x, "y": y} for label, x, y in
                  zip(labels, pca_data[:, 0].tolist(), pca_data[:, 1].tolist())]
+    }
+
+    return JSONResponse({
+        "results": results
+    })
+
+
+@router.get("/model-output")
+async def get_model_output(request: Request) -> Response:
+    # Load the MNIST dataset
+    (x_train, y_train), (x_test, y_test) = mnist.load_data()
+
+    # Preprocess the data
+    x_train = x_train.reshape(x_train.shape[0], 28, 28, 1).astype('float32') / 255
+    x_test = x_test.reshape(x_test.shape[0], 28, 28, 1).astype('float32') / 255
+    y_train = to_categorical(y_train)
+    y_test = to_categorical(y_test)
+
+    # Create the CNN model
+    model = Sequential([
+        Conv2D(32, (3, 3), activation='relu', input_shape=(28, 28, 1)),
+        MaxPooling2D((2, 2)),
+        Flatten(),
+        Dense(128, activation='relu'),
+        Dense(10, activation='softmax')
+    ])
+
+    # Compile the model
+    model.compile(optimizer='adam', loss='categorical_crossentropy', metrics=['accuracy'])
+
+    # Train the model
+    model.fit(x_train, y_train, epochs=1, batch_size=128, validation_data=(x_test, y_test))
+
+    # Make predictions on the test set
+    predictions = model.predict(x_test)
+
+    # Convert predictions to class labels
+    predicted_classes = np.argmax(predictions, axis=1)
+
+    # Convert y_test from one-hot encoded to class labels
+    true_classes = np.argmax(y_test, axis=1)
+
+    # Create a list of dictionaries with true and predicted labels
+    results = [{'true_label': int(true), 'predicted_label': int(pred)}
+               for true, pred in zip(true_classes, predicted_classes)]
+    return JSONResponse({
+        'results': results
     })
