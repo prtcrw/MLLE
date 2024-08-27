@@ -246,15 +246,21 @@ async def get_model_output(request: Request) -> Response:
     data = mnist.data / 255.0  # Normalize pixel values
 
     # Apply PCA with 2 components for 2D plot
-    pca = PCA(n_components=2)
+    n_components = 2
+    pca = PCA(n_components=n_components)
     pca.fit(data)
     pca_data = pca.transform(data)
 
-    # Prepare data for JSON serialization
-    data_dict = {
-        "labels": mnist.target.tolist(),
-        "pca1": pca_data[:, 0].tolist(),
-        "pca2": pca_data[:, 1].tolist()
-    }
+    labels = mnist.target.tolist()
+    unique_labels = list(set(labels))
 
-    return JSONResponse(data_dict)
+    return JSONResponse({
+        "metadata": {
+            "algorithm": "PCA",
+            "n_components": n_components,
+            "method": "classification",
+            "labels": sorted(unique_labels),
+        },
+        "data": [{"label": label, "x": x, "y": y} for label, x, y in
+                 zip(labels, pca_data[:, 0].tolist(), pca_data[:, 1].tolist())]
+    })

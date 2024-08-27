@@ -20,6 +20,7 @@ Chart.register(CategoryScale, LinearScale, BarElement, PointElement, Title, Tool
 const AnalyzeModelOutput: React.FC = () => {
     const [plotType, setPlotType] = useState('Bar');
     const [isLoading, setIsLoading] = useState(false);
+    const [metadata, setMetadata] = useState<any>(null);
     const [data, setData] = useState<any>(null);
 
     useEffect(() => {
@@ -31,8 +32,9 @@ const AnalyzeModelOutput: React.FC = () => {
         try {
             // Fetch data with filters
             const response = await fetch(buildV1Url(`datasets/model-output`));
-            const data = await response.json();
-            setData(data);
+            const result = await response.json();
+            setMetadata(result.metadata);
+            setData(result.data);
         } finally {
             setIsLoading(false); // Set loading to false after fetching
         }
@@ -45,22 +47,13 @@ const AnalyzeModelOutput: React.FC = () => {
         if (data && chartRef.current) {
             const ctx = chartRef.current.getContext('2d');
 
-            // Limit data points to the first 100
-            const limitedData = data.pca1.map((pca1, index) => ({
-                x: pca1,
-                y: data.pca2[index],
-                label: data.labels[index],
-            }));
-
-            const uniqueLabels = [...new Set(data.labels)].sort((a, b) => a.localeCompare(b));
-
             const chart = new Chart(ctx, {
                 type: 'scatter', // Change to 'scatter' for scatter plot
                 data: {
-                    datasets: uniqueLabels.map((label, i) => ({
+                    datasets: metadata.labels.map((label, i) => ({
                         label,
-                        data: limitedData.filter(point => point.label === label),
-                        backgroundColor: `rgba(${Math.floor(Math.random() * 256)}, ${Math.floor(Math.random() * 256)}, ${Math.floor(Math.random() * 256)}, 0.2)`,
+                        data: data.filter(point => point.label === label),
+                        backgroundColor: `rgba(${Math.floor(Math.random() * 256)}, ${Math.floor(Math.random() * 256)}, ${Math.floor(Math.random() * 256)}, 0.7)`,
                         borderColor: `rgba(${Math.floor(Math.random() * 256)}, ${Math.floor(Math.random() * 256)}, ${Math.floor(Math.random() * 256)}, 1)`,
                         borderWidth: 0,
                     })),
