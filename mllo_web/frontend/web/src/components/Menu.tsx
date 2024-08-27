@@ -32,8 +32,12 @@ const Menu: React.FC<{ isMenuOpen: boolean; toggleMenu: () => void; isMobile: bo
     ];
 
     const analyzerSubmenuItems = [
-        {label: 'Find Models', path: '/models'},
-        {label: 'Analyze Deployed Models', path: '/models/analyze-deployed-models'},
+        {
+            label: 'Find Models', path: '/models',
+            children: [
+                {label: 'Analyze Deployed Models', path: '/models/analyze-deployed-models'}
+            ]
+        },
         {label: 'Find Pipelines', path: '/pipelines'},
         {label: 'Find Datasets', path: '/datasets'},
     ];
