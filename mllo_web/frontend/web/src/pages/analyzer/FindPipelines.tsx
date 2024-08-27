@@ -8,6 +8,8 @@ import Table, {SortDirection} from '../../components/Table.tsx';
 import Pagination from '../../components/Pagination.tsx';
 import ToggleSwitch from '../../components/ToggleSwitch.tsx';
 import {DownloadIcon} from '../../components/Icons.tsx';
+import { pascalCaseToWords, lowercaseToPascalCase } from '../../components/FormatUtilities';
+
 
 interface PipelineData {
     pipelineName: string;
@@ -130,13 +132,25 @@ const FindPipelines: React.FC = () => {
     };
 
     const mapItemToRow = (header: string, value: any) => {
+
         if (header === "Pipeline Name") {
-            return <Link to={`/pipelines/edit-pipeline?pipeline-name=${value}`}>{value}</Link>;
+            return <Link to={`/pipelines/edit-pipeline?pipeline-name=${value}`}>{pascalCaseToWords(value)}</Link>;
         } else if (header === "Pipeline Components") {
-            return (value) ? value.join('; ') : '';
-        } else {
-            return value;
+            return (value && Array.isArray(value)) 
+            ? value.map(component => lowercaseToPascalCase(component)).join('; ') 
+            : '';
         }
+        if (typeof value === 'string') {
+            if (/^[A-Z][a-z0-9]+([A-Z][a-z0-9]*)*$/.test(value)) {
+                value = pascalCaseToWords(value);
+            } else if (/^[a-z ]+$/.test(value)) {
+                value = lowercaseToPascalCase(value);
+            }
+            return (
+                <span>{value}</span>
+            );
+        }
+
     };
 
     return (
