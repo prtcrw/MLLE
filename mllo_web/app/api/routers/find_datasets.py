@@ -104,15 +104,15 @@ class FindDatasetsQueryBuilder(QueryBuilder):
     def __init__(self,
                  query_variables: List[str],
                  search_term: Optional[str] = None,
-                 #  type_query: bool,
-                 #  direct_type: bool,
+                 type_query: bool = True,
+                 direct_type: bool = False,
                  dataset_role: Optional[List[str]] = None,
                  sort: Optional[List[str]] = None):
 
         self.query_variables = query_variables
         self.model_input = search_term.strip() if search_term and len(search_term) > 0 else None
-        self.type_query = type_query = True
-        self.direct_type = direct_type = False
+        self.type_query = type_query
+        self.direct_type = direct_type
         self.sort_string = to_order_by_string(sort, self.SORT_KEY_MAPPING)
         self.dataset_role = parse_option_params(dataset_role)
 
@@ -132,17 +132,23 @@ class FindDatasetsQueryBuilder(QueryBuilder):
 
         if not self.model_input:
             query = query.replace("#ml_input_constraint", "+ ml:MachineLearningModel")
+            print(1)
         else:
             if self.type_query:
                 if self.direct_type:
                     query = query.replace("#ml_input_constraint", " ml:" + self.model_input)
+                    print(2)
                 else:
                     query = query.replace("#ml_input_constraint", "* ml:" + self.model_input)
+                    print(3)
             else:
                 self.model_input = "{" + self.model_input + "}"
                 query = query.replace("?model rdf:type/rdfs:subClassOf#ml_input_constraint.",
                                       "VALUES ?model " + self.model_input)
-
+                print(4)
+        
+        print('tq',self.type_query,'dt',self.direct_type)
+        print(query)
         # Apply sort based on the mapping
         if self.sort_string:
             query += self.sort_string
@@ -154,6 +160,8 @@ class FindDatasetsQueryBuilder(QueryBuilder):
 async def get_datasets(request: Request,
                        search_term: str = Query(default=None, description="Search term"),
                        dataset_role: Optional[List[str]] = Query(default=None, description="Dataset roles"),
+                       type_query: bool = Query(default=True, description="Toggle for Model Name <-> Model Type"),
+                       direct_type: bool = Query(default=False, description="Direct Type constraint"),
                        page: int = Query(default=1, description="Page number"),
                        items_per_page: int = Query(default=10, description="Number of datasets to return per page"),
                        sort: Optional[List[str]] = Query(default=None,
@@ -170,7 +178,7 @@ async def get_datasets(request: Request,
         '?model_type',
         '?model_output',
         '?model_output_utilization'
-    ], search_term=search_term, dataset_role=dataset_role, sort=sort)
+    ], search_term=search_term, dataset_role=dataset_role,type_query=type_query, direct_type=direct_type, sort=sort)
 
     if format == 'json':
         total_records = int(

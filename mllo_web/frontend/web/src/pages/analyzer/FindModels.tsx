@@ -9,7 +9,7 @@ import Pagination from '../../components/Pagination.tsx';
 import {DownloadIcon} from '../../components/Icons.tsx';
 import FindModelsFilter from './FindModelsFilter.tsx';
 import Modal from '../../components/Modal.tsx';
-import { pascalCaseToWords, lowercaseToPascalCase } from '../../components/FormatUtilities';
+import {pascalCaseToWords, lowercaseToPascalCase} from '../../components/FormatUtilities';
 
 
 interface ModelData {
@@ -184,7 +184,7 @@ const FindModels: React.FC = () => {
                     }}
                     style={{ color: 'blue', textDecoration: 'underline' }}
                 >
-                    {getUniqueIriPart(value)}
+                    {pascalCaseToWords(getUniqueIriPart(value))}
                 </a>
             );
         }

@@ -8,7 +8,7 @@ import Table, {SortDirection} from '../../components/Table.tsx';
 import Pagination from '../../components/Pagination.tsx';
 import ToggleSwitch from '../../components/ToggleSwitch.tsx';
 import {DownloadIcon} from '../../components/Icons.tsx';
-import { pascalCaseToWords, lowercaseToPascalCase } from '../../components/FormatUtilities';
+import {pascalCaseToWords, lowercaseToPascalCase} from '../../components/FormatUtilities';
 
 
 interface PipelineData {

@@ -6,6 +6,7 @@ import ErrorMessage from '../../components/ErrorMessage.tsx';
 import Search from '../../components/Search.tsx';
 import Table, { SortDirection } from '../../components/Table.tsx';
 import Pagination from '../../components/Pagination.tsx';
+import ToggleSwitch from '../../components/ToggleSwitch.tsx';
 import { DownloadIcon } from '../../components/Icons.tsx';
 import FindDatasetsFilter from './FindDatasetsFilter.tsx';
 import Modal from '../../components/Modal.tsx';
@@ -35,10 +36,12 @@ const defaultSelectedCheckboxes = {
     "training_data": false,
     "production_data": false,
     "raw_data": false,
+    "direct_type": false,  
 };
 
 const FindDatasets: React.FC = () => {
     const [searchTerm, setSearchTerm] = useState('');
+    const [toggleConstraint, setToggleConstraint] = useState<boolean>(true);
     const [selectedCheckboxes, setSelectedCheckboxes] = useState<{ [key: string]: boolean }>(defaultSelectedCheckboxes);
     const [datasets, setDatasets] = useState<DatasetData[]>([]);
     const [currentPage, setCurrentPage] = useState(1);
@@ -71,6 +74,7 @@ const FindDatasets: React.FC = () => {
         itemsPerPage: number,
         sorts: { key: string; direction: SortDirection }[],
         selectedCheckboxes: { [key: string]: boolean },
+        toggleConstraint: boolean,
         format: string = '') => {
         setIsLoading(true); // Set loading to true
         setMessage('');
@@ -80,6 +84,8 @@ const FindDatasets: React.FC = () => {
                 search_term: searchTerm,
                 page: currentPage.toString(),
                 items_per_page: itemsPerPage.toString(),
+                type_query: toggleConstraint.toString(),
+                direct_type: selectedCheckboxes["direct_type"].toString()
             });
 
             // Add sorts as query params
@@ -124,28 +130,38 @@ const FindDatasets: React.FC = () => {
 
     const handleSearch = async (searchTerm: string) => {
         setSearchTerm(searchTerm);
-        await fetchData(searchTerm, 1, itemsPerPage, currentSorts, selectedCheckboxes);
+        await fetchData(searchTerm, 1, itemsPerPage, currentSorts, selectedCheckboxes, toggleConstraint);
     };
 
     const handleDownload = async () => {
-        await fetchData(searchTerm, 1, itemsPerPage, currentSorts, selectedCheckboxes, 'csv');
+        await fetchData(searchTerm, 1, itemsPerPage, currentSorts, selectedCheckboxes, toggleConstraint, 'csv');
     };
 
     const handlePageChange = async (page: number = 1, itemsPerPage: number = 10) => {
         setCurrentPage(page);
         setItemsPerPage(itemsPerPage);
-        await fetchData(searchTerm, page, itemsPerPage, currentSorts, selectedCheckboxes);
+        await fetchData(searchTerm, page, itemsPerPage, currentSorts, selectedCheckboxes, toggleConstraint);
     };
 
     const handleSort = async (sorts: { key: string; direction: SortDirection }[]) => {
         setCurrentSorts(sorts);
-        await fetchData(searchTerm, currentPage, itemsPerPage, sorts, selectedCheckboxes);
+        await fetchData(searchTerm, currentPage, itemsPerPage, sorts, selectedCheckboxes, toggleConstraint);
     }
 
     const handleRemoveSort = async (key: string) => {
         const newSorts = currentSorts.filter(sort => sort.key !== key);
         setCurrentSorts(newSorts);
-        await fetchData(searchTerm, currentPage, itemsPerPage, newSorts, selectedCheckboxes); // Update data with new sorts
+        await fetchData(searchTerm, currentPage, itemsPerPage, newSorts, selectedCheckboxes, toggleConstraint); // Update data with new sorts
+    };
+
+    const handleToggleConstraint = () => {
+        setToggleConstraint(!toggleConstraint); // Toggle between Model and Dataset
+        if (!toggleConstraint) {
+            setSelectedCheckboxes(prev => ({
+                ...prev,
+                direct_type: false  // Reset direct_type when toggling off Model Type
+            }));
+        }
     };
 
     const handleCheckboxChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -229,7 +245,7 @@ const FindDatasets: React.FC = () => {
             return value;
         }
     };
-    
+
     const handleIriClick = async (iri: string) => {
         try {
             setClickedIri(iri);
@@ -258,9 +274,35 @@ const FindDatasets: React.FC = () => {
             <h1>Find Datasets</h1>
             <div>
                 <Search onSearch={handleSearch} placeholder={'Model Name/Model Type'} />
-                <FindDatasetsFilter
-                    selectedFilters={selectedCheckboxes}
-                    onFilterChange={handleCheckboxChange} />
+                <div style={{ display: 'flex', alignItems: 'center'}}>
+                    <FindDatasetsFilter
+                        selectedFilters={selectedCheckboxes}
+                        onFilterChange={handleCheckboxChange}
+                    />
+                    <div style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        padding: '8px',
+                        border: '1px solid #ccc',
+                        borderRadius: '4px',
+                        marginLeft: '16px'
+                    }}>
+                        <span className="toggle-label">Model Name</span>
+                        <ToggleSwitch isChecked={toggleConstraint} onToggle={handleToggleConstraint} />
+                        <span className="toggle-label" style={{ marginLeft: '8px' }}>Model Type</span>
+                        <label style={{ display: 'flex', alignItems: 'center', marginLeft: '16px' }}>
+                            <input
+                                type="checkbox"
+                                name="direct_type"
+                                checked={selectedCheckboxes["direct_type"] || false}
+                                onChange={handleCheckboxChange}
+                                disabled={!toggleConstraint} // Disable when toggle is not on "Model Type"
+                                style={{ marginRight: '8px' }}
+                            />
+                            <span>Direct Type</span>
+                        </label>
+                    </div>
+                </div>
             </div>
             <div>
                 <div style={{ margin: '8px 0' }}>
@@ -291,27 +333,27 @@ const FindDatasets: React.FC = () => {
             </div>
             {(isPopupOpen && iriQueryResult) && (
                 <Modal onClose={closePopup}>
-                <h2 style={{ wordBreak: 'break-all', whiteSpace: 'normal' }}>
-                    {clickedIri}
-                </h2>
-                <div className="divider"></div>
-                {iriQueryResult.map((value, index) => (
-                    <pre style={{ whiteSpace: 'pre-wrap' }}>
-                        <div key={index}>
-                            <ul>
-                                {Object.entries(value).map(([key, val], idx) => (
-                                    val && (
-                                        <li key={key + '-' + idx}>
-                                            <span className="item-name">{key}</span>
-                                            <span className="item-value">{val}</span>
-                                        </li>
-                                    )
-                                ))}
-                            </ul>
-                        </div>
-                    </pre>
-                ))}
-            </Modal>
+                    <h2 style={{ wordBreak: 'break-all', whiteSpace: 'normal' }}>
+                        {clickedIri}
+                    </h2>
+                    <div className="divider"></div>
+                    {iriQueryResult.map((value, index) => (
+                        <pre style={{ whiteSpace: 'pre-wrap' }}>
+                            <div key={index}>
+                                <ul>
+                                    {Object.entries(value).map(([key, val], idx) => (
+                                        val && (
+                                            <li key={key + '-' + idx}>
+                                                <span className="item-name">{key}</span>
+                                                <span className="item-value">{val}</span>
+                                            </li>
+                                        )
+                                    ))}
+                                </ul>
+                            </div>
+                        </pre>
+                    ))}
+                </Modal>
             )}
 
             {error && <ErrorMessage message={error} />}
