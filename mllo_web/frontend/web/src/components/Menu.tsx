@@ -1,9 +1,15 @@
 import React, {useEffect, useState} from 'react';
 import './styles/menu.css'
 import Submenu from './Submenu.tsx';
-import {Link} from "react-router-dom";
+import {Link, Route} from "react-router-dom";
+import PlotPerformance from "pages/analyzer/PlotPerformance.tsx";
+import AnalyzeModelOutput from "pages/analyzer/AnalyzeModelOutput.tsx";
 
-const Menu: React.FC<{ isMenuOpen: boolean; toggleMenu: () => void; isMobile: boolean }> = ({isMenuOpen, toggleMenu, isMobile}) => {
+const Menu: React.FC<{ isMenuOpen: boolean; toggleMenu: () => void; isMobile: boolean }> = ({
+                                                                                                isMenuOpen,
+                                                                                                toggleMenu,
+                                                                                                isMobile
+                                                                                            }) => {
     const [closing, setClosing] = useState(false);
 
     useEffect(() => {
@@ -39,11 +45,18 @@ const Menu: React.FC<{ isMenuOpen: boolean; toggleMenu: () => void; isMobile: bo
             ]
         },
         {label: 'Find Pipelines', path: '/pipelines'},
-        {label: 'Find Datasets', path: '/datasets'},
+        {
+            label: 'Find Datasets', path: '/datasets',
+            children: [
+                {label: 'Plot Performance', path: '/datasets/plot-performance'},
+                {label: 'Analyze Model Output', path: '/datasets/analyze-model-output'},
+            ]
+        },
     ];
 
     return (
-        <div className={`menu-container ${isMenuOpen ? (isMobile ? 'mobile-open' : 'open') : closing ? (isMobile ? 'mobile-closing' : 'closing') : ''}`}>
+        <div
+            className={`menu-container ${isMenuOpen ? (isMobile ? 'mobile-open' : 'open') : closing ? (isMobile ? 'mobile-closing' : 'closing') : ''}`}>
             <div className="menu-content">
                 <div className="menu-header">
                     <Link to='/'><h2 className="menu-title">MLLO</h2></Link>

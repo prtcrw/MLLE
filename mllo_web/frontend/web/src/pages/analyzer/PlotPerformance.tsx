@@ -52,16 +52,12 @@ const PlotPerformance: React.FC = () => {
     const [orderBy, setOrderBy] = useState('Ascending');
     const [groupBy, setGroupBy] = useState('datasetName');
     const [isLoading, setIsLoading] = useState(false);
-    const [fetchedData, setFetchedData] = useState<PerformanceMetrics>({});
+    const [fetchedData, setFetchedData] = useState<PerformanceMetrics>(null);
     const [data, setData] = useState<any>(null);
     const [options, setOptions] = useState<any>({});
     const [yAxisMetricOptions, setYAxisMetricOptions] = useState<string[]>([]);
     const [minCutoff, setMinCutoff] = useState(0.0);
     const [maxCutoff, setMaxCutoff] = useState(100.0);
-
-    useEffect(() => {
-        fetchData();
-    }, []);
 
     useEffect(() => {
         if (yAxisMetric && performanceCutoff && orderBy && groupBy) {
@@ -205,6 +201,10 @@ const PlotPerformance: React.FC = () => {
         updateCutoffValues();
     };
 
+    const handleLoadDataset = async () => {
+        await fetchData();
+    }
+
     return (
         <>
             <LoadingBar isLoading={isLoading}/>
@@ -221,32 +221,36 @@ const PlotPerformance: React.FC = () => {
                             </select>
                         </label>
                     </div>
-                    <div className="filter-item">
-                        <label>
-                            Y axis (Performance Metric):
-                            <select value={yAxisMetric} onChange={(e) => handleYAxisMetricChange(e.target.value)}>
-                                {yAxisMetricOptions.map(metric => (
-                                    <option key={metric}
-                                            value={metric}>{metric.charAt(0).toUpperCase() + metric.slice(1)}</option>
-                                ))}
-                            </select>
-                        </label>
-                    </div>
-                    <div className="filter-item">
-                        <label>
-                            Performance Cutoff:
-                            <input
-                                type="range"
-                                min={minCutoff}
-                                max={maxCutoff}
-                                value={performanceCutoff}
-                                step={0.01}
-                                onChange={(e) => setPerformanceCutoff(Number(e.target.value))}
-                                className="range-slider"
-                            />
-                            <span className="cutoff-value">{performanceCutoff.toFixed(2)}</span>
-                        </label>
-                    </div>
+                    {(fetchedData) && (
+                        <div className="filter-item">
+                            <label>
+                                Y axis (Performance Metric):
+                                <select value={yAxisMetric} onChange={(e) => handleYAxisMetricChange(e.target.value)}>
+                                    {yAxisMetricOptions.map(metric => (
+                                        <option key={metric}
+                                                value={metric}>{metric.charAt(0).toUpperCase() + metric.slice(1)}</option>
+                                    ))}
+                                </select>
+                            </label>
+                        </div>
+                    )}
+                    {(fetchedData) && (
+                        <div className="filter-item">
+                            <label>
+                                Performance Cutoff:
+                                <input
+                                    type="range"
+                                    min={minCutoff}
+                                    max={maxCutoff}
+                                    value={performanceCutoff}
+                                    step={0.01}
+                                    onChange={(e) => setPerformanceCutoff(Number(e.target.value))}
+                                    className="range-slider"
+                                />
+                                <span className="cutoff-value">{performanceCutoff.toFixed(2)}</span>
+                            </label>
+                        </div>
+                    )}
                     <div className="filter-item">
                         <label>
                             Order By:
@@ -263,6 +267,9 @@ const PlotPerformance: React.FC = () => {
                                 <option value="datasetName">Dataset Name</option>
                             </select>
                         </label>
+                    </div>
+                    <div className="filter-item">
+                        <button onClick={handleLoadDataset}>Load Dataset</button>
                     </div>
                 </div>
                 <div className="plot-section" style={{width: '65%'}}>

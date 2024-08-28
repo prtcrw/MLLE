@@ -17,7 +17,7 @@ const PCAChart: React.FC<{results: any}> = ({results}) => {
 
     // Prepare the data for the scatter plot
     const chartData = {
-        datasets: metadata.labels.map((label: string, i: number) => ({
+        datasets: metadata.labels.map((label: string) => ({
             label,
             data: data.filter((point: any) => point.label === label).map((point: any) => ({
                 x: point.x,
@@ -29,26 +29,8 @@ const PCAChart: React.FC<{results: any}> = ({results}) => {
         }))
     };
 
-    const options = {
-        scales: {
-            x: {
-                type: 'linear',
-                position: 'bottom',
-            },
-            y: {
-                type: 'linear',
-            },
-        },
-        plugins: {
-            title: {
-                display: true,
-                text: 'PCA Scatter Plot',
-            },
-        },
-    };
-
     return (
-        <Scatter data={chartData} options={options}/>
+        <Scatter data={chartData}/>
     );
 };
 

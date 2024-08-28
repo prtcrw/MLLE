@@ -11,12 +11,11 @@ const PDFChart: React.FC<{ results: any }> = ({results}) => {
         return null;
     }
 
-    // Extract true and predicted labels
-    const trueLabels = results.map(result => result.true_label);
+    const numberOfLabels = 10;
     const predictedLabels = results.map(result => result.predicted_label);
 
     // Calculate histogram data (frequencies of predicted classes)
-    const labelCounts = Array(10).fill(0);
+    const labelCounts = Array(numberOfLabels).fill(0);
     predictedLabels.forEach(label => labelCounts[label] += 1);
 
     // Calculate the probability density function (PDF)
@@ -24,7 +23,7 @@ const PDFChart: React.FC<{ results: any }> = ({results}) => {
 
     // Prepare data for PDF (line chart)
     const pdfData = {
-        labels: Array.from({length: 10}, (_, i) => `Class ${i}`),
+        labels: Array.from({length: numberOfLabels}, (_, i) => `Class ${i}`),
         datasets: [
             {
                 label: 'Probability Density',

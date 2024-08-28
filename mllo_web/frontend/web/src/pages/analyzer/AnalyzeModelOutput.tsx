@@ -10,7 +10,8 @@ import HistogramChart from "../../charts/HistogramChart.tsx";
 const AnalyzeModelOutput: React.FC = () => {
     const [plotType, setPlotType] = useState('PCA');
     const [isLoading, setIsLoading] = useState(false);
-    const [results, setResults] = useState<any>(null);
+    const [inputResults, setInputResults] = useState<any>(null);
+    const [outputResults, setOutputResults] = useState<any>(null);
 
     const fetchData = async () => {
         setIsLoading(true); // Set loading to true
@@ -19,34 +20,39 @@ const AnalyzeModelOutput: React.FC = () => {
             const url = plotType === 'PCA' ? 'datasets/model-input' : 'datasets/model-output';
             const response = await fetch(buildV1Url(url));
             const result = await response.json();
-            setResults(result.results);
+            if (plotType === 'PCA') {
+                setInputResults(result.results);
+            } else {
+                setOutputResults(result.results);
+            }
+
         } finally {
             setIsLoading(false); // Set loading to false after fetching
         }
     };
 
     const renderChart = () => {
-        if (!results) return null;
-
         switch (plotType) {
             case 'PCA':
-                return <PCAChart results={results} />;
+                if (!inputResults) return null;
+                return <PCAChart results={inputResults} />;
             case 'PDF':
-                return <PDFChart results={results} />;
+                if (!outputResults) return null;
+                return <PDFChart results={outputResults} />;
             case 'Histogram':
-                return <HistogramChart results={results} />;
+                if (!outputResults) return null;
+                return <HistogramChart results={outputResults} />;
             default:
                 return null;
         }
     };
 
-    const handlePlot = () => {
-        fetchData();
+    const handlePlot = async () => {
+        await fetchData();
     };
 
     const handlePlotTypeChange = (event: React.ChangeEvent<HTMLSelectElement>) => {
         setPlotType(event.target.value);
-        setResults(null);
     };
 
     return (
@@ -66,12 +72,17 @@ const AnalyzeModelOutput: React.FC = () => {
                         </label>
                     </div>
                     <div className="filter-item">
-                        <button onClick={handlePlot}>Plot</button>
+                        {(plotType == 'PCA') && (
+                            <button onClick={handlePlot}>Load Raw Data</button>
+                        )}
+                        {(plotType != 'PCA') && (
+                            <button onClick={handlePlot}>Load Output Data</button>
+                        )}
                     </div>
                 </div>
                 <div className="plot-section" style={{width: '65%'}}>
                     <h2>Plot</h2>
-                    {results && renderChart()}
+                    {renderChart()}
                 </div>
             </div>
         </>
