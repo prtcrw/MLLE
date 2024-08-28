@@ -2,12 +2,12 @@
     display: flex;
     flex-direction: row;
     justify-content: space-between;
-    flex-wrap: wrap;
 }
 
 @media (max-width: 768px) {
     .analyze-model-output-container {
         flex-direction: column;
+        flex-wrap: wrap;
     }
 }
 
@@ -32,7 +32,7 @@
     display: flex;
     flex-direction: column;
     align-items: center;
-    margin: 0 0 0 20px;
+    margin: 0 20px 0 20px;
 }
 
 @media (max-width: 768px) {

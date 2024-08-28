@@ -2,12 +2,12 @@
     display: flex;
     flex-direction: row;
     justify-content: space-between;
-    flex-wrap: wrap;
 }
 
 @media (max-width: 768px) {
     .plot-performance-container {
         flex-direction: column;
+        flex-wrap: wrap;
     }
 }
 
@@ -17,7 +17,12 @@
     background-color: #f9f9f9;
     border-radius: 8px;
     box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
-    flex-grow: 1;
+}
+
+@media (max-width: 768px) {
+    .filters-section {
+        flex-grow: 1;
+    }
 }
 
 .filters-section h2 {
@@ -33,13 +38,13 @@
     display: flex;
     flex-direction: column;
     align-items: center;
-    margin: 0 0 0 20px;
-    flex-grow: 2;
+    margin: 0 20px 0 20px;
 }
 
 @media (max-width: 768px) {
     .plot-section {
         margin: 20px 0 20px 0;
+        flex-grow: 2;
     }
 }
 
