@@ -255,78 +255,71 @@ async def get_datasets_performances(request: Request,
 
 @router.get("/model-input")
 async def get_model_input(request: Request) -> Response:
-    # mnist = fetch_openml('mnist_784', version=1)
-    # data = mnist.data / 255.0  # Normalize pixel values
-    #
-    # # Apply PCA with 2 components for 2D plot
-    # n_components = 2
-    # pca = PCA(n_components=n_components)
-    # pca.fit(data)
-    # pca_data = pca.transform(data)
-    #
-    # labels = mnist.target.tolist()
-    # unique_labels = list(set(labels))
-    #
-    # results = {
-    #     "metadata": {
-    #         "algorithm": "PCA",
-    #         "n_components": n_components,
-    #         "method": "classification",
-    #         "labels": sorted(unique_labels),
-    #     },
-    #     "data": [{"label": label, "x": x, "y": y} for label, x, y in
-    #              zip(labels, pca_data[:, 0].tolist(), pca_data[:, 1].tolist())]
-    # }
-    #
-    # return JSONResponse({
-    #     "results": results
-    # })
+    mnist = fetch_openml('mnist_784', version=1)
+    data = mnist.data / 255.0  # Normalize pixel values
 
-    with closing(open('input.json', 'r')) as fp:
-        return json.load(fp)
+    # Apply PCA with 2 components for 2D plot
+    n_components = 2
+    pca = PCA(n_components=n_components)
+    pca.fit(data)
+    pca_data = pca.transform(data)
 
+    labels = mnist.target.tolist()
+    unique_labels = list(set(labels))
+
+    results = {
+        "metadata": {
+            "algorithm": "PCA",
+            "n_components": n_components,
+            "method": "classification",
+            "labels": sorted(unique_labels),
+        },
+        "data": [{"label": label, "x": x, "y": y} for label, x, y in
+                 zip(labels, pca_data[:, 0].tolist(), pca_data[:, 1].tolist())]
+    }
+
+    return JSONResponse({
+        "results": results
+    })
 
 @router.get("/model-output")
 async def get_model_output(request: Request) -> Response:
-    # # Load the MNIST dataset
-    # (x_train, y_train), (x_test, y_test) = mnist.load_data()
-    #
-    # # Preprocess the data
-    # x_train = x_train.reshape(x_train.shape[0], 28, 28, 1).astype('float32') / 255
-    # x_test = x_test.reshape(x_test.shape[0], 28, 28, 1).astype('float32') / 255
-    # y_train = to_categorical(y_train)
-    # y_test = to_categorical(y_test)
-    #
-    # # Create the CNN model
-    # model = Sequential([
-    #     Conv2D(32, (3, 3), activation='relu', input_shape=(28, 28, 1)),
-    #     MaxPooling2D((2, 2)),
-    #     Flatten(),
-    #     Dense(128, activation='relu'),
-    #     Dense(10, activation='softmax')
-    # ])
-    #
-    # # Compile the model
-    # model.compile(optimizer='adam', loss='categorical_crossentropy', metrics=['accuracy'])
-    #
-    # # Train the model
-    # model.fit(x_train, y_train, epochs=1, batch_size=128, validation_data=(x_test, y_test))
-    #
-    # # Make predictions on the test set
-    # predictions = model.predict(x_test)
-    #
-    # # Convert predictions to class labels
-    # predicted_classes = np.argmax(predictions, axis=1)
-    #
-    # # Convert y_test from one-hot encoded to class labels
-    # true_classes = np.argmax(y_test, axis=1)
-    #
-    # # Create a list of dictionaries with true and predicted labels
-    # results = [{'true_label': int(true), 'predicted_label': int(pred)}
-    #            for true, pred in zip(true_classes, predicted_classes)]
-    # return JSONResponse({
-    #     'results': results
-    # })
+    # Load the MNIST dataset
+    (x_train, y_train), (x_test, y_test) = mnist.load_data()
 
-    with closing(open('output.json', 'r')) as fp:
-        return json.load(fp)
+    # Preprocess the data
+    x_train = x_train.reshape(x_train.shape[0], 28, 28, 1).astype('float32') / 255
+    x_test = x_test.reshape(x_test.shape[0], 28, 28, 1).astype('float32') / 255
+    y_train = to_categorical(y_train)
+    y_test = to_categorical(y_test)
+
+    # Create the CNN model
+    model = Sequential([
+        Conv2D(32, (3, 3), activation='relu', input_shape=(28, 28, 1)),
+        MaxPooling2D((2, 2)),
+        Flatten(),
+        Dense(128, activation='relu'),
+        Dense(10, activation='softmax')
+    ])
+
+    # Compile the model
+    model.compile(optimizer='adam', loss='categorical_crossentropy', metrics=['accuracy'])
+
+    # Train the model
+    model.fit(x_train, y_train, epochs=1, batch_size=128, validation_data=(x_test, y_test))
+
+    # Make predictions on the test set
+    predictions = model.predict(x_test)
+
+    # Convert predictions to class labels
+    predicted_classes = np.argmax(predictions, axis=1)
+
+    # Convert y_test from one-hot encoded to class labels
+    true_classes = np.argmax(y_test, axis=1)
+
+    # Create a list of dictionaries with true and predicted labels
+    results = [{'true_label': int(true), 'predicted_label': int(pred)}
+               for true, pred in zip(true_classes, predicted_classes)]
+    return JSONResponse({
+        'results': results
+    })
