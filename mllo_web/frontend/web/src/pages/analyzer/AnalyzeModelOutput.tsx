@@ -35,13 +35,13 @@ const AnalyzeModelOutput: React.FC = () => {
         switch (plotType) {
             case 'PCA':
                 if (!inputResults) return null;
-                return <PCAChart results={inputResults} />;
+                return <PCAChart results={inputResults}/>;
             case 'PDF':
                 if (!outputResults) return null;
-                return <PDFChart results={outputResults} />;
+                return <PDFChart results={outputResults}/>;
             case 'Histogram':
                 if (!outputResults) return null;
-                return <HistogramChart results={outputResults} />;
+                return <HistogramChart results={outputResults}/>;
             default:
                 return null;
         }
@@ -80,10 +80,12 @@ const AnalyzeModelOutput: React.FC = () => {
                         )}
                     </div>
                 </div>
-                <div className="plot-section" style={{width: '65%'}}>
-                    <h2>Plot</h2>
-                    {renderChart()}
-                </div>
+                {((inputResults && plotType == 'PCA') || (outputResults && plotType != 'PCA')) && (
+                    <div className="plot-section">
+                        <h2>Plot</h2>
+                        {renderChart()}
+                    </div>
+                )}
             </div>
         </>
     );

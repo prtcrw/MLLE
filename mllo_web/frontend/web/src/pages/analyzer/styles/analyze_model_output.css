@@ -1,18 +1,54 @@
 .analyze-model-output-container {
     display: flex;
+    flex-direction: row;
     justify-content: space-between;
-    padding: 20px;
+    flex-wrap: wrap;
+}
+
+@media (max-width: 768px) {
+    .analyze-model-output-container {
+        flex-direction: column;
+    }
 }
 
 .filters-section {
-    width: 30%;
+    width: 35%;
     padding: 20px;
     background-color: #f9f9f9;
     border-radius: 8px;
-    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
 }
 
 .filters-section h2 {
+    margin-top: 0;
+}
+
+.plot-section {
+    width: 65%;
+    padding: 20px;
+    background-color: #f9f9f9;
+    border-radius: 8px;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    margin: 0 0 0 20px;
+}
+
+@media (max-width: 768px) {
+    .plot-section {
+        margin: 20px 0 20px 0;
+    }
+}
+
+@media (max-width: 768px) {
+    .filters-section,
+    .plot-section {
+        width: inherit;
+    }
+}
+
+.plot-section h2 {
     margin-top: 0;
 }
 
@@ -44,15 +80,4 @@
     margin-top: 5px;
     font-size: 16px;
     font-weight: bold;
-}
-
-.plot-section {
-    width: 65%;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-}
-
-.plot-section h2 {
-    margin-top: 0;
 }

@@ -14,7 +14,7 @@ import {
     Title,
     Tooltip
 } from 'chart.js';
-import './styles/plotperformance.css';
+import './styles/plot_performance.css';
 import ChartDataLabels from "chartjs-plugin-datalabels";
 
 // Register Chart.js components
@@ -272,16 +272,16 @@ const PlotPerformance: React.FC = () => {
                         <button onClick={handleLoadDataset}>Load Dataset</button>
                     </div>
                 </div>
-                <div className="plot-section" style={{width: '65%'}}>
-                    <h2>Plot</h2>
-                    {data && (
-                        plotType === 'Bar' ? (
+                {data && (
+                    <div className="plot-section">
+                        <h2>Plot</h2>
+                        {plotType === 'Bar' ? (
                             <Bar data={data} plugins={[ChartDataLabels]} options={options}/>
                         ) : (
                             <Line data={data} plugins={[ChartDataLabels]} options={options}/>
-                        )
-                    )}
-                </div>
+                        )}
+                    </div>
+                )}
             </div>
         </>
     );
