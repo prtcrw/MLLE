@@ -33,18 +33,25 @@ const Menu: React.FC<{ isMenuOpen: boolean; toggleMenu: () => void; isMobile: bo
         }
     };
 
-    const editorSubmenuItems = [
-        {label: 'Pipeline Editor', path: '/pipelines/edit-pipeline'},
-    ];
-
-    const analyzerSubmenuItems = [
+    const modelSubmenuItems = [
         {
             label: 'Find Models', path: '/models',
             children: [
                 {label: 'Analyze Deployed Models', path: '/models/analyze-deployed-models'}
             ]
         },
-        {label: 'Find Pipelines', path: '/pipelines'},
+    ];
+
+    const pipelineSubmenuItems = [
+        {
+            label: 'Find Pipelines', path: '/pipelines',
+            children: [
+                {label: 'Pipeline Editor', path: '/pipelines/edit-pipeline'},
+            ]
+        },
+    ];
+
+    const datasetSubmenuItems = [
         {
             label: 'Find Datasets', path: '/datasets',
             children: [
@@ -64,16 +71,22 @@ const Menu: React.FC<{ isMenuOpen: boolean; toggleMenu: () => void; isMobile: bo
                         ✕
                     </button>
                 </div>
-                <h4>Editor</h4>
+                <h4>Model</h4>
                 <ul>
                     <li>
-                        <Submenu items={editorSubmenuItems} onItemClick={handleSubmenuClick}/>
+                        <Submenu items={modelSubmenuItems} onItemClick={handleSubmenuClick}/>
                     </li>
                 </ul>
-                <h4>Analyzer</h4>
+                <h4>Pipeline</h4>
                 <ul>
                     <li>
-                        <Submenu items={analyzerSubmenuItems} onItemClick={handleSubmenuClick}/>
+                        <Submenu items={pipelineSubmenuItems} onItemClick={handleSubmenuClick}/>
+                    </li>
+                </ul>
+                <h4>Dataset</h4>
+                <ul>
+                    <li>
+                        <Submenu items={datasetSubmenuItems} onItemClick={handleSubmenuClick}/>
                     </li>
                 </ul>
             </div>
