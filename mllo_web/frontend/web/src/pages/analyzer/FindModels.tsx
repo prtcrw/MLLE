@@ -10,6 +10,7 @@ import {DownloadIcon} from '../../components/Icons.tsx';
 import FindModelsFilter from './FindModelsFilter.tsx';
 import Modal from '../../components/Modal.tsx';
 import {pascalCaseToWords, lowercaseToPascalCase} from '../../components/FormatUtilities';
+import DropdownFilter from '../../components/DropdownFilter';
 
 
 interface ModelData {
@@ -44,6 +45,7 @@ const FindModels: React.FC = () => {
     const [currentPage, setCurrentPage] = useState(1);
     const [totalPages, setTotalPages] = useState(0);
     const [itemsPerPage, setItemsPerPage] = useState(10);
+    const [modelTypes, setModelTypes] = useState<string[]>([]); // Add model types state
     const sortHeaders = [
         "Model Name",
         "Model Type",
@@ -55,7 +57,7 @@ const FindModels: React.FC = () => {
         "Dataset Used For",
     ];
     const [currentSorts, setCurrentSorts] = useState<{ key: string; direction: SortDirection }[]>([
-        {key: "Model Name", direction: "asc"}
+        { key: "Model Name", direction: "asc" }
     ]);
     const [isLoading, setIsLoading] = useState(false);
     const [message, setMessage] = useState('');
@@ -71,6 +73,7 @@ const FindModels: React.FC = () => {
         itemsPerPage: number,
         sorts: { key: string; direction: SortDirection }[],
         selectedCheckboxes: { [key: string]: boolean },
+        modelTypes: string[],  // Include model types in fetch
         format: string = ''
     ) => {
         setIsLoading(true);
@@ -84,13 +87,18 @@ const FindModels: React.FC = () => {
             });
 
             // Add sorts as query params
-            for (const {key, direction} of sorts) {
+            for (const { key, direction } of sorts) {
                 urlParams.append('sort', `${key},${direction}`);
             }
 
             // Add dataset_role as query params
             Object.keys(selectedCheckboxes).filter(key => selectedCheckboxes[key]).map((key) => {
                 urlParams.append('dataset_role', `${key},${selectedCheckboxes[key]}`);
+            });
+
+            // Add model types as query params
+            modelTypes.forEach(type => {
+                urlParams.append('model_types', type);
             });
 
             if (format !== '') {
@@ -125,15 +133,15 @@ const FindModels: React.FC = () => {
 
     const handleSearch = async (searchTerm: string) => {
         setSearchTerm(searchTerm);
-        await fetchData(searchTerm, 1, itemsPerPage, currentSorts, selectedCheckboxes);
+        await fetchData(searchTerm, 1, itemsPerPage, currentSorts, selectedCheckboxes, modelTypes);
     };
 
     const handleDownload = async () => {
-        await fetchData(searchTerm, 1, itemsPerPage, currentSorts, selectedCheckboxes, 'csv');
+        await fetchData(searchTerm, 1, itemsPerPage, currentSorts, selectedCheckboxes, modelTypes, 'csv');
     };
 
     const handleCheckboxChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const {name, checked} = e.target;
+        const { name, checked } = e.target;
         setSelectedCheckboxes(prev => ({
             ...prev,
             [name]: checked
@@ -143,18 +151,18 @@ const FindModels: React.FC = () => {
     const handlePageChange = async (page: number = 1, itemsPerPage: number = 10) => {
         setCurrentPage(page);
         setItemsPerPage(itemsPerPage);
-        await fetchData(searchTerm, page, itemsPerPage, currentSorts, selectedCheckboxes);
+        await fetchData(searchTerm, page, itemsPerPage, currentSorts, selectedCheckboxes, modelTypes);
     };
 
     const handleSort = async (sorts: { key: string; direction: SortDirection }[]) => {
         setCurrentSorts(sorts);
-        await fetchData(searchTerm, currentPage, itemsPerPage, sorts, selectedCheckboxes);
+        await fetchData(searchTerm, currentPage, itemsPerPage, sorts, selectedCheckboxes, modelTypes);
     };
 
     const handleRemoveSort = async (key: string) => {
         const newSorts = currentSorts.filter(sort => sort.key !== key);
         setCurrentSorts(newSorts);
-        await fetchData(searchTerm, currentPage, itemsPerPage, newSorts, selectedCheckboxes); // Update data with new sorts
+        await fetchData(searchTerm, currentPage, itemsPerPage, newSorts, selectedCheckboxes, modelTypes); // Update data with new sorts
     };
 
     const handleAnalyzeDeployedModels = () => {
@@ -196,7 +204,7 @@ const FindModels: React.FC = () => {
                 // If the string is in lowercase with spaces, convert to PascalCase
                 value = lowercaseToPascalCase(value);
             }
-    
+
             return (
                 <span>{value}</span>
             );
@@ -227,36 +235,48 @@ const FindModels: React.FC = () => {
         setIsPopupOpen(false);
         setQueryResult(null);
     };
+
     return (
         <div>
-            <LoadingBar isLoading={isLoading}/>
+            <LoadingBar isLoading={isLoading} />
             <h1>Find Models</h1>
-            <div style={{margin: '8px 0'}}>
-                <Search onSearch={handleSearch} placeholder={'Dataset Name'}/>
-                <FindModelsFilter
-                    selectedFilters={selectedCheckboxes}
-                    onFilterChange={handleCheckboxChange}/>
+            <div style={{ margin: '8px 0' }}>
+                <Search onSearch={handleSearch} placeholder={'Dataset Name'} />
+                <div style={{ display: 'flex', alignItems: 'center', marginBottom: '16px' }}>
+                    <FindModelsFilter
+                        selectedFilters={selectedCheckboxes}
+                        onFilterChange={handleCheckboxChange}
+                    />
+                    <div style={{ marginLeft: '16px' }}>
+                        <DropdownFilter
+                            endpoint={buildV1Url('models/types')}  // Endpoint to fetch model types
+                            selectedValues={modelTypes}
+                            onChange={setModelTypes}
+                            label="Model Type"
+                        />
+                    </div>
+                </div>
             </div>
             <div>
-                <div style={{margin: '8px 0'}}>
+                <div style={{ margin: '8px 0' }}>
                     <button onClick={handleAnalyzeDeployedModels}>Analyze Deployed Models</button>
                 </div>
                 {models.length > 0 &&
-                    <div style={{display: 'flex', justifyContent: 'flex-end'}}>
+                    <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
                         <button onClick={handleDownload}
-                                style={{display: 'flex', alignItems: 'center', justifyContent: 'space-between'}}>
-                            <span style={{marginRight: '4px'}}>Download Results</span>
-                            <DownloadIcon width={14} height={14}/>
+                            style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                            <span style={{ marginRight: '4px' }}>Download Results</span>
+                            <DownloadIcon width={14} height={14} />
                         </button>
                     </div>
                 }
                 <Table data={models}
-                       headers={sortHeaders}
-                       mapItemToRow={mapItemToRow}
-                       currentSorts={currentSorts}
-                       onSort={handleSort}
-                       onRemoveSort={handleRemoveSort}
-                       message={message}/>
+                    headers={sortHeaders}
+                    mapItemToRow={mapItemToRow}
+                    currentSorts={currentSorts}
+                    onSort={handleSort}
+                    onRemoveSort={handleRemoveSort}
+                    message={message} />
                 <Pagination
                     currentPage={currentPage}
                     totalPages={totalPages}

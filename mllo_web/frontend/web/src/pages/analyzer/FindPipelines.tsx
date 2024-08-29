@@ -7,9 +7,9 @@ import Search from '../../components/Search.tsx';
 import Table, {SortDirection} from '../../components/Table.tsx';
 import Pagination from '../../components/Pagination.tsx';
 import ToggleSwitch from '../../components/ToggleSwitch.tsx';
+import DropdownFilter from '../../components/DropdownFilter.tsx';  // Import the updated DropdownFilter
 import {DownloadIcon} from '../../components/Icons.tsx';
 import {pascalCaseToWords, lowercaseToPascalCase} from '../../components/FormatUtilities';
-
 
 interface PipelineData {
     pipelineName: string;
@@ -26,6 +26,7 @@ const FindPipelines: React.FC = () => {
     const [currentPage, setCurrentPage] = useState(1);
     const [totalPages, setTotalPages] = useState(0);
     const [itemsPerPage, setItemsPerPage] = useState(10);
+    const [pipelineTypes, setPipelineTypes] = useState<string[]>([]);  // State to hold selected pipeline types
     const sortHeaders = [
         "Pipeline Name",
         "Pipeline Type",
@@ -34,20 +35,20 @@ const FindPipelines: React.FC = () => {
         "Pipeline Associated Model",
     ];
     const [currentSorts, setCurrentSorts] = useState<{ key: string; direction: SortDirection }[]>([
-        {key: "Pipeline Name", direction: 'asc'}
+        { key: "Pipeline Name", direction: 'asc' }
     ]);
     const [isLoading, setIsLoading] = useState(false);
     const [message, setMessage] = useState('');
     const [error, setError] = useState<string | null>(null);
-    const navigate = useNavigate(); // Access useNavigate hook
+    const navigate = useNavigate();
 
     const fetchData = async (searchTerm: string,
                              currentPage: number,
                              itemsPerPage: number,
                              sorts: { key: string; direction: SortDirection }[],
                              toggleConstraint: boolean,
-                             format: string = '',) => {
-        setIsLoading(true); // Set loading to true
+                             format: string = '') => {
+        setIsLoading(true);
         setMessage('');
         setError(null);
         try {
@@ -58,8 +59,14 @@ const FindPipelines: React.FC = () => {
                 toggle_constraint: toggleConstraint.toString(),
             });
 
-            // Add sorts as query params
-            for (const {key, direction} of sorts) {
+            // Add selected pipeline types to the query parameters if any are selected
+            if (pipelineTypes.length > 0) {
+                pipelineTypes.forEach((type) => {
+                    urlParams.append('pipeline_types', type);
+                });
+            }
+
+            for (const { key, direction } of sorts) {
                 urlParams.append('sort', `${key},${direction}`);
             }
 
@@ -69,7 +76,7 @@ const FindPipelines: React.FC = () => {
 
             const response = await fetch(buildV1Url(`pipelines/?${urlParams.toString()}`));
             if (!response.ok) {
-                throw new Error(`Failed to fetch models: ${response.statusText}`);
+                throw new Error(`Failed to fetch pipelines: ${response.statusText}`);
             }
 
             if (format === '' || format === 'json') {
@@ -77,7 +84,7 @@ const FindPipelines: React.FC = () => {
                 setCurrentPage(currentPage);
                 setTotalPages(fetchedPipelines["total_pages"]);
                 setPipelines(fetchedPipelines["data"]);
-                if (fetchedPipelines["data"].length == 0) {
+                if (fetchedPipelines["data"].length === 0) {
                     setMessage("No pipelines found.");
                 } else {
                     setMessage('');
@@ -86,10 +93,10 @@ const FindPipelines: React.FC = () => {
                 await downloadFromResponse(response, 'find_pipelines.csv');
             }
         } catch (error) {
-            console.error('Error fetching models:', error);
+            console.error('Error fetching pipelines:', error);
             setError((error as Error).message);
         } finally {
-            setIsLoading(false); // Set loading to false after fetching
+            setIsLoading(false);
         }
     }
 
@@ -116,11 +123,11 @@ const FindPipelines: React.FC = () => {
     const handleRemoveSort = async (key: string) => {
         const newSorts = currentSorts.filter(sort => sort.key !== key);
         setCurrentSorts(newSorts);
-        await fetchData(searchTerm, currentPage, itemsPerPage, newSorts, toggleConstraint); // Update data with new sorts
+        await fetchData(searchTerm, currentPage, itemsPerPage, newSorts, toggleConstraint);
     };
 
     const handleToggleConstraint = () => {
-        setToggleConstraint(!toggleConstraint); // Toggle between Model and Dataset
+        setToggleConstraint(!toggleConstraint);
     };
 
     const handleComparePipelines = () => {
@@ -132,13 +139,12 @@ const FindPipelines: React.FC = () => {
     };
 
     const mapItemToRow = (header: string, value: any) => {
-
         if (header === "Pipeline Name") {
             return <Link to={`/pipelines/edit-pipeline?pipeline-name=${value}`}>{pascalCaseToWords(value)}</Link>;
         } else if (header === "Pipeline Components") {
-            return (value && Array.isArray(value)) 
-            ? value.map(component => lowercaseToPascalCase(component)).join('; ') 
-            : '';
+            return (value && Array.isArray(value))
+                ? value.map(component => lowercaseToPascalCase(component)).join('; ')
+                : '';
         }
         if (typeof value === 'string') {
             if (/^[A-Z][a-z0-9]+([A-Z][a-z0-9]*)*$/.test(value)) {
@@ -146,54 +152,60 @@ const FindPipelines: React.FC = () => {
             } else if (/^[a-z ]+$/.test(value)) {
                 value = lowercaseToPascalCase(value);
             }
-            return (
-                <span>{value}</span>
-            );
+            return <span>{value}</span>;
         }
-
     };
 
     return (
         <div>
-            <LoadingBar isLoading={isLoading}/>
+            <LoadingBar isLoading={isLoading} />
             <h1>Find Pipelines</h1>
 
             <div style={{margin: '8px 0'}}>
                 <Search onSearch={handleSearch} placeholder={!toggleConstraint ? 'Model Constraint' : 'Dataset Constraint'}/>
                 <div style={{display: 'flex', alignItems: 'center'}}>
                     <span className="toggle-label">Model Constraint</span>
-                    <ToggleSwitch isChecked={toggleConstraint} onToggle={handleToggleConstraint}/>
+                    <ToggleSwitch isChecked={toggleConstraint} onToggle={handleToggleConstraint} />
                     <span className="toggle-label">Dataset Constraint</span>
+                    <div style={{ marginLeft: '16px' }}>
+                        <DropdownFilter
+                            endpoint={buildV1Url('pipelines/types')}  // Pass the API endpoint for fetching pipeline types
+                            selectedValues={pipelineTypes}
+                            onChange={setPipelineTypes}
+                            label="Pipeline Types"
+                        />
+                    </div>
                 </div>
+
             </div>
             <div>
-                <div style={{margin: '8px 0'}}>
+                <div style={{ margin: '8px 0' }}>
                     <button onClick={handleComparePipelines}>Compare Pipelines</button>
-                    <button style={{marginLeft: '4px'}} onClick={handleViewPipeline}>View Pipeline</button>
+                    <button style={{ marginLeft: '4px' }} onClick={handleViewPipeline}>View Pipeline</button>
                 </div>
                 {pipelines.length > 0 &&
-                    <div style={{display: 'flex', justifyContent: 'flex-end'}}>
+                    <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
                         <button onClick={handleDownload}
-                                style={{display: 'flex', alignItems: 'center', justifyContent: 'space-between'}}>
-                            <span style={{marginRight: '4px'}}>Download Results</span>
-                            <DownloadIcon width={14} height={14}/>
+                            style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                            <span style={{ marginRight: '4px' }}>Download Results</span>
+                            <DownloadIcon width={14} height={14} />
                         </button>
                     </div>
                 }
                 <Table data={pipelines}
-                       headers={sortHeaders}
-                       mapItemToRow={mapItemToRow}
-                       currentSorts={currentSorts}
-                       onSort={handleSort}
-                       onRemoveSort={handleRemoveSort}
-                       message={message}/>
+                    headers={sortHeaders}
+                    mapItemToRow={mapItemToRow}
+                    currentSorts={currentSorts}
+                    onSort={handleSort}
+                    onRemoveSort={handleRemoveSort}
+                    message={message} />
                 <Pagination
                     currentPage={currentPage}
                     totalPages={totalPages}
                     onPageChange={handlePageChange}
                 />
             </div>
-            {error && <ErrorMessage message={error}/>}
+            {error && <ErrorMessage message={error} />}
         </div>
     );
 };

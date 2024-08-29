@@ -17,6 +17,7 @@ PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
 PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
 PREFIX bfo: <http://purl.obolibrary.org/obo/>
 PREFIX iof-core: <https://spec.industrialontologies.org/ontology/core/Core/>
+
 SELECT DISTINCT 
     (STRAFTER(STR(?model), "#") AS ?model_name) 
     ?model_type
@@ -39,6 +40,9 @@ WHERE {
     ?model rdf:type ?model_type_iri.
     ?model_type_iri rdfs:subClassOf+ ml:MachineLearningModel.
     ?model_type_iri rdfs:label ?model_type.
+    
+    #MODEL_TYPPE_FILTER
+
     OPTIONAL {
         ?model bfo:BFO_0000178 ?model_objective.
         ?model_objective rdf:type/rdfs:subClassOf* iof-core:ObjectiveSpecification.
@@ -54,7 +58,7 @@ WHERE {
     }
     OPTIONAL {
         ?data_preprocessing_pipeline ml:hasDataOutput ?dataset.
-    	?data_preprocessing_pipeline rdf:type ml:MachineLearningDataPreparationPipeline
+        ?data_preprocessing_pipeline rdf:type ml:MachineLearningDataPreparationPipeline
     }
 }
 """
@@ -76,15 +80,18 @@ class FindModelsQueryBuilder(QueryBuilder):
                  search_term: str,
                  dataset_role: Optional[List[str]] = None,
                  specific_IRI: Optional[str] = None,
+                 model_types: Optional[List[str]] = None,
                  sort: Optional[List[str]] = None):
         self.dataset_name = search_term.strip() if search_term and len(search_term) > 0 else None
         self.specific_IRI = specific_IRI.strip() if specific_IRI and len(specific_IRI) > 0 else None
+        self.model_types = model_types
         self.sort_string = to_order_by_string(sort, self.SORT_KEY_MAPPING)
         self.dataset_role = parse_option_params(dataset_role)
 
     def build_query(self) -> str:
         query = FIND_MODELS_QUERY
 
+        # Handle dataset role filtering
         replacement_string = dataset_role_filter(training_data=self.dataset_role.get("training_data", False),
                                                  test_data=self.dataset_role.get("test_data", False),
                                                  validation_data=self.dataset_role.get("validation_data", False),
@@ -93,6 +100,7 @@ class FindModelsQueryBuilder(QueryBuilder):
         query = query.replace("#DATASETTYPE_CONSTRAINT",
                               f"VALUES ?dataset_type {{{replacement_string}}}" if replacement_string else '')
 
+        # Handle dataset name or specific IRI filtering
         if not self.dataset_name:
             query = query.replace("#DATASET_FILTER", "")
         elif self.specific_IRI:
@@ -101,11 +109,16 @@ class FindModelsQueryBuilder(QueryBuilder):
             dataset_name = f"\"{self.dataset_name}\")"
             query = query.replace("#DATASET_FILTER", f"FILTER(STRAFTER(STR(?dataset),\"#\")={dataset_name}")
 
+        # Handle model type filtering
+        if self.model_types:
+            model_types_str = ' '.join([f'"{mtype}"' for mtype in self.model_types])
+            query = query.replace("#MODEL_TYPPE_FILTER",f" FILTER(?model_type IN ({model_types_str}))")
+        
+        # Add sorting
         if self.sort_string:
             query += self.sort_string
-
+        
         return query
-
 
 @router.get("/")  # Define a GET endpoint for "/models"
 async def get_models(request: Request,
@@ -113,14 +126,20 @@ async def get_models(request: Request,
                      dataset_role: Optional[List[str]] = Query(default=None,
                                                                description="Dataset roles as JSON string"),
                      specific_IRI=Query(default=None, description="Specific IRI"),
+                     model_types: Optional[List[str]] = Query(default=None, description="Model types"),  # Add model_types parameter
                      page: int = Query(default=1, description="Page number"),
                      items_per_page: int = Query(default=10, description="Number of models to return per page"),
                      sort: Optional[List[str]] = Query(default=None,
                                                        description="Sort criteria (e.g., [dataset_name,asc,dataset_used_as,desc])"),
                      format: str = Query(default="json", description="Output format (json or csv)")) -> Response:
     app = request.app
-    query_builder = FindModelsQueryBuilder(search_term=search_term, dataset_role=dataset_role,
-                                           specific_IRI=specific_IRI, sort=sort)
+    query_builder = FindModelsQueryBuilder(
+        search_term=search_term,
+        dataset_role=dataset_role,
+        specific_IRI=specific_IRI,
+        model_types=model_types,  # Pass model_types to the query builder
+        sort=sort
+    )
 
     if format == 'json':
         total_records = int(
@@ -230,6 +249,20 @@ class DeployedModelsQueryBuilder(QueryBuilder):
 
         return query
 
+MODEL_TYPES_QUERY = """
+PREFIX ml: <http://www.semanticweb.org/mnd14/ml/>
+PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+PREFIX bfo: <http://purl.obolibrary.org/obo/>
+PREFIX iof-core: <https://spec.industrialontologies.org/ontology/core/Core/>
+
+SELECT DISTINCT ?model_type
+WHERE {
+    ?model rdf:type ?model_type_iri.
+    ?model_type_iri rdfs:subClassOf+ ml:MachineLearningModel.
+    ?model_type_iri rdfs:label ?model_type.
+}
+"""   
 
 @router.get("/deployed")  # Define a GET endpoint for "/models/deployed"
 async def get_deployed_models(request: Request,
@@ -271,3 +304,14 @@ async def get_deployed_models(request: Request,
         )
     else:
         return Response(content="Unsupported format", status_code=400)
+
+@router.get("/types")
+async def get_model_types(request: Request) -> JSONResponse:
+    app = request.app
+
+    try:
+        result = app.sparql_client.query(MODEL_TYPES_QUERY)
+        model_type = [row['model_type'] for row in result]
+        return JSONResponse(content=model_type)
+    except Exception as e:
+        return JSONResponse(content={"error": str(e)}, status_code=500)
