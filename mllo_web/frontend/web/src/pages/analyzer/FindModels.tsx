@@ -157,8 +157,8 @@ const FindModels: React.FC = () => {
         await fetchData(searchTerm, currentPage, itemsPerPage, newSorts, selectedCheckboxes); // Update data with new sorts
     };
 
-    const handleAnalyzeDeployedModel = () => {
-        navigate('/models/analyze-deployed-model');
+    const handleAnalyzeDeployedModels = () => {
+        navigate('/models/analyze-deployed-models');
     };
 
     const getUniqueIriPart = (iri: string | string[]): string | string[] => {
@@ -239,7 +239,7 @@ const FindModels: React.FC = () => {
             </div>
             <div>
                 <div style={{margin: '8px 0'}}>
-                    <button onClick={handleAnalyzeDeployedModel}>Analyze Deployed Model</button>
+                    <button onClick={handleAnalyzeDeployedModels}>Analyze Deployed Models</button>
                 </div>
                 {models.length > 0 &&
                     <div style={{display: 'flex', justifyContent: 'flex-end'}}>

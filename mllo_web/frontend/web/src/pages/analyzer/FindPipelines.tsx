@@ -159,7 +159,7 @@ const FindPipelines: React.FC = () => {
             <h1>Find Pipelines</h1>
 
             <div style={{margin: '8px 0'}}>
-                <Search onSearch={handleSearch} placeholder={'Pipelines Constraint'}/>
+                <Search onSearch={handleSearch} placeholder={!toggleConstraint ? 'Model Constraint' : 'Dataset Constraint'}/>
                 <div style={{display: 'flex', alignItems: 'center'}}>
                     <span className="toggle-label">Model Constraint</span>
                     <ToggleSwitch isChecked={toggleConstraint} onToggle={handleToggleConstraint}/>
