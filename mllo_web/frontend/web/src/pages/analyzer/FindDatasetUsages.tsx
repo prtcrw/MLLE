@@ -38,7 +38,7 @@ const defaultSelectedCheckboxes = {
     "raw_data": false,
 };
 
-const FindModels: React.FC = () => {
+const FindDatasetUsages: React.FC = () => {
     const [searchTerm, setSearchTerm] = useState('');
     const [selectedCheckboxes, setSelectedCheckboxes] = useState<{ [key: string]: boolean }>(defaultSelectedCheckboxes);
     const [models, setModels] = useState<ModelData[]>([]);
@@ -250,7 +250,7 @@ const FindModels: React.FC = () => {
     return (
         <div>
             <LoadingBar isLoading={isLoading}/>
-            <h1>Find Models</h1>
+            <h1>Find Dataset Usages</h1>
             <div style={{margin: '8px 0'}}>
                 <Search onSearch={handleSearch} placeholder={'Dataset Name'}/>
                 <div style={{display: 'flex', alignItems: 'center'}}>
@@ -329,4 +329,4 @@ const FindModels: React.FC = () => {
     );
 };
 
-export default FindModels;
+export default FindDatasetUsages;

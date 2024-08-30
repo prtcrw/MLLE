@@ -5,7 +5,7 @@ import Menu from './components/Menu';
 import Header from './components/Header.tsx';
 import Home from './pages/Home';
 import PipelineEditor from './pages/editor/PipelineEditor.tsx';
-import FindModels from './pages/analyzer/FindModels.tsx';
+import FindDatasetUsages from './pages/analyzer/FindDatasetUsages.tsx';
 import FindPipelines from './pages/analyzer/FindPipelines.tsx';
 import FindDatasets from './pages/analyzer/FindDatasets.tsx';
 import PlotPerformance from './pages/analyzer/PlotPerformance.tsx';
@@ -29,12 +29,12 @@ const Dashboard: React.FC = () => {
                     <Header isMenuOpen={isMenuOpen} toggleMenu={toggleMenu}/>
                     <Routes>
                         <Route path="/" element={<Home/>}/>
-                        <Route path="/models" element={<FindModels/>}/>
                         <Route path="/models/analyze-deployed-models" element={<AnalyzeDeployedModels/>}/>
                         <Route path="/pipelines" element={<FindPipelines/>}/>
                         <Route path="/pipelines/compare-pipelines" element={<ComparePipelines/>}/>
                         <Route path="/pipelines/edit-pipeline" element={<PipelineEditor/>}/>
                         <Route path="/datasets" element={<FindDatasets/>}/>
+                        <Route path="/datasets/usages" element={<FindDatasetUsages/>}/>
                         <Route path="/datasets/plot-performance" element={<PlotPerformance/>}/>
                         <Route path="/datasets/analyze-model-output" element={<AnalyzeModelOutput/>}/>
                     </Routes>

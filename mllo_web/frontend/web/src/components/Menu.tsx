@@ -34,12 +34,7 @@ const Menu: React.FC<{ isMenuOpen: boolean; toggleMenu: () => void; isMobile: bo
     };
 
     const modelSubmenuItems = [
-        {
-            label: 'Find Models', path: '/models',
-            children: [
-                {label: 'Analyze Deployed Models', path: '/models/analyze-deployed-models'}
-            ]
-        },
+        { label: 'Analyze Deployed Models', path: '/models/analyze-deployed-models' },
     ];
 
     const pipelineSubmenuItems = [
@@ -59,6 +54,7 @@ const Menu: React.FC<{ isMenuOpen: boolean; toggleMenu: () => void; isMobile: bo
                 {label: 'Analyze Model Output', path: '/datasets/analyze-model-output'},
             ]
         },
+        {label: 'Find Dataset Usages', path: '/datasets/usages'}
     ];
 
     return (
