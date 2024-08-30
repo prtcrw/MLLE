@@ -14,9 +14,17 @@ from tensorflow.keras.layers import Conv2D, MaxPooling2D, Flatten, Dense
 from tensorflow.keras.models import Sequential
 from tensorflow.keras.utils import to_categorical
 
-from mllo_web.app.api.routers.utilities import generate_csv_response, to_order_by_string, dataset_role_filter, \
-    parse_option_params
-from mllo_web.app.api.services.sparql_client import QueryBuilder, TotalRecordsQueryBuilder, PaginationQueryBuilder
+from mllo_web.app.api.routers.utilities import (
+    generate_csv_response,
+    to_order_by_string,
+    dataset_role_filter,
+    parse_option_params,
+)
+from mllo_web.app.api.services.sparql_client import (
+    QueryBuilder,
+    TotalRecordsQueryBuilder,
+    PaginationQueryBuilder,
+)
 from .query_iri import execute_iri_query
 
 router = APIRouter(prefix="/v1/datasets", tags=["datasets"])
@@ -52,6 +60,9 @@ WHERE {
     ?dataset rdf:type ?dataset_type.
     ?dataset_type rdfs:label ?dataset_used_as.
     ?dataset ml:specifiesDimensionShape ?dataset_shape.
+
+    #DATEFILTER
+
     OPTIONAL {
         ?ml_process bfo:BFO_0000222/iof-core:hasValueExpressionAtAllTimes/iof-core:hasDateTimeValue ?ml_input_timestamp
     }
@@ -103,57 +114,85 @@ class FindDatasetsQueryBuilder(QueryBuilder):
         "Dataset Source": "dataset_source",
         "Model Type": "model_type",
         "Model Output": "model_output",
-        "Model Output Utilization": "model_output_utilization"
+        "Model Output Utilization": "model_output_utilization",
     }
 
-    def __init__(self,
-                 query_variables: List[str],
-                 search_term: Optional[str] = None,
-                 type_query: bool = True,
-                 direct_type: bool = False,
-                 dataset_role: Optional[List[str]] = None,
-                 sort: Optional[List[str]] = None):
-
+    def __init__(
+        self,
+        query_variables: List[str],
+        search_term: Optional[str] = None,
+        type_query: bool = True,
+        direct_type: bool = False,
+        dataset_role: Optional[List[str]] = None,
+        sort: Optional[List[str]] = None,
+        start_date: Optional[str] = None,
+        end_date: Optional[str] = None,
+        include_blank_date: Optional[bool] = False,
+    ):
         self.query_variables = query_variables
-        self.model_input = search_term.strip() if search_term and len(search_term) > 0 else None
+        self.model_input = (
+            search_term.strip() if search_term and len(search_term) > 0 else None
+        )
         self.type_query = type_query
         self.direct_type = direct_type
         self.sort_string = to_order_by_string(sort, self.SORT_KEY_MAPPING)
         self.dataset_role = parse_option_params(dataset_role)
+        self.start_date = start_date
+        self.end_date = end_date
+        self.include_blank_date = include_blank_date
 
     def build_query(self) -> str:
         query = QUERY
-        query = query.replace('#variables', '\n\t'.join(self.query_variables))
+        query = query.replace("#variables", "\n\t".join(self.query_variables))
 
         # Apply sort based on the mapping
         if self.dataset_role:
-            replacement_string = dataset_role_filter(training_data=self.dataset_role.get("training_data", False),
-                                                     test_data=self.dataset_role.get("test_data", False),
-                                                     validation_data=self.dataset_role.get("validation_data", False),
-                                                     production_data=self.dataset_role.get("production_data", False),
-                                                     raw_data=False)
-            query = query.replace("#DATASETTYPE_CONSTRAINT",
-                                  f"VALUES ?dataset_type {{{replacement_string}}}" if replacement_string else '')
+            replacement_string = dataset_role_filter(
+                training_data=self.dataset_role.get("training_data", False),
+                test_data=self.dataset_role.get("test_data", False),
+                validation_data=self.dataset_role.get("validation_data", False),
+                production_data=self.dataset_role.get("production_data", False),
+                raw_data=False,
+            )
+            query = query.replace(
+                "#DATASETTYPE_CONSTRAINT",
+                (
+                    f"VALUES ?dataset_type {{{replacement_string}}}"
+                    if replacement_string
+                    else ""
+                ),
+            )
 
         if not self.model_input:
             query = query.replace("#ml_input_constraint", "+ ml:MachineLearningModel")
-            print(1)
         else:
             if self.type_query:
                 if self.direct_type:
-                    query = query.replace("#ml_input_constraint", " ml:" + self.model_input)
-                    print(2)
+                    query = query.replace(
+                        "#ml_input_constraint", " ml:" + self.model_input
+                    )
                 else:
-                    query = query.replace("#ml_input_constraint", "* ml:" + self.model_input)
-                    print(3)
+                    query = query.replace(
+                        "#ml_input_constraint", "* ml:" + self.model_input
+                    )
             else:
                 self.model_input = "{" + self.model_input + "}"
-                query = query.replace("?model rdf:type/rdfs:subClassOf#ml_input_constraint.",
-                                      "VALUES ?model " + self.model_input)
-                print(4)
+                query = query.replace(
+                    "?model rdf:type/rdfs:subClassOf#ml_input_constraint.",
+                    "VALUES ?model " + self.model_input,
+                )
 
-        print('tq', self.type_query, 'dt', self.direct_type)
-        print(query)
+        # Handle date range filtering
+        date_filter = f"""FILTER(
+                (?ml_input_timestamp >= \"{self.start_date}\"^^xsd:dateTime && 
+                ?ml_input_timestamp <= \"{self.end_date}\"^^xsd:dateTime)"""
+
+        if self.include_blank_date:
+            date_filter += " || !BOUND(?ml_input_timestamp)"
+
+        date_filter += ")"
+        query = query.replace("#DATEFILTER", date_filter)
+
         # Apply sort based on the mapping
         if self.sort_string:
             query += self.sort_string
@@ -162,60 +201,111 @@ class FindDatasetsQueryBuilder(QueryBuilder):
 
 
 @router.get("/")  # Define a GET endpoint for "/datasets"
-async def get_datasets(request: Request,
-                       search_term: str = Query(default=None, description="Search term"),
-                       dataset_role: Optional[List[str]] = Query(default=None, description="Dataset roles"),
-                       type_query: bool = Query(default=True, description="Toggle for Model Name <-> Model Type"),
-                       direct_type: bool = Query(default=False, description="Direct Type constraint"),
-                       page: int = Query(default=1, description="Page number"),
-                       items_per_page: int = Query(default=10, description="Number of datasets to return per page"),
-                       sort: Optional[List[str]] = Query(default=None,
-                                                         description="Sort criteria (e.g., [dataset_name,asc,dataset_used_as,desc])"),
-                       format: str = Query(default="json", description="Output format (json or csv)")) -> Response:
+async def get_datasets(
+    request: Request,
+    search_term: str = Query(default=None, description="Search term"),
+    dataset_role: Optional[List[str]] = Query(
+        default=None, description="Dataset roles"
+    ),
+    type_query: bool = Query(
+        default=True, description="Toggle for Model Name <-> Model Type"
+    ),
+    direct_type: bool = Query(default=False, description="Direct Type constraint"),
+    start_date: Optional[str] = Query(
+        default=None, description="Start date in YYYY-MM-DD format"
+    ),
+    end_date: Optional[str] = Query(
+        default=None, description="End date in YYYY-MM-DD format"
+    ),
+    include_blank_date: bool = Query(
+        default=False, description="Include entries with blank date"
+    ),
+    page: int = Query(default=1, description="Page number"),
+    items_per_page: int = Query(
+        default=10, description="Number of datasets to return per page"
+    ),
+    sort: Optional[List[str]] = Query(
+        default=None,
+        description="Sort criteria (e.g., [dataset_name,asc,dataset_used_as,desc])",
+    ),
+    format: str = Query(default="json", description="Output format (json or csv)"),
+) -> Response:
     app = request.app
-    query_builder = FindDatasetsQueryBuilder(query_variables=[
-        '(STRAFTER(STR(?dataset), "#") AS ?dataset_name)',
-        '?dataset_used_as'
-        '?ml_input_timestamp',
-        '?dataset_shape',
-        '?dataset_characteristics',
-        '?dataset_source',
-        '?model_type',
-        '?model_output',
-        '?model_output_utilization'
-    ], search_term=search_term, dataset_role=dataset_role, type_query=type_query, direct_type=direct_type, sort=sort)
+    query_builder = FindDatasetsQueryBuilder(
+        query_variables=[
+            '(STRAFTER(STR(?dataset), "#") AS ?dataset_name)',
+            "?dataset_used_as" "?ml_input_timestamp",
+            "?dataset_shape",
+            "?dataset_characteristics",
+            "?dataset_source",
+            "?model_type",
+            "?model_output",
+            "?model_output_utilization",
+        ],
+        search_term=search_term,
+        dataset_role=dataset_role,
+        type_query=type_query,
+        direct_type=direct_type,
+        sort=sort,
+        start_date=start_date,
+        end_date=end_date,
+        include_blank_date=include_blank_date,
+    )
 
-    if format == 'json':
+    if format == "json":
         total_records = int(
-            app.sparql_client.query(TotalRecordsQueryBuilder(query_builder).build_query())[0]['total_records'])
+            app.sparql_client.query(
+                TotalRecordsQueryBuilder(query_builder).build_query()
+            )[0]["total_records"]
+        )
 
         # Calculate total pages based on results and page size
-        total_pages = math.ceil(total_records / items_per_page) if total_records > 0 else 0
+        total_pages = (
+            math.ceil(total_records / items_per_page) if total_records > 0 else 0
+        )
         datasets = app.sparql_client.query(
-            PaginationQueryBuilder(query_builder, page=page, items_per_page=items_per_page).build_query())
+            PaginationQueryBuilder(
+                query_builder, page=page, items_per_page=items_per_page
+            ).build_query()
+        )
 
         # Process data for JSON response
         for dataset in datasets:
             # Split dataset_characteristics by semicolon, remove leading/trailing whitespaces
-            if len(dataset['dataset_characteristics']) > 0:
-                dataset['dataset_characteristics'] = [component.strip() for component in
-                                                      dataset['dataset_characteristics'].split(';')]
+            if len(dataset["dataset_characteristics"]) > 0:
+                dataset["dataset_characteristics"] = [
+                    component.strip()
+                    for component in dataset["dataset_characteristics"].split(";")
+                ]
 
-        return JSONResponse({
-            "data": datasets,
-            "total_pages": total_pages,
-        })
-    elif format == 'csv':
+        return JSONResponse(
+            {
+                "data": datasets,
+                "total_pages": total_pages,
+            }
+        )
+    elif format == "csv":
         datasets = app.sparql_client.query(query_builder.build_query())
 
         return StreamingResponse(
-            generate_csv_response(header=['dataset_name', 'dataset_used_as', 'ml_input_timestamp', 'dataset_shape',
-                                          'dataset_characteristics', 'dataset_source', 'model_type', 'model_output',
-                                          'model_output_utilization', 'model_performance_metric',
-                                          'model_performance_value'],
-                                  values=[x.values() for x in datasets]),
-            media_type='text/csv',
-            headers={'Content-Disposition': f'attachment; filename=find_datasets.csv'}
+            generate_csv_response(
+                header=[
+                    "dataset_name",
+                    "dataset_used_as",
+                    "ml_input_timestamp",
+                    "dataset_shape",
+                    "dataset_characteristics",
+                    "dataset_source",
+                    "model_type",
+                    "model_output",
+                    "model_output_utilization",
+                    "model_performance_metric",
+                    "model_performance_value",
+                ],
+                values=[x.values() for x in datasets],
+            ),
+            media_type="text/csv",
+            headers={"Content-Disposition": f"attachment; filename=find_datasets.csv"},
         )
     else:
         return Response(content="Unsupported format", status_code=400)
@@ -227,35 +317,46 @@ async def get_query_iri(request: Request, iri: str):
 
 
 @router.get("/performances")  # Define a GET endpoint for "/datasets/performances"
-async def get_datasets_performances(request: Request,
-                                    search_term: str = Query(default=None, description="Search term"),
-                                    dataset_role: str = Query(default=None, description="Dataset roles")) -> Response:
+async def get_datasets_performances(
+    request: Request,
+    search_term: str = Query(default=None, description="Search term"),
+    dataset_role: str = Query(default=None, description="Dataset roles"),
+) -> Response:
     app = request.app
-    query_builder = FindDatasetsQueryBuilder(query_variables=[
-        '(STRAFTER(STR(?dataset), "#") AS ?dataset_name)',
-        '?model_performance_metric',
-        '?model_performance_value',
-    ], search_term=search_term, dataset_role=dataset_role, sort=["Dataset Name, asc"])
+    query_builder = FindDatasetsQueryBuilder(
+        query_variables=[
+            '(STRAFTER(STR(?dataset), "#") AS ?dataset_name)',
+            "?model_performance_metric",
+            "?model_performance_value",
+        ],
+        search_term=search_term,
+        dataset_role=dataset_role,
+        sort=["Dataset Name, asc"],
+    )
     datasets = app.sparql_client.query(query_builder.build_query())
 
     datasets_group_by_model_performance_metric = defaultdict(list)
     for entry in datasets:
-        metric = entry.pop("model_performance_metric")  # Remove the metric key and get its value
+        metric = entry.pop(
+            "model_performance_metric"
+        )  # Remove the metric key and get its value
         if metric:
             datasets_group_by_model_performance_metric[metric].append(entry)
 
     # Sort each group by 'dataset_name'
     for metric in datasets_group_by_model_performance_metric:
-        datasets_group_by_model_performance_metric[metric].sort(key=lambda x: x["dataset_name"])
+        datasets_group_by_model_performance_metric[metric].sort(
+            key=lambda x: x["dataset_name"]
+        )
 
-    return JSONResponse({
-        "model_performance_metric": dict(datasets_group_by_model_performance_metric)
-    })
+    return JSONResponse(
+        {"model_performance_metric": dict(datasets_group_by_model_performance_metric)}
+    )
 
 
 @router.get("/model-input")
 async def get_model_input(request: Request) -> Response:
-    mnist = fetch_openml('mnist_784', version=1)
+    mnist = fetch_openml("mnist_784", version=1)
     data = mnist.data / 255.0  # Normalize pixel values
 
     # Apply PCA with 2 components for 2D plot
@@ -274,13 +375,16 @@ async def get_model_input(request: Request) -> Response:
             "method": "classification",
             "labels": sorted(unique_labels),
         },
-        "data": [{"label": label, "x": x, "y": y} for label, x, y in
-                 zip(labels, pca_data[:, 0].tolist(), pca_data[:, 1].tolist())]
+        "data": [
+            {"label": label, "x": x, "y": y}
+            for label, x, y in zip(
+                labels, pca_data[:, 0].tolist(), pca_data[:, 1].tolist()
+            )
+        ],
     }
 
-    return JSONResponse({
-        "results": results
-    })
+    return JSONResponse({"results": results})
+
 
 @router.get("/model-output")
 async def get_model_output(request: Request) -> Response:
@@ -288,25 +392,31 @@ async def get_model_output(request: Request) -> Response:
     (x_train, y_train), (x_test, y_test) = mnist.load_data()
 
     # Preprocess the data
-    x_train = x_train.reshape(x_train.shape[0], 28, 28, 1).astype('float32') / 255
-    x_test = x_test.reshape(x_test.shape[0], 28, 28, 1).astype('float32') / 255
+    x_train = x_train.reshape(x_train.shape[0], 28, 28, 1).astype("float32") / 255
+    x_test = x_test.reshape(x_test.shape[0], 28, 28, 1).astype("float32") / 255
     y_train = to_categorical(y_train)
     y_test = to_categorical(y_test)
 
     # Create the CNN model
-    model = Sequential([
-        Conv2D(32, (3, 3), activation='relu', input_shape=(28, 28, 1)),
-        MaxPooling2D((2, 2)),
-        Flatten(),
-        Dense(128, activation='relu'),
-        Dense(10, activation='softmax')
-    ])
+    model = Sequential(
+        [
+            Conv2D(32, (3, 3), activation="relu", input_shape=(28, 28, 1)),
+            MaxPooling2D((2, 2)),
+            Flatten(),
+            Dense(128, activation="relu"),
+            Dense(10, activation="softmax"),
+        ]
+    )
 
     # Compile the model
-    model.compile(optimizer='adam', loss='categorical_crossentropy', metrics=['accuracy'])
+    model.compile(
+        optimizer="adam", loss="categorical_crossentropy", metrics=["accuracy"]
+    )
 
     # Train the model
-    model.fit(x_train, y_train, epochs=1, batch_size=128, validation_data=(x_test, y_test))
+    model.fit(
+        x_train, y_train, epochs=1, batch_size=128, validation_data=(x_test, y_test)
+    )
 
     # Make predictions on the test set
     predictions = model.predict(x_test)
@@ -318,8 +428,60 @@ async def get_model_output(request: Request) -> Response:
     true_classes = np.argmax(y_test, axis=1)
 
     # Create a list of dictionaries with true and predicted labels
-    results = [{'true_label': int(true), 'predicted_label': int(pred)}
-               for true, pred in zip(true_classes, predicted_classes)]
-    return JSONResponse({
-        'results': results
-    })
+    results = [
+        {"true_label": int(true), "predicted_label": int(pred)}
+        for true, pred in zip(true_classes, predicted_classes)
+    ]
+    return JSONResponse({"results": results})
+
+
+DATE_RANGE_QUERY = """
+PREFIX ml: <http://www.semanticweb.org/mnd14/ml/>
+PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+PREFIX bfo: <http://purl.obolibrary.org/obo/>
+PREFIX iof-core: <https://spec.industrialontologies.org/ontology/core/Core/>
+
+SELECT (MIN(?ml_input_timestamp) AS ?minDate) 
+       (MAX(?ml_input_timestamp) AS ?maxDate) 
+       ?ml_input_timestamp
+WHERE {
+  ?ml_process ml:hasDataInput ?dataset.
+  ?ml_process bfo:BFO_0000063*/(bfo:BFO_0000057 | ml:executes) ?model.
+  OPTIONAL {
+    ?ml_process bfo:BFO_0000222/iof-core:hasValueExpressionAtAllTimes/iof-core:hasDateTimeValue ?ml_input_timestamp
+  }
+} 
+GROUP BY ?ml_input_timestamp
+ORDER BY ?ml_input_timestamp
+"""
+
+
+@router.get("/date-range")
+async def get_date_range(request: Request) -> JSONResponse:
+    app = request.app
+
+    try:
+        result = app.sparql_client.query(DATE_RANGE_QUERY)
+        min_date = result[1]["minDate"]
+        max_date = result[1]["maxDate"]
+        available_dates = [row["ml_input_timestamp"] for row in result]
+        # to show the slidebar
+        min_date = "2023-04-13T07:56:00-04:00"
+        max_date = "2024-08-13T07:56:00-04:00"
+        available_dates = [
+            min_date,
+            "2024-05-11T07:56:00-04:00",
+            "2024-06-11T07:56:00-04:00",
+            "2024-07-13T07:56:00-04:00",            
+            max_date,
+        ]
+        return JSONResponse(
+            content={
+                "min_date": min_date,
+                "max_date": max_date,
+                "available_dates": sorted(available_dates),
+            }
+        )
+    except Exception as e:
+        return JSONResponse(content={"error": str(e)}, status_code=500)

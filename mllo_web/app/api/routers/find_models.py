@@ -4,9 +4,17 @@ from typing import Optional, List
 from fastapi import APIRouter, Request, Query
 from fastapi.responses import Response, JSONResponse, StreamingResponse
 
-from mllo_web.app.api.routers.utilities import generate_csv_response, to_order_by_string, dataset_role_filter, \
-    parse_option_params
-from mllo_web.app.api.services.sparql_client import QueryBuilder, TotalRecordsQueryBuilder, PaginationQueryBuilder
+from mllo_web.app.api.routers.utilities import (
+    generate_csv_response,
+    to_order_by_string,
+    dataset_role_filter,
+    parse_option_params,
+)
+from mllo_web.app.api.services.sparql_client import (
+    QueryBuilder,
+    TotalRecordsQueryBuilder,
+    PaginationQueryBuilder,
+)
 from .query_iri import execute_iri_query
 
 router = APIRouter(prefix="/v1/models", tags=["models"])
@@ -17,6 +25,7 @@ PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
 PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
 PREFIX bfo: <http://purl.obolibrary.org/obo/>
 PREFIX iof-core: <https://spec.industrialontologies.org/ontology/core/Core/>
+PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>
 
 SELECT DISTINCT 
     (STRAFTER(STR(?model), "#") AS ?model_name) 
@@ -34,14 +43,18 @@ WHERE {
     #DATASET_FILTER
     ?ml_process ml:hasDataInput ?dataset.
     ?ml_process bfo:BFO_0000063*/(bfo:BFO_0000057 | ml:executes) ?model.
+    
     OPTIONAL {
         ?ml_process bfo:BFO_0000222/iof-core:hasValueExpressionAtAllTimes/iof-core:hasDateTimeValue ?ml_input_timestamp
     }
+    
+    #DATEFILTER
+
     ?model rdf:type ?model_type_iri.
     ?model_type_iri rdfs:subClassOf+ ml:MachineLearningModel.
     ?model_type_iri rdfs:label ?model_type.
     
-    #MODEL_TYPPE_FILTER
+    #MODEL_TYPE_FILTER
 
     OPTIONAL {
         ?model bfo:BFO_0000178 ?model_objective.
@@ -61,6 +74,7 @@ WHERE {
         ?data_preprocessing_pipeline rdf:type ml:MachineLearningDataPreparationPipeline
     }
 }
+
 """
 
 
@@ -76,94 +90,175 @@ class FindModelsQueryBuilder(QueryBuilder):
         "Dataset Used For": "dataset_used_as",
     }
 
-    def __init__(self,
-                 search_term: str,
-                 dataset_role: Optional[List[str]] = None,
-                 specific_IRI: Optional[str] = None,
-                 model_types: Optional[List[str]] = None,
-                 sort: Optional[List[str]] = None):
-        self.dataset_name = search_term.strip() if search_term and len(search_term) > 0 else None
-        self.specific_IRI = specific_IRI.strip() if specific_IRI and len(specific_IRI) > 0 else None
+    def __init__(
+        self,
+        search_term: str,
+        dataset_role: Optional[List[str]] = None,
+        specific_IRI: Optional[str] = None,
+        model_types: Optional[List[str]] = None,
+        sort: Optional[List[str]] = None,
+        start_date: Optional[str] = None,
+        end_date: Optional[str] = None,
+        include_blank_date: Optional[bool] = False,
+    ):
+
+        self.dataset_name = (
+            search_term.strip() if search_term and len(search_term) > 0 else None
+        )
+        self.specific_IRI = (
+            specific_IRI.strip() if specific_IRI and len(specific_IRI) > 0 else None
+        )
         self.model_types = model_types
         self.sort_string = to_order_by_string(sort, self.SORT_KEY_MAPPING)
         self.dataset_role = parse_option_params(dataset_role)
+        self.start_date = start_date
+        self.end_date = end_date
+        self.include_blank_date = include_blank_date
 
     def build_query(self) -> str:
         query = FIND_MODELS_QUERY
 
         # Handle dataset role filtering
-        replacement_string = dataset_role_filter(training_data=self.dataset_role.get("training_data", False),
-                                                 test_data=self.dataset_role.get("test_data", False),
-                                                 validation_data=self.dataset_role.get("validation_data", False),
-                                                 production_data=self.dataset_role.get("production_data", False),
-                                                 raw_data=self.dataset_role.get("raw_data", False))
-        query = query.replace("#DATASETTYPE_CONSTRAINT",
-                              f"VALUES ?dataset_type {{{replacement_string}}}" if replacement_string else '')
+        replacement_string = dataset_role_filter(
+            training_data=self.dataset_role.get("training_data", False),
+            test_data=self.dataset_role.get("test_data", False),
+            validation_data=self.dataset_role.get("validation_data", False),
+            production_data=self.dataset_role.get("production_data", False),
+            raw_data=self.dataset_role.get("raw_data", False),
+        )
+        query = query.replace(
+            "#DATASETTYPE_CONSTRAINT",
+            (
+                f"VALUES ?dataset_type {{{replacement_string}}}"
+                if replacement_string
+                else ""
+            ),
+        )
 
         # Handle dataset name or specific IRI filtering
         if not self.dataset_name:
             query = query.replace("#DATASET_FILTER", "")
         elif self.specific_IRI:
-            query = query.replace("#DATASET_FILTER", f"VALUES ?dataset {{{self.specific_IRI}{self.dataset_name}}}")
+            query = query.replace(
+                "#DATASET_FILTER",
+                f"VALUES ?dataset {{{self.specific_IRI}{self.dataset_name}}}",
+            )
         else:
-            dataset_name = f"\"{self.dataset_name}\")"
-            query = query.replace("#DATASET_FILTER", f"FILTER(STRAFTER(STR(?dataset),\"#\")={dataset_name}")
+            dataset_name = f'"{self.dataset_name}")'
+            query = query.replace(
+                "#DATASET_FILTER", f'FILTER(STRAFTER(STR(?dataset),"#")={dataset_name}'
+            )
 
         # Handle model type filtering
         if self.model_types:
-            model_types_str = ' '.join([f'"{mtype}"' for mtype in self.model_types])
-            query = query.replace("#MODEL_TYPPE_FILTER",f" FILTER(?model_type IN ({model_types_str}))")
-        
+            model_types_str = " ".join([f'"{mtype}"' for mtype in self.model_types])
+            query = query.replace(
+                "#MODEL_TYPE_FILTER", f" FILTER(?model_type IN ({model_types_str}))"
+            )
+
+        # Handle date range filtering
+        date_filter = f"""FILTER(
+                (?ml_input_timestamp >= \"{self.start_date}\"^^xsd:dateTime && 
+                ?ml_input_timestamp <= \"{self.end_date}\"^^xsd:dateTime)"""
+
+        if self.include_blank_date:
+            date_filter += " || !BOUND(?ml_input_timestamp)"
+
+        date_filter += ")"
+
+        query = query.replace("#DATEFILTER", date_filter)
+
         # Add sorting
         if self.sort_string:
             query += self.sort_string
-        
+
         return query
 
+
 @router.get("/")  # Define a GET endpoint for "/models"
-async def get_models(request: Request,
-                     search_term: str = Query(default=None, description="Search term"),
-                     dataset_role: Optional[List[str]] = Query(default=None,
-                                                               description="Dataset roles as JSON string"),
-                     specific_IRI=Query(default=None, description="Specific IRI"),
-                     model_types: Optional[List[str]] = Query(default=None, description="Model types"),  # Add model_types parameter
-                     page: int = Query(default=1, description="Page number"),
-                     items_per_page: int = Query(default=10, description="Number of models to return per page"),
-                     sort: Optional[List[str]] = Query(default=None,
-                                                       description="Sort criteria (e.g., [dataset_name,asc,dataset_used_as,desc])"),
-                     format: str = Query(default="json", description="Output format (json or csv)")) -> Response:
+async def get_models(
+    request: Request,
+    search_term: str = Query(default=None, description="Search term"),
+    dataset_role: Optional[List[str]] = Query(
+        default=None, description="Dataset roles as JSON string"
+    ),
+    specific_IRI=Query(default=None, description="Specific IRI"),
+    start_date: Optional[str] = Query(
+        default=None, description="Start date in YYYY-MM-DD format"
+    ),
+    end_date: Optional[str] = Query(
+        default=None, description="End date in YYYY-MM-DD format"
+    ),
+    include_blank_date: bool = Query(
+        default=False, description="Include entries with blank date"
+    ),
+    model_types: Optional[List[str]] = Query(
+        default=None, description="Model types"
+    ),  # Add model_types parameter
+    page: int = Query(default=1, description="Page number"),
+    items_per_page: int = Query(
+        default=10, description="Number of models to return per page"
+    ),
+    sort: Optional[List[str]] = Query(
+        default=None,
+        description="Sort criteria (e.g., [dataset_name,asc,dataset_used_as,desc])",
+    ),
+    format: str = Query(default="json", description="Output format (json or csv)"),
+) -> Response:
     app = request.app
     query_builder = FindModelsQueryBuilder(
         search_term=search_term,
         dataset_role=dataset_role,
         specific_IRI=specific_IRI,
-        model_types=model_types,  # Pass model_types to the query builder
-        sort=sort
+        model_types=model_types,
+        sort=sort,
+        start_date=start_date,
+        end_date=end_date,
+        include_blank_date=include_blank_date,
     )
 
-    if format == 'json':
+    if format == "json":
         total_records = int(
-            app.sparql_client.query(TotalRecordsQueryBuilder(query_builder).build_query())[0]['total_records'])
+            app.sparql_client.query(
+                TotalRecordsQueryBuilder(query_builder).build_query()
+            )[0]["total_records"]
+        )
 
         # Calculate total pages based on results and page size
-        total_pages = math.ceil(total_records / items_per_page) if total_records > 0 else 0
+        total_pages = (
+            math.ceil(total_records / items_per_page) if total_records > 0 else 0
+        )
         models = app.sparql_client.query(
-            PaginationQueryBuilder(query_builder, page=page, items_per_page=items_per_page).build_query())
+            PaginationQueryBuilder(
+                query_builder, page=page, items_per_page=items_per_page
+            ).build_query()
+        )
 
-        return JSONResponse({
-            "data": models,
-            "total_pages": total_pages,
-        })
-    elif format == 'csv':
+        return JSONResponse(
+            {
+                "data": models,
+                "total_pages": total_pages,
+            }
+        )
+    elif format == "csv":
         models = app.sparql_client.query(query_builder.build_query())
 
         return StreamingResponse(
             generate_csv_response(
-                header=['model_name', 'model_type', 'model_performance_metric', 'model_performance_value',
-                        'model_objective', 'data_preprocessing_pipeline', 'ml_input_timestamp', 'dataset_used_as'],
-                values=[x.values() for x in models]),
-            media_type='text/csv',
-            headers={'Content-Disposition': f'attachment; filename=find_models.csv'}
+                header=[
+                    "model_name",
+                    "model_type",
+                    "model_performance_metric",
+                    "model_performance_value",
+                    "model_objective",
+                    "data_preprocessing_pipeline",
+                    "ml_input_timestamp",
+                    "dataset_used_as",
+                ],
+                values=[x.values() for x in models],
+            ),
+            media_type="text/csv",
+            headers={"Content-Disposition": f"attachment; filename=find_models.csv"},
         )
     else:
         return Response(content="Unsupported format", status_code=400)
@@ -235,10 +330,10 @@ class DeployedModelsQueryBuilder(QueryBuilder):
         "Model Performance Value": "model_performance_value",
     }
 
-    def __init__(self,
-                 search_term: str,
-                 sort: Optional[List[str]] = None):
-        self.search_term = search_term.strip() if search_term and len(search_term) > 0 else None
+    def __init__(self, search_term: str, sort: Optional[List[str]] = None):
+        self.search_term = (
+            search_term.strip() if search_term and len(search_term) > 0 else None
+        )
         self.sort_string = to_order_by_string(sort, self.SORT_KEY_MAPPING)
 
     def build_query(self) -> str:
@@ -248,6 +343,7 @@ class DeployedModelsQueryBuilder(QueryBuilder):
             query += self.sort_string
 
         return query
+
 
 MODEL_TYPES_QUERY = """
 PREFIX ml: <http://www.semanticweb.org/mnd14/ml/>
@@ -262,48 +358,75 @@ WHERE {
     ?model_type_iri rdfs:subClassOf+ ml:MachineLearningModel.
     ?model_type_iri rdfs:label ?model_type.
 }
-"""   
+"""
+
 
 @router.get("/deployed")  # Define a GET endpoint for "/models/deployed"
-async def get_deployed_models(request: Request,
-                              search_term: str = Query(default=None, description="Search term"),
-                              page: int = Query(default=1, description="Page number"),
-                              items_per_page: int = Query(default=10,
-                                                          description="Number of models to return per page"),
-                              sort: Optional[List[str]] = Query(default=None,
-                                                                description="Sort criteria (e.g., [model_name,asc,last_model_update,desc])"),
-                              format: str = Query(default="json",
-                                                  description="Output format (json or csv)")) -> Response:
+async def get_deployed_models(
+    request: Request,
+    search_term: str = Query(default=None, description="Search term"),
+    page: int = Query(default=1, description="Page number"),
+    items_per_page: int = Query(
+        default=10, description="Number of models to return per page"
+    ),
+    sort: Optional[List[str]] = Query(
+        default=None,
+        description="Sort criteria (e.g., [model_name,asc,last_model_update,desc])",
+    ),
+    format: str = Query(default="json", description="Output format (json or csv)"),
+) -> Response:
     app = request.app
     query_builder = DeployedModelsQueryBuilder(search_term=search_term, sort=sort)
 
-    if format == 'json':
+    if format == "json":
         total_records = int(
-            app.sparql_client.query(TotalRecordsQueryBuilder(query_builder).build_query())[0]['total_records'])
+            app.sparql_client.query(
+                TotalRecordsQueryBuilder(query_builder).build_query()
+            )[0]["total_records"]
+        )
 
         # Calculate total pages based on results and page size
-        total_pages = math.ceil(total_records / items_per_page) if total_records > 0 else 0
+        total_pages = (
+            math.ceil(total_records / items_per_page) if total_records > 0 else 0
+        )
         models = app.sparql_client.query(
-            PaginationQueryBuilder(query_builder, page=page, items_per_page=items_per_page).build_query())
+            PaginationQueryBuilder(
+                query_builder, page=page, items_per_page=items_per_page
+            ).build_query()
+        )
 
-        return JSONResponse({
-            "data": models,
-            "total_pages": total_pages,
-        })
-    elif format == 'csv':
+        return JSONResponse(
+            {
+                "data": models,
+                "total_pages": total_pages,
+            }
+        )
+    elif format == "csv":
         models = app.sparql_client.query(query_builder.build_query())
 
         return StreamingResponse(
             generate_csv_response(
-                header=['model_name', 'model_deployed_on_system', 'last_model_update', 'model_execution_timestamp',
-                        'model_input_data', 'model_output_data', 'model_output_utilization',
-                        'model_performance_metric', 'model_performance_value'],
-                values=[x.values() for x in models]),
-            media_type='text/csv',
-            headers={'Content-Disposition': f'attachment; filename=deployed_models.csv'}
+                header=[
+                    "model_name",
+                    "model_deployed_on_system",
+                    "last_model_update",
+                    "model_execution_timestamp",
+                    "model_input_data",
+                    "model_output_data",
+                    "model_output_utilization",
+                    "model_performance_metric",
+                    "model_performance_value",
+                ],
+                values=[x.values() for x in models],
+            ),
+            media_type="text/csv",
+            headers={
+                "Content-Disposition": f"attachment; filename=deployed_models.csv"
+            },
         )
     else:
         return Response(content="Unsupported format", status_code=400)
+
 
 @router.get("/types")
 async def get_model_types(request: Request) -> JSONResponse:
@@ -311,7 +434,60 @@ async def get_model_types(request: Request) -> JSONResponse:
 
     try:
         result = app.sparql_client.query(MODEL_TYPES_QUERY)
-        model_type = [row['model_type'] for row in result]
+        model_type = [row["model_type"] for row in result]
         return JSONResponse(content=model_type)
+    except Exception as e:
+        return JSONResponse(content={"error": str(e)}, status_code=500)
+
+
+DATE_RANGE_QUERY = """
+PREFIX ml: <http://www.semanticweb.org/mnd14/ml/>
+PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+PREFIX bfo: <http://purl.obolibrary.org/obo/>
+PREFIX iof-core: <https://spec.industrialontologies.org/ontology/core/Core/>
+
+SELECT (MIN(?ml_input_timestamp) AS ?minDate) 
+       (MAX(?ml_input_timestamp) AS ?maxDate) 
+       ?ml_input_timestamp
+WHERE {
+  ?ml_process ml:hasDataInput ?dataset.
+  ?ml_process bfo:BFO_0000063*/(bfo:BFO_0000057 | ml:executes) ?model.
+  OPTIONAL {
+    ?ml_process bfo:BFO_0000222/iof-core:hasValueExpressionAtAllTimes/iof-core:hasDateTimeValue ?ml_input_timestamp
+  }
+} 
+GROUP BY ?ml_input_timestamp
+ORDER BY ?ml_input_timestamp
+"""
+
+
+@router.get("/date-range")
+async def get_date_range(request: Request) -> JSONResponse:
+    app = request.app
+
+    try:
+        result = app.sparql_client.query(DATE_RANGE_QUERY)
+        min_date = result[1]["minDate"]
+        max_date = result[1]["maxDate"]
+        available_dates = [row["ml_input_timestamp"] for row in result]
+
+        # to show the slidebar
+        min_date = "2023-04-13T07:56:00-04:00"
+        max_date = "2024-08-13T07:56:00-04:00"
+        available_dates = [
+            min_date,
+            "2024-05-11T07:56:00-04:00",
+            "2024-07-13T07:56:00-04:00",
+            "2024-06-11T07:56:00-04:00",
+            max_date,
+        ]
+        return JSONResponse(
+            content={
+                "min_date": min_date,
+                "max_date": max_date,
+                "available_dates": sorted(available_dates),
+            }
+        )
     except Exception as e:
         return JSONResponse(content={"error": str(e)}, status_code=500)
