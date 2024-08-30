@@ -14,320 +14,319 @@ import DropdownFilter from '../../components/DropdownFilter';
 import DateRangeSlider from '../../components/DateRangeSlider';
 
 interface ModelData {
-  modelName: string;
-  modelType: string;
-  modelPerformanceMetric: string;
-  modelPerformanceValue: number;
-  modelObjective: string;
-  dataPreprocessing: string;
-  mlInputTimestamp: string;
-  datasetUsedFor: string;
+    modelName: string;
+    modelType: string;
+    modelPerformanceMetric: string;
+    modelPerformanceValue: number;
+    modelObjective: string;
+    dataPreprocessing: string;
+    mlInputTimestamp: string;
+    datasetUsedFor: string;
 }
 
 interface IRIQueryData {
-  dataPropertyValuePairs: string;
-  annotationPropertyValuePairs: string;
-  types: string;
+    dataPropertyValuePairs: string;
+    annotationPropertyValuePairs: string;
+    types: string;
 }
 
 const defaultSelectedCheckboxes = {
-  "test_data": false,
-  "validation_data": false,
-  "training_data": false,
-  "production_data": false,
-  "raw_data": false,
+    "test_data": false,
+    "validation_data": false,
+    "training_data": false,
+    "production_data": false,
+    "raw_data": false,
 };
 
 const FindModels: React.FC = () => {
-  const [searchTerm, setSearchTerm] = useState('');
-  const [selectedCheckboxes, setSelectedCheckboxes] = useState<{ [key: string]: boolean }>(defaultSelectedCheckboxes);
-  const [models, setModels] = useState<ModelData[]>([]);
-  const [currentPage, setCurrentPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(0);
-  const [itemsPerPage, setItemsPerPage] = useState(10);
-  const [modelTypes, setModelTypes] = useState<string[]>([]); // Add model types state
-  const sortHeaders = [
-    "Model Name",
-    "Model Type",
-    "Model Performance Metric",
-    "Model Performance Value",
-    "Model Objective",
-    "Data Preprocessing",
-    "ML Input Timestamp",
-    "Dataset Used For",
-  ];
-  const [currentSorts, setCurrentSorts] = useState<{ key: string; direction: SortDirection }[]>([
-    { key: "Model Name", direction: "asc" }
-  ]);
-  const [isLoading, setIsLoading] = useState(false);
-  const [message, setMessage] = useState('');
-  const [error, setError] = useState<string | null>(null);
-  const navigate = useNavigate(); // Access useNavigate hook
-  const [isPopupOpen, setIsPopupOpen] = useState(false);
-  const [iriQueryResult, setQueryResult] = useState<IRIQueryData[] | null>(null);
-  const [clickedIri, setClickedIri] = useState<string | null>(null);
-  const [dateRange, setDateRange] = useState<[Date, Date]>([new Date(), new Date()]);
-  const [includeBlankDate, setIncludeBlankDate] = useState(false);
+    const [searchTerm, setSearchTerm] = useState('');
+    const [selectedCheckboxes, setSelectedCheckboxes] = useState<{ [key: string]: boolean }>(defaultSelectedCheckboxes);
+    const [models, setModels] = useState<ModelData[]>([]);
+    const [currentPage, setCurrentPage] = useState(1);
+    const [totalPages, setTotalPages] = useState(0);
+    const [itemsPerPage, setItemsPerPage] = useState(10);
+    const [modelTypes, setModelTypes] = useState<string[]>([]); // Add model types state
+    const sortHeaders = [
+        "Model Name",
+        "Model Type",
+        "Model Performance Metric",
+        "Model Performance Value",
+        "Model Objective",
+        "Data Preprocessing",
+        "ML Input Timestamp",
+        "Dataset Used For",
+    ];
+    const [currentSorts, setCurrentSorts] = useState<{ key: string; direction: SortDirection }[]>([
+        {key: "Model Name", direction: "asc"}
+    ]);
+    const [isLoading, setIsLoading] = useState(false);
+    const [message, setMessage] = useState('');
+    const [error, setError] = useState<string | null>(null);
+    const navigate = useNavigate(); // Access useNavigate hook
+    const [isPopupOpen, setIsPopupOpen] = useState(false);
+    const [iriQueryResult, setQueryResult] = useState<IRIQueryData[] | null>(null);
+    const [clickedIri, setClickedIri] = useState<string | null>(null);
+    const [dateRange, setDateRange] = useState<[Date, Date]>([new Date(), new Date()]);
+    const [includeBlankDate, setIncludeBlankDate] = useState(false);
 
-  const fetchData = async (
-    searchTerm: string,
-    currentPage: number,
-    itemsPerPage: number,
-    sorts: { key: string; direction: SortDirection }[],
-    selectedCheckboxes: { [key: string]: boolean },
-    modelTypes: string[],
-    format: string = ''
-  ) => {
-    setIsLoading(true);
-    setMessage('');
-    setError(null);
-    try {
-      const urlParams = new URLSearchParams({
-        search_term: searchTerm,
-        page: currentPage.toString(),
-        items_per_page: itemsPerPage.toString(),
-      });
+    const fetchData = async (
+        searchTerm: string,
+        currentPage: number,
+        itemsPerPage: number,
+        sorts: { key: string; direction: SortDirection }[],
+        selectedCheckboxes: { [key: string]: boolean },
+        modelTypes: string[],
+        format: string = ''
+    ) => {
+        setIsLoading(true);
+        setMessage('');
+        setError(null);
+        try {
+            const urlParams = new URLSearchParams({
+                search_term: searchTerm,
+                page: currentPage.toString(),
+                items_per_page: itemsPerPage.toString(),
+            });
 
-      // Add sorts as query params
-      for (const { key, direction } of sorts) {
-        urlParams.append('sort', `${key},${direction}`);
-      }
+            // Add sorts as query params
+            for (const {key, direction} of sorts) {
+                urlParams.append('sort', `${key},${direction}`);
+            }
 
-      // Add dataset_role as query params
-      Object.keys(selectedCheckboxes).filter(key => selectedCheckboxes[key]).map((key) => {
-        urlParams.append('dataset_role', `${key},${selectedCheckboxes[key]}`);
-      });
+            // Add dataset_role as query params
+            Object.keys(selectedCheckboxes).filter(key => selectedCheckboxes[key]).map((key) => {
+                urlParams.append('dataset_role', `${key},${selectedCheckboxes[key]}`);
+            });
 
-      // Add model types as query param
-      modelTypes.forEach(type => {
-        urlParams.append('model_types', type);
-      });
+            // Add model types as query param
+            modelTypes.forEach(type => {
+                urlParams.append('model_types', type);
+            });
 
-      // Add date filter
-      urlParams.append('start_date', dateRange[0].toISOString());
-      urlParams.append('end_date', dateRange[1].toISOString());
-      urlParams.append('include_blank_date', includeBlankDate.toString());
+            // Add date filter
+            urlParams.append('start_date', dateRange[0].toISOString());
+            urlParams.append('end_date', dateRange[1].toISOString());
+            urlParams.append('include_blank_date', includeBlankDate.toString());
 
-      if (format !== '') {
-        urlParams.append('format', format);
-      }
+            if (format !== '') {
+                urlParams.append('format', format);
+            }
 
-      const response = await fetch(buildV1Url(`models/?${urlParams.toString()}`));
-      if (!response.ok) {
-        throw new Error(`Failed to fetch models: ${response.statusText}`);
-      }
+            const response = await fetch(buildV1Url(`models/?${urlParams.toString()}`));
+            if (!response.ok) {
+                throw new Error(`Failed to fetch models: ${response.statusText}`);
+            }
 
-      if (format === '' || format === 'json') {
-        const fetchedModels = await response.json();
-        setCurrentPage(currentPage);
-        setTotalPages(fetchedModels["total_pages"]);
-        setModels(fetchedModels["data"]);
-        if (fetchedModels["data"].length === 0) {
-          setMessage("No models found.");
+            if (format === '' || format === 'json') {
+                const fetchedModels = await response.json();
+                setCurrentPage(currentPage);
+                setTotalPages(fetchedModels["total_pages"]);
+                setModels(fetchedModels["data"]);
+                if (fetchedModels["data"].length === 0) {
+                    setMessage("No models found.");
+                } else {
+                    setMessage('');
+                }
+            } else {
+                await downloadFromResponse(response, 'find_models.csv');
+            }
+        } catch (error) {
+            console.error('Error fetching models:', error);
+            setError((error as Error).message);
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    const handleSearch = async (searchTerm: string) => {
+        setSearchTerm(searchTerm);
+        await fetchData(searchTerm, 1, itemsPerPage, currentSorts, selectedCheckboxes, modelTypes);
+    };
+
+    const handleDownload = async () => {
+        await fetchData(searchTerm, 1, itemsPerPage, currentSorts, selectedCheckboxes, modelTypes, 'csv');
+    };
+
+    const handleCheckboxChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const {name, checked} = e.target;
+        setSelectedCheckboxes(prev => ({
+            ...prev,
+            [name]: checked
+        }));
+    };
+
+    const handlePageChange = async (page: number = 1, itemsPerPage: number = 10) => {
+        setCurrentPage(page);
+        setItemsPerPage(itemsPerPage);
+        await fetchData(searchTerm, page, itemsPerPage, currentSorts, selectedCheckboxes, modelTypes);
+    };
+
+    const handleSort = async (sorts: { key: string; direction: SortDirection }[]) => {
+        setCurrentSorts(sorts);
+        await fetchData(searchTerm, currentPage, itemsPerPage, sorts, selectedCheckboxes, modelTypes);
+    };
+
+    const handleRemoveSort = async (key: string) => {
+        const newSorts = currentSorts.filter(sort => sort.key !== key);
+        setCurrentSorts(newSorts);
+        await fetchData(searchTerm, currentPage, itemsPerPage, newSorts, selectedCheckboxes, modelTypes); // Update data with new sorts
+    };
+
+    const handleAnalyzeDeployedModels = () => {
+        navigate('/models/analyze-deployed-models');
+    };
+
+    const getUniqueIriPart = (iri: string | string[]): string | string[] => {
+        if (Array.isArray(iri)) {
+            return iri.map(singleIri => {
+                const parts = singleIri.split('#');
+                return parts.length > 1 ? parts[1] : singleIri;  // Return the fragment if exists, else the full IRI
+            });
         } else {
-          setMessage('');
+            const parts = iri.split('#');
+            return parts.length > 1 ? parts[1] : iri;  // Return the fragment if exists, else the full IRI
         }
-      } else {
-        await downloadFromResponse(response, 'find_models.csv');
-      }
-    } catch (error) {
-      console.error('Error fetching models:', error);
-      setError((error as Error).message);
-    } finally {
-      setIsLoading(false);
-    }
-  };
+    };
 
-  const handleSearch = async (searchTerm: string) => {
-    setSearchTerm(searchTerm);
-    await fetchData(searchTerm, 1, itemsPerPage, currentSorts, selectedCheckboxes, modelTypes);
-  };
+    const mapItemToRow = (_header: string, value: any) => {
+        if (typeof value === 'string' && value.startsWith('http')) {
+            return (
+                <a
+                    href="#"
+                    onClick={(e) => {
+                        e.preventDefault();
+                        handleIriClick(value);
+                    }}
+                    style={{color: 'blue', textDecoration: 'underline'}}
+                >
+                    {pascalCaseToWords(getUniqueIriPart(value))}
+                </a>
+            );
+        }
+        if (typeof value === 'string') {
+            // Check if the string is in PascalCase
+            if (/^[A-Z][a-z0-9]+([A-Z][a-z0-9]*)*$/.test(value)) {
+                value = pascalCaseToWords(value);
+            } else if (/^[a-z ]+$/.test(value)) {
+                // If the string is in lowercase with spaces, convert to PascalCase
+                value = lowercaseToPascalCase(value);
+            }
 
-  const handleDownload = async () => {
-    await fetchData(searchTerm, 1, itemsPerPage, currentSorts, selectedCheckboxes, modelTypes, 'csv');
-  };
+            return (
+                <span>{value}</span>
+            );
+        } else {
+            return value;
+        }
+    };
 
-  const handleCheckboxChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, checked } = e.target;
-    setSelectedCheckboxes(prev => ({
-      ...prev,
-      [name]: checked
-    }));
-  };
+    const handleIriClick = async (iri: string) => {
+        try {
+            setClickedIri(iri);
+            const encodedIri = encodeURIComponent(iri);
+            const response = await fetch(buildV1Url(`models/query-iri?iri=${encodedIri}`));
+            if (!response.ok) {
+                throw new Error('Failed to fetch IRI details');
+            }
+            const result = await response.json();
+            setQueryResult(result);
+            setIsPopupOpen(true);
+        } catch (error) {
+            console.error('Error fetching IRI details:', error);
+            setError((error as Error).message);
+        }
+    };
 
-  const handlePageChange = async (page: number = 1, itemsPerPage: number = 10) => {
-    setCurrentPage(page);
-    setItemsPerPage(itemsPerPage);
-    await fetchData(searchTerm, page, itemsPerPage, currentSorts, selectedCheckboxes, modelTypes);
-  };
+    const closePopup = () => {
+        setIsPopupOpen(false);
+        setQueryResult(null);
+    };
 
-  const handleSort = async (sorts: { key: string; direction: SortDirection }[]) => {
-    setCurrentSorts(sorts);
-    await fetchData(searchTerm, currentPage, itemsPerPage, sorts, selectedCheckboxes, modelTypes);
-  };
+    const handleDateRangeChange = (range: [Date, Date], includeBlank: boolean) => {
+        setDateRange(range);
+        setIncludeBlankDate(includeBlank);
+    };
 
-  const handleRemoveSort = async (key: string) => {
-    const newSorts = currentSorts.filter(sort => sort.key !== key);
-    setCurrentSorts(newSorts);
-    await fetchData(searchTerm, currentPage, itemsPerPage, newSorts, selectedCheckboxes, modelTypes); // Update data with new sorts
-  };
-
-  const handleAnalyzeDeployedModels = () => {
-    navigate('/models/analyze-deployed-models');
-  };
-
-  const getUniqueIriPart = (iri: string | string[]): string | string[] => {
-    if (Array.isArray(iri)) {
-      return iri.map(singleIri => {
-        const parts = singleIri.split('#');
-        return parts.length > 1 ? parts[1] : singleIri;  // Return the fragment if exists, else the full IRI
-      });
-    } else {
-      const parts = iri.split('#');
-      return parts.length > 1 ? parts[1] : iri;  // Return the fragment if exists, else the full IRI
-    }
-  };
-
-  const mapItemToRow = (_header: string, value: any) => {
-    if (typeof value === 'string' && value.startsWith('http')) {
-      return (
-        <a
-          href="#"
-          onClick={(e) => {
-            e.preventDefault();
-            handleIriClick(value);
-          }}
-          style={{ color: 'blue', textDecoration: 'underline' }}
-        >
-          {pascalCaseToWords(getUniqueIriPart(value))}
-        </a>
-      );
-    }
-    if (typeof value === 'string') {
-      // Check if the string is in PascalCase
-      if (/^[A-Z][a-z0-9]+([A-Z][a-z0-9]*)*$/.test(value)) {
-        value = pascalCaseToWords(value);
-      } else if (/^[a-z ]+$/.test(value)) {
-        // If the string is in lowercase with spaces, convert to PascalCase
-        value = lowercaseToPascalCase(value);
-      }
-
-      return (
-        <span>{value}</span>
-      );
-    }
-    else {
-      return value;
-    }
-  };
-
-  const handleIriClick = async (iri: string) => {
-    try {
-      setClickedIri(iri);
-      const encodedIri = encodeURIComponent(iri);
-      const response = await fetch(buildV1Url(`models/query-iri?iri=${encodedIri}`));
-      if (!response.ok) {
-        throw new Error('Failed to fetch IRI details');
-      }
-      const result = await response.json();
-      setQueryResult(result);
-      setIsPopupOpen(true);
-    } catch (error) {
-      console.error('Error fetching IRI details:', error);
-      setError((error as Error).message);
-    }
-  };
-
-  const closePopup = () => {
-    setIsPopupOpen(false);
-    setQueryResult(null);
-  };
-
-  const handleDateRangeChange = (range: [Date, Date], includeBlank: boolean) => {
-    setDateRange(range);
-    setIncludeBlankDate(includeBlank);
-  };
-
-  return (
-    <div>
-      <LoadingBar isLoading={isLoading} />
-      <h1>Find Models</h1>
-      <div style={{ margin: '8px 0' }}>
-        <Search onSearch={handleSearch} placeholder={'Dataset Name'} />
-        <div style={{ display: 'flex', alignItems: 'center'}}>
-          <FindModelsFilter
-            selectedFilters={selectedCheckboxes}
-            onFilterChange={handleCheckboxChange}
-          />
-          <div style={{ marginLeft: '8px' }}>
-            <DropdownFilter
-              endpoint={buildV1Url('models/types')}
-              selectedValues={modelTypes}
-              onChange={setModelTypes}
-              label="Model Type"
-            />
-          </div>
-        </div>
+    return (
         <div>
-          <DateRangeSlider
-            endpoint={buildV1Url('models/date-range')}
-            onChange={handleDateRangeChange}
-          />
-        </div>
-      </div>
-      <div>
-        <div style={{ margin: '8px 0' }}>
-          <button onClick={handleAnalyzeDeployedModels}>Analyze Deployed Models</button>
-        </div>
-        {models.length > 0 &&
-          <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-            <button onClick={handleDownload}
-              style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-              <span style={{ marginRight: '4px' }}>Download Results</span>
-              <DownloadIcon width={14} height={14} />
-            </button>
-          </div>
-        }
-        <Table data={models}
-          headers={sortHeaders}
-          mapItemToRow={mapItemToRow}
-          currentSorts={currentSorts}
-          onSort={handleSort}
-          onRemoveSort={handleRemoveSort}
-          message={message} />
-        <Pagination
-          currentPage={currentPage}
-          totalPages={totalPages}
-          onPageChange={handlePageChange}
-        />
-      </div>
-      {(isPopupOpen && iriQueryResult) && (
-        <Modal onClose={closePopup}>
-          <h2 style={{ wordBreak: 'break-all', whiteSpace: 'normal' }}>
-            {clickedIri}
-          </h2>
-          <div className="divider"></div>
-          {iriQueryResult.map((value, index) => (
-            <pre style={{ whiteSpace: 'pre-wrap' }}>
+            <LoadingBar isLoading={isLoading}/>
+            <h1>Find Models</h1>
+            <div style={{margin: '8px 0'}}>
+                <Search onSearch={handleSearch} placeholder={'Dataset Name'}/>
+                <div style={{display: 'flex', alignItems: 'center'}}>
+                    <FindModelsFilter
+                        selectedFilters={selectedCheckboxes}
+                        onFilterChange={handleCheckboxChange}
+                    />
+                    <div style={{marginLeft: '8px'}}>
+                        <DropdownFilter
+                            endpoint={buildV1Url('models/types')}
+                            selectedValues={modelTypes}
+                            onChange={setModelTypes}
+                            label="Model Type"
+                        />
+                    </div>
+                </div>
+                <div>
+                    <DateRangeSlider
+                        endpoint={buildV1Url('models/date-range')}
+                        onChange={handleDateRangeChange}
+                    />
+                </div>
+            </div>
+            <div>
+                <div style={{margin: '8px 0'}}>
+                    <button onClick={handleAnalyzeDeployedModels}>Analyze Deployed Models</button>
+                </div>
+                {models.length > 0 &&
+                    <div style={{display: 'flex', justifyContent: 'flex-end'}}>
+                        <button onClick={handleDownload}
+                                style={{display: 'flex', alignItems: 'center', justifyContent: 'space-between'}}>
+                            <span style={{marginRight: '4px'}}>Download Results</span>
+                            <DownloadIcon width={14} height={14}/>
+                        </button>
+                    </div>
+                }
+                <Table data={models}
+                       headers={sortHeaders}
+                       mapItemToRow={mapItemToRow}
+                       currentSorts={currentSorts}
+                       onSort={handleSort}
+                       onRemoveSort={handleRemoveSort}
+                       message={message}/>
+                <Pagination
+                    currentPage={currentPage}
+                    totalPages={totalPages}
+                    onPageChange={handlePageChange}
+                />
+            </div>
+            {(isPopupOpen && iriQueryResult) && (
+                <Modal onClose={closePopup}>
+                    <h2 style={{wordBreak: 'break-all', whiteSpace: 'normal'}}>
+                        {clickedIri}
+                    </h2>
+                    <div className="divider"></div>
+                    {iriQueryResult.map((value, index) => (
+                        <pre style={{whiteSpace: 'pre-wrap'}}>
               <div key={index}>
                 <ul>
                   {Object.entries(value).map(([key, val], idx) => (
-                    val && (
-                      <li key={key + '-' + idx}>
-                        <span className="item-name">{key}</span>
-                        <span className="item-value">{val}</span>
-                      </li>
-                    )
+                      val && (
+                          <li key={key + '-' + idx}>
+                              <span className="item-name">{key}</span>
+                              <span className="item-value">{val}</span>
+                          </li>
+                      )
                   ))}
                 </ul>
               </div>
             </pre>
-          ))}
-        </Modal>
-      )}
-      {error && <ErrorMessage message={error} />}
-    </div>
-  );
+                    ))}
+                </Modal>
+            )}
+            {error && <ErrorMessage message={error}/>}
+        </div>
+    );
 };
 
 export default FindModels;

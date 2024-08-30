@@ -9,9 +9,9 @@ const FindDatasetsFilter: React.FC<{
     selectedFilters: { [key: string]: boolean };
     onFilterChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
 }> = ({
-    selectedFilters,
-    onFilterChange,
-}) => {
+          selectedFilters,
+          onFilterChange,
+      }) => {
     const filterOptions: FilterOption[] = [
         {label: 'Test Data', value: 'test_data'},
         {label: 'Validation Data', value: 'validation_data'},

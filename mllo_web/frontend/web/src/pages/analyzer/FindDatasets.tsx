@@ -1,16 +1,16 @@
-import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { buildV1Url, downloadFromResponse } from '../../services/api';
+import React, {useState} from 'react';
+import {useNavigate} from 'react-router-dom';
+import {buildV1Url, downloadFromResponse} from '../../services/api';
 import LoadingBar from '../../components/LoadingBar.tsx';
 import ErrorMessage from '../../components/ErrorMessage.tsx';
 import Search from '../../components/Search.tsx';
-import Table, { SortDirection } from '../../components/Table.tsx';
+import Table, {SortDirection} from '../../components/Table.tsx';
 import Pagination from '../../components/Pagination.tsx';
 import ToggleSwitch from '../../components/ToggleSwitch.tsx';
-import { DownloadIcon } from '../../components/Icons.tsx';
+import {DownloadIcon} from '../../components/Icons.tsx';
 import FindDatasetsFilter from './FindDatasetsFilter.tsx';
 import Modal from '../../components/Modal.tsx';
-import { pascalCaseToWords, lowercaseToPascalCase } from '../../components/FormatUtilities';
+import {pascalCaseToWords, lowercaseToPascalCase} from '../../components/FormatUtilities';
 import DateRangeSlider from '../../components/DateRangeSlider';
 
 interface DatasetData {
@@ -62,7 +62,7 @@ const FindDatasets: React.FC = () => {
         "Model Output Utilization",
     ];
     const [currentSorts, setCurrentSorts] = useState<{ key: string; direction: SortDirection }[]>([
-        { key: "Dataset Name", direction: "asc" }
+        {key: "Dataset Name", direction: "asc"}
     ]);
     const [isLoading, setIsLoading] = useState(false);
     const [message, setMessage] = useState('');
@@ -94,7 +94,7 @@ const FindDatasets: React.FC = () => {
             });
 
             // Add sorts as query params
-            for (const { key, direction } of sorts) {
+            for (const {key, direction} of sorts) {
                 urlParams.append('sort', `${key},${direction}`);
             }
 
@@ -175,7 +175,7 @@ const FindDatasets: React.FC = () => {
     };
 
     const handleCheckboxChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const { name, checked } = e.target;
+        const {name, checked} = e.target;
         setSelectedCheckboxes(prev => ({
             ...prev,
             [name]: checked
@@ -215,7 +215,7 @@ const FindDatasets: React.FC = () => {
                         e.preventDefault();
                         handleIriClick(value);
                     }}
-                    style={{ color: 'blue', textDecoration: 'underline' }}
+                    style={{color: 'blue', textDecoration: 'underline'}}
                 >
                     {pascalCaseToWords(getUniqueIriPart(value))}
                 </a>
@@ -232,7 +232,7 @@ const FindDatasets: React.FC = () => {
                                     e.preventDefault();
                                     handleIriClick(value[index]);
                                 }}
-                                style={{ color: 'blue', textDecoration: 'underline', marginRight: '8px' }}
+                                style={{color: 'blue', textDecoration: 'underline', marginRight: '8px'}}
                             >
                                 {pascalCaseToWords(getUniqueIriPart(iri))}
                             </a>
@@ -285,31 +285,37 @@ const FindDatasets: React.FC = () => {
 
     return (
         <div>
-            <LoadingBar isLoading={isLoading} />
+            <LoadingBar isLoading={isLoading}/>
             <h1>Find Datasets</h1>
-            <div style={{ margin: '8px 0' }}>
-                <Search onSearch={handleSearch} placeholder={!toggleConstraint ? 'Model Name' : 'Model Type'} />
+            <div style={{margin: '8px 0'}}>
+                <Search onSearch={handleSearch} placeholder={!toggleConstraint ? 'Model Name' : 'Model Type'}/>
                 <FindDatasetsFilter
                     selectedFilters={selectedCheckboxes}
                     onFilterChange={handleCheckboxChange}
                 />
-                <div style={{ display: 'flex', alignItems: 'center', padding: '8px', border: '1px solid #ccc', borderRadius: '4px' }}>
+                <div style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    padding: '8px',
+                    border: '1px solid #ccc',
+                    borderRadius: '4px'
+                }}>
                     <span className="toggle-label">Model Name</span>
-                    <ToggleSwitch isChecked={toggleConstraint} onToggle={handleToggleConstraint} />
-                    <span className="toggle-label" style={{ marginLeft: '8px' }}>Model Type</span>
-                    <label style={{ display: 'flex', alignItems: 'center', marginLeft: '16px' }}>
+                    <ToggleSwitch isChecked={toggleConstraint} onToggle={handleToggleConstraint}/>
+                    <span className="toggle-label" style={{marginLeft: '8px'}}>Model Type</span>
+                    <label style={{display: 'flex', alignItems: 'center', marginLeft: '16px'}}>
                         <input
                             type="checkbox"
                             name="direct_type"
                             checked={selectedCheckboxes["direct_type"] || false}
                             onChange={handleCheckboxChange}
                             disabled={!toggleConstraint} // Disable when toggle is not on "Model Type"
-                            style={{ marginRight: '8px' }}
+                            style={{marginRight: '8px'}}
                         />
                         <span>Direct Type</span>
                     </label>
                 </div>
-                <div style={{ marginBottom: '8px' }}>
+                <div style={{marginBottom: '8px'}}>
                     <DateRangeSlider
                         endpoint={buildV1Url('datasets/date-range')}
                         onChange={handleDateRangeChange}
@@ -317,26 +323,26 @@ const FindDatasets: React.FC = () => {
                 </div>
             </div>
             <div>
-                <div style={{ margin: '8px 0' }}>
+                <div style={{margin: '8px 0'}}>
                     <button onClick={handleAnalyzeModelOutput}>Analyze Model Output</button>
-                    <button style={{ marginLeft: '4px' }} onClick={handlePlotPerformance}>Plot Performance</button>
+                    <button style={{marginLeft: '4px'}} onClick={handlePlotPerformance}>Plot Performance</button>
                 </div>
                 {datasets.length > 0 &&
-                    <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                    <div style={{display: 'flex', justifyContent: 'flex-end'}}>
                         <button onClick={handleDownload}
-                            style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                            <span style={{ marginRight: '4px' }}>Download Results</span>
-                            <DownloadIcon width={14} height={14} />
+                                style={{display: 'flex', alignItems: 'center', justifyContent: 'space-between'}}>
+                            <span style={{marginRight: '4px'}}>Download Results</span>
+                            <DownloadIcon width={14} height={14}/>
                         </button>
                     </div>
                 }
                 <Table data={datasets}
-                    headers={sortHeaders}
-                    mapItemToRow={mapItemToRow}
-                    currentSorts={currentSorts}
-                    onSort={handleSort}
-                    onRemoveSort={handleRemoveSort}
-                    message={message} />
+                       headers={sortHeaders}
+                       mapItemToRow={mapItemToRow}
+                       currentSorts={currentSorts}
+                       onSort={handleSort}
+                       onRemoveSort={handleRemoveSort}
+                       message={message}/>
                 <Pagination
                     currentPage={currentPage}
                     totalPages={totalPages}
@@ -345,12 +351,12 @@ const FindDatasets: React.FC = () => {
             </div>
             {(isPopupOpen && iriQueryResult) && (
                 <Modal onClose={closePopup}>
-                    <h2 style={{ wordBreak: 'break-all', whiteSpace: 'normal' }}>
+                    <h2 style={{wordBreak: 'break-all', whiteSpace: 'normal'}}>
                         {clickedIri}
                     </h2>
                     <div className="divider"></div>
                     {iriQueryResult.map((value, index) => (
-                        <pre style={{ whiteSpace: 'pre-wrap' }}>
+                        <pre style={{whiteSpace: 'pre-wrap'}}>
                             <div key={index}>
                                 <ul>
                                     {Object.entries(value).map(([key, val], idx) => (
@@ -368,7 +374,7 @@ const FindDatasets: React.FC = () => {
                 </Modal>
             )}
 
-            {error && <ErrorMessage message={error} />}
+            {error && <ErrorMessage message={error}/>}
         </div>
     );
 };

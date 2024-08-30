@@ -9,15 +9,15 @@ const FindModelsFilter: React.FC<{
     selectedFilters: { [key: string]: boolean };
     onFilterChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
 }> = ({
-    selectedFilters,
-    onFilterChange,
-}) => {
+          selectedFilters,
+          onFilterChange,
+      }) => {
     const filterOptions: FilterOption[] = [
-        { label: 'Test Data', value: 'test_data' },
-        { label: 'Validation Data', value: 'validation_data' },
-        { label: 'Training Data', value: 'training_data' },
-        { label: 'Production Data', value: 'production_data' },
-        { label: 'Raw Data', value: 'raw_data' },
+        {label: 'Test Data', value: 'test_data'},
+        {label: 'Validation Data', value: 'validation_data'},
+        {label: 'Training Data', value: 'training_data'},
+        {label: 'Production Data', value: 'production_data'},
+        {label: 'Raw Data', value: 'raw_data'},
     ];
 
     return (

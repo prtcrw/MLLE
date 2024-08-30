@@ -35,7 +35,7 @@ const FindPipelines: React.FC = () => {
         "Pipeline Associated Model",
     ];
     const [currentSorts, setCurrentSorts] = useState<{ key: string; direction: SortDirection }[]>([
-        { key: "Pipeline Name", direction: 'asc' }
+        {key: "Pipeline Name", direction: 'asc'}
     ]);
     const [isLoading, setIsLoading] = useState(false);
     const [message, setMessage] = useState('');
@@ -66,7 +66,7 @@ const FindPipelines: React.FC = () => {
                 });
             }
 
-            for (const { key, direction } of sorts) {
+            for (const {key, direction} of sorts) {
                 urlParams.append('sort', `${key},${direction}`);
             }
 
@@ -158,16 +158,17 @@ const FindPipelines: React.FC = () => {
 
     return (
         <div>
-            <LoadingBar isLoading={isLoading} />
+            <LoadingBar isLoading={isLoading}/>
             <h1>Find Pipelines</h1>
 
             <div style={{margin: '8px 0'}}>
-                <Search onSearch={handleSearch} placeholder={!toggleConstraint ? 'Model Constraint' : 'Dataset Constraint'}/>
+                <Search onSearch={handleSearch}
+                        placeholder={!toggleConstraint ? 'Model Constraint' : 'Dataset Constraint'}/>
                 <div style={{display: 'flex', alignItems: 'center'}}>
                     <span className="toggle-label">Model Constraint</span>
-                    <ToggleSwitch isChecked={toggleConstraint} onToggle={handleToggleConstraint} />
+                    <ToggleSwitch isChecked={toggleConstraint} onToggle={handleToggleConstraint}/>
                     <span className="toggle-label">Dataset Constraint</span>
-                    <div style={{ marginLeft: '16px' }}>
+                    <div style={{marginLeft: '16px'}}>
                         <DropdownFilter
                             endpoint={buildV1Url('pipelines/types')}  // Pass the API endpoint for fetching pipeline types
                             selectedValues={pipelineTypes}
@@ -179,33 +180,33 @@ const FindPipelines: React.FC = () => {
 
             </div>
             <div>
-                <div style={{ margin: '8px 0' }}>
+                <div style={{margin: '8px 0'}}>
                     <button onClick={handleComparePipelines}>Compare Pipelines</button>
-                    <button style={{ marginLeft: '4px' }} onClick={handleViewPipeline}>View Pipeline</button>
+                    <button style={{marginLeft: '4px'}} onClick={handleViewPipeline}>View Pipeline</button>
                 </div>
                 {pipelines.length > 0 &&
-                    <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                    <div style={{display: 'flex', justifyContent: 'flex-end'}}>
                         <button onClick={handleDownload}
-                            style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                            <span style={{ marginRight: '4px' }}>Download Results</span>
-                            <DownloadIcon width={14} height={14} />
+                                style={{display: 'flex', alignItems: 'center', justifyContent: 'space-between'}}>
+                            <span style={{marginRight: '4px'}}>Download Results</span>
+                            <DownloadIcon width={14} height={14}/>
                         </button>
                     </div>
                 }
                 <Table data={pipelines}
-                    headers={sortHeaders}
-                    mapItemToRow={mapItemToRow}
-                    currentSorts={currentSorts}
-                    onSort={handleSort}
-                    onRemoveSort={handleRemoveSort}
-                    message={message} />
+                       headers={sortHeaders}
+                       mapItemToRow={mapItemToRow}
+                       currentSorts={currentSorts}
+                       onSort={handleSort}
+                       onRemoveSort={handleRemoveSort}
+                       message={message}/>
                 <Pagination
                     currentPage={currentPage}
                     totalPages={totalPages}
                     onPageChange={handlePageChange}
                 />
             </div>
-            {error && <ErrorMessage message={error} />}
+            {error && <ErrorMessage message={error}/>}
         </div>
     );
 };

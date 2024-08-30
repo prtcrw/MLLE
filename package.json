@@ -1,7 +1,0 @@
-{
-  "dependencies": {
-    "@syncfusion/ej2-react-inputs": "^26.2.11",
-    "react-range": "^1.10.0",
-    "react-slider": "^2.0.6"
-  }
-}
