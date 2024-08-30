@@ -240,7 +240,6 @@ const FindDatasets: React.FC = () => {
                     ))}
                 </div>
             );
-
         }
         if (typeof value === 'string') {
             if (/^[A-Z][a-z0-9]+([A-Z][a-z0-9]*)*$/.test(value)) {

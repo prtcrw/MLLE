@@ -6,17 +6,25 @@ import Search from '../../components/Search.tsx';
 import Table, {SortDirection} from '../../components/Table.tsx';
 import Pagination from '../../components/Pagination.tsx';
 import {DownloadIcon} from '../../components/Icons.tsx';
+import {lowercaseToPascalCase, pascalCaseToWords} from '../../components/FormatUtilities.tsx';
+import Modal from '../../components/Modal.tsx';
 
 interface DeployedModelData {
     modelName: string;
     modelDeployedOnSystem: string;
     lastModelUpdate: string;
     modelExecutionTimestamp: string;
-    modelInputData: string;
-    modelOutputData: string;
+    modelInput: string;
+    modelOutput: string;
     modelOutputUtilization: string;
     modelPerformanceMetric: string;
     modelPerformanceValue: string;
+}
+
+interface IRIQueryData {
+    dataPropertyValuePairs: string;
+    annotationPropertyValuePairs: string;
+    types: string;
 }
 
 const AnalyzeDeployedModels: React.FC = () => {
@@ -30,8 +38,8 @@ const AnalyzeDeployedModels: React.FC = () => {
         "Model Deployed on System",
         "Last Model Update",
         "Model Execution Timestamp",
-        "Model Input Data",
-        "Model Output Data",
+        "Model Input",
+        "Model Output",
         "Model Output Utilization",
         "Model Performance Metric",
         "Model Performance Value",
@@ -42,6 +50,9 @@ const AnalyzeDeployedModels: React.FC = () => {
     const [isLoading, setIsLoading] = useState(false);
     const [message, setMessage] = useState('');
     const [error, setError] = useState<string | null>(null);
+    const [isPopupOpen, setIsPopupOpen] = useState(false);
+    const [iriQueryResult, setQueryResult] = useState<IRIQueryData[] | null>(null);
+    const [clickedIri, setClickedIri] = useState<string | null>(null);
 
     const fetchData = async (
         searchTerm: string,
@@ -121,8 +132,68 @@ const AnalyzeDeployedModels: React.FC = () => {
         await fetchData(searchTerm, currentPage, itemsPerPage, newSorts); // Update data with new sorts
     };
 
+    const getUniqueIriPart = (iri: string | string[]): string | string[] => {
+        if (Array.isArray(iri)) {
+            return iri.map(singleIri => {
+                const parts = singleIri.split('#');
+                return parts.length > 1 ? parts[1] : singleIri; // Return the fragment if exists, else the full IRI
+            });
+        } else {
+            const parts = iri.split('#');
+            return parts.length > 1 ? parts[1] : iri; // Return the fragment if exists, else the full IRI
+        }
+    };
+
     const mapItemToRow = (_header: string, value: any) => {
-        return value;
+        if (typeof value === 'string' && value.startsWith('http')) {
+            return (
+                <a
+                    href="#"
+                    onClick={(e) => {
+                        e.preventDefault();
+                        handleIriClick(value);
+                    }}
+                    style={{color: 'blue', textDecoration: 'underline'}}
+                >
+                    {pascalCaseToWords(getUniqueIriPart(value))}
+                </a>
+            );
+        }
+        else if (typeof value === 'string') {
+            if (/^[A-Z][a-z0-9]+([A-Z][a-z0-9]*)*$/.test(value)) {
+                value = pascalCaseToWords(value);
+            } else if (/^[a-z ]+$/.test(value)) {
+                value = lowercaseToPascalCase(value);
+            }
+            return (
+                <span>{value}</span>
+            );
+        }
+        else {
+            return value;
+        }
+    };
+
+    const handleIriClick = async (iri: string) => {
+        try {
+            setClickedIri(iri);
+            const encodedIri = encodeURIComponent(iri);
+            const response = await fetch(buildV1Url(`datasets/query-iri?iri=${encodedIri}`));
+            if (!response.ok) {
+                throw new Error('Failed to fetch IRI details');
+            }
+            const result = await response.json();
+            setQueryResult(result);
+            setIsPopupOpen(true);
+        } catch (error) {
+            console.error('Error fetching IRI details:', error);
+            setError((error as Error).message);
+        }
+    };
+
+    const closePopup = () => {
+        setIsPopupOpen(false);
+        setQueryResult(null);
     };
 
     return (
@@ -155,6 +226,30 @@ const AnalyzeDeployedModels: React.FC = () => {
                     onPageChange={handlePageChange}
                 />
             </div>
+            {(isPopupOpen && iriQueryResult) && (
+                <Modal onClose={closePopup}>
+                    <h2 style={{wordBreak: 'break-all', whiteSpace: 'normal'}}>
+                        {clickedIri}
+                    </h2>
+                    <div className="divider"></div>
+                    {iriQueryResult.map((value, index) => (
+                        <pre style={{whiteSpace: 'pre-wrap'}}>
+                            <div key={index}>
+                                <ul>
+                                    {Object.entries(value).map(([key, val], idx) => (
+                                        val && (
+                                            <li key={key + '-' + idx}>
+                                                <span className="item-name">{key}</span>
+                                                <span className="item-value">{val}</span>
+                                            </li>
+                                        )
+                                    ))}
+                                </ul>
+                            </div>
+                        </pre>
+                    ))}
+                </Modal>
+            )}
             {error && <ErrorMessage message={error}/>}
         </div>
     );

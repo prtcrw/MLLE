@@ -74,7 +74,6 @@ WHERE {
         ?data_preprocessing_pipeline rdf:type ml:MachineLearningDataPreparationPipeline
     }
 }
-
 """
 
 
@@ -275,45 +274,59 @@ PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
 PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
 PREFIX bfo: <http://purl.obolibrary.org/obo/>
 PREFIX iof-core: <https://spec.industrialontologies.org/ontology/core/Core/>
-SELECT DISTINCT
-    (STRAFTER(STR(?model), "#") AS ?model_name)
-    ?model_deployed_on_system
-    ?last_model_update
-    ?model_execution_timestamp
-    ?model_input_data
-    ?model_output_data
-    ?model_output_utilization
-    ?model_performance_metric
-    ?model_performance_value
-WHERE {
-    ?dataset rdf:type ?dataset_type.
-    ?dataset_type rdfs:label ?dataset_used_as.
-    ?ml_process ml:hasDataInput ?dataset.
-    ?ml_process bfo:BFO_0000063*/(bfo:BFO_0000057 | ml:executes) ?model.
-    OPTIONAL {
-        ?ml_process bfo:BFO_0000222/iof-core:hasValueExpressionAtAllTimes/iof-core:hasDateTimeValue ?ml_input_timestamp
-    }
-    ?model rdf:type ?model_type_iri.
-    ?model_type_iri rdfs:subClassOf+ ml:MachineLearningModel.
-    ?model_type_iri rdfs:label ?model_type.
-    OPTIONAL {
-        ?model bfo:BFO_0000178 ?model_objective.
-        ?model_objective rdf:type/rdfs:subClassOf* iof-core:ObjectiveSpecification.
-    }
-    OPTIONAL {
-        ?ml_process ml:hasDataOutput+/^ml:hasDataInput ?model_performance_assessment.
+SELECT DISTINCT 
+    ?model_name 
+    ?model_deployed_on_system 
+    (MAX(?model_training_timestamp) AS ?last_model_update) 
+    ?model_execution_timestamp 
+    ?model_input 
+    ?model_output 
+    ?model_output_utilization 
+    ?model_performance_metric 
+    ?model_performance_value 
+WHERE { 
+    ?deployed_state bfo:BFO_0000167 ?model_name. 
+    ?deployed_state bfo:BFO_0000167 ?model_deployed_on_system.
+    
+    ?model_deployed_on_system rdf:type/rdfs:subClassOf* iof-core:EngineeredSystem.
+    ?model_name rdf:type/rdfs:subClassOf+ ml:MachineLearningModel.
+    
+    ?deployed_state bfo:BFO_0000117 ?model_execution.
+    ?model_execution rdf:type/rdfs:subClassOf* ml:ModelExecution.
+    ?model_execution ml:hasDataInput ?model_input.
+    ?model_execution ml:hasDataOutput ?model_output.
+    
+    ?ml_training ^bfo:BFO_0000117*/bfo:BFO_0000063 ?model_execution.
+    ?ml_training rdf:type/rdfs:subClassOf* ml:MachineLearningTraining.
+    
+    ?model_execution bfo:BFO_0000224/iof-core:hasValueExpressionAtAllTimes/iof-core:hasDateTimeValue ?model_execution_timestamp.
+    ?ml_training bfo:BFO_0000224/iof-core:hasValueExpressionAtAllTimes/iof-core:hasDateTimeValue ?model_training_timestamp.
+    
+    OPTIONAL { 
         ?model_performance_assessment bfo:BFO_0000059 ?model_performance_metric_iri.
-        ?model_performance_assessment rdf:type/rdfs:subClassOf* ml:ModelPerformanceAssessment.
+        ?model_performance_assessment ml:hasDataInput ?model_output.
+        ?model_performance_assessment rdf:type/rdfs:subClassOf+ ml:ModelPerformanceAssessment.
+        
         ?model_performance_metric_iri rdf:type ?model_performance_metric_type.
         ?model_performance_metric_type rdfs:subClassOf+ ml:PerformanceMetric.
         ?model_performance_metric_type rdfs:label ?model_performance_metric.
-        ?model_performance_assessment ml:hasDataOutput/iof-core:hasSimpleExpressionValue ?model_performance_value
+        
+        ?model_performance_assessment ml:hasDataOutput/iof-core:hasSimpleExpressionValue ?model_performance_value.
     }
-    OPTIONAL {
-        ?data_preprocessing_pipeline ml:hasDataOutput ?dataset.
-    	?data_preprocessing_pipeline rdf:type ml:MachineLearningDataPreparationPipeline
+    
+    OPTIONAL { 
+        ?model_output_utilization ml:hasDataInput ?model_output.
     }
-}    
+}
+GROUP BY 
+    ?model_name 
+    ?model_deployed_on_system 
+    ?model_execution_timestamp 
+    ?model_input 
+    ?model_output 
+    ?model_output_utilization 
+    ?model_performance_metric 
+    ?model_performance_value
 """
 
 
@@ -323,8 +336,8 @@ class DeployedModelsQueryBuilder(QueryBuilder):
         "Model Deployed on System": "model_deployed_on_system",
         "Last Model Update": "last_model_update",
         "Model Execution Timestamp": "model_execution_timestamp",
-        "Model Input Data": "model_input_data",
-        "Model Output Data": "model_output_data",
+        "Model Input": "model_input",
+        "Model Output": "model_output",
         "Model Output Utilization": "model_output_utilization",
         "Model Performance Metric": "model_performance_metric",
         "Model Performance Value": "model_performance_value",
@@ -411,8 +424,8 @@ async def get_deployed_models(
                     "model_deployed_on_system",
                     "last_model_update",
                     "model_execution_timestamp",
-                    "model_input_data",
-                    "model_output_data",
+                    "model_input",
+                    "model_output",
                     "model_output_utilization",
                     "model_performance_metric",
                     "model_performance_value",
