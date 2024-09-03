@@ -1,4 +1,4 @@
-import React, {useState} from 'react';
+import React, {useState, useEffect} from 'react';
 import {useNavigate} from 'react-router-dom';
 import {buildV1Url, downloadFromResponse} from '../../services/api';
 import LoadingBar from '../../components/LoadingBar.tsx';
@@ -16,7 +16,7 @@ import DateRangeSlider from '../../components/DateRangeSlider';
 interface DatasetData {
     datasetName: string;
     datasetUsedAs: string;
-    mlInputTimestamp: string;
+    ml_input_timestamp: string;
     datasetShape: string;
     datasetCharacteristics: string[];
     datasetSource: string;
@@ -48,8 +48,6 @@ const FindDatasets: React.FC = () => {
     const [currentPage, setCurrentPage] = useState(1);
     const [totalPages, setTotalPages] = useState(0);
     const [itemsPerPage, setItemsPerPage] = useState(10);
-    const [dateRange, setDateRange] = useState<[Date, Date]>([new Date(), new Date()]);
-    const [includeBlankDate, setIncludeBlankDate] = useState(false);
     const sortHeaders = [
         "Dataset Name",
         "Dataset Used As",
@@ -71,6 +69,27 @@ const FindDatasets: React.FC = () => {
     const [isPopupOpen, setIsPopupOpen] = useState(false);
     const [iriQueryResult, setQueryResult] = useState<IRIQueryData[] | null>(null);
     const [clickedIri, setClickedIri] = useState<string | null>(null);
+    const [dateRange, setDateRange] = useState<[Date | null, Date | null]>([null, null]); // State for date range
+    const [includeBlankDates, setIncludeBlankDates] = useState(true); // State for include blank dates
+    const [filteredDatasets, setFilteredDatasets] = useState<DatasetData[]>([]); // State for filtered datasets
+
+    useEffect(() => {
+        // Filter the datasets based on the selected date range and includeBlank setting
+        const filtered = datasets.filter(dataset => {
+            const datasetDate = dataset.ml_input_timestamp ? new Date(dataset.ml_input_timestamp) : null;
+            if (!includeBlankDates && !datasetDate) {
+                return false;
+            }
+            if (datasetDate) {
+                const [start, end] = dateRange;
+                if ((start && datasetDate < start) || (end && datasetDate > end)) {
+                    return false;
+                }
+            }
+            return true;
+        });
+        setFilteredDatasets(filtered);
+    }, [datasets, dateRange, includeBlankDates]);
 
     const fetchData = async (
         searchTerm: string,
@@ -102,11 +121,6 @@ const FindDatasets: React.FC = () => {
             Object.keys(selectedCheckboxes).filter(key => selectedCheckboxes[key]).map((key) => {
                 urlParams.append('dataset_role', `${key},${selectedCheckboxes[key]}`);
             });
-
-            // Add date filter
-            urlParams.append('start_date', dateRange[0].toISOString());
-            urlParams.append('end_date', dateRange[1].toISOString());
-            urlParams.append('include_blank_date', includeBlankDate.toString());
 
             if (format !== '') {
                 urlParams.append('format', format);
@@ -277,11 +291,6 @@ const FindDatasets: React.FC = () => {
         setQueryResult(null);
     };
 
-    const handleDateRangeChange = (range: [Date, Date], includeBlank: boolean) => {
-        setDateRange(range);
-        setIncludeBlankDate(includeBlank);
-    };
-
     return (
         <div>
             <LoadingBar isLoading={isLoading}/>
@@ -314,19 +323,20 @@ const FindDatasets: React.FC = () => {
                         <span>Direct Type</span>
                     </label>
                 </div>
-                <div style={{marginBottom: '8px'}}>
-                    <DateRangeSlider
-                        endpoint={buildV1Url('datasets/date-range')}
-                        onChange={handleDateRangeChange}
-                    />
-                </div>
             </div>
+            <DateRangeSlider
+                dates={datasets.map(dataset => dataset.ml_input_timestamp ? new Date(dataset.ml_input_timestamp) : null)}
+                onChange={setDateRange}
+                includeBlank={includeBlankDates}
+                setIncludeBlank={setIncludeBlankDates}
+                value={dateRange}
+            />
             <div>
                 <div style={{margin: '8px 0'}}>
                     <button onClick={handleAnalyzeModelOutput}>Analyze Model Output</button>
                     <button style={{marginLeft: '4px'}} onClick={handlePlotPerformance}>Plot Performance</button>
                 </div>
-                {datasets.length > 0 &&
+                {filteredDatasets.length > 0 &&
                     <div style={{display: 'flex', justifyContent: 'flex-end'}}>
                         <button onClick={handleDownload}
                                 style={{display: 'flex', alignItems: 'center', justifyContent: 'space-between'}}>
@@ -335,7 +345,7 @@ const FindDatasets: React.FC = () => {
                         </button>
                     </div>
                 }
-                <Table data={datasets}
+                <Table data={filteredDatasets}
                        headers={sortHeaders}
                        mapItemToRow={mapItemToRow}
                        currentSorts={currentSorts}

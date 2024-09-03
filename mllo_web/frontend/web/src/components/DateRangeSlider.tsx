@@ -2,102 +2,112 @@ import React, { useState, useEffect } from 'react';
 import Slider from '@mui/material/Slider';
 
 interface DateRangeSliderProps {
-    endpoint: string; // API endpoint to fetch the dates
-    onChange: (range: [Date, Date], includeBlank: boolean) => void; // Callback function to pass selected date range and blank date inclusion to the parent component
+    dates: (Date | null)[];
+    onChange: (dateRange: [Date | null, Date | null]) => void;
+    includeBlank: boolean;
+    setIncludeBlank: (value: boolean) => void;
+    value: [Date | null, Date | null];
 }
 
-const DateRangeSlider: React.FC<DateRangeSliderProps> = ({ endpoint, onChange }) => {
-    const [minDate, setMinDate] = useState<Date | null>(null);
-    const [maxDate, setMaxDate] = useState<Date | null>(null);
-    const [availableDates, setAvailableDates] = useState<Date[]>([]);
-    const [value, setValue] = useState<number[]>([]);
-    const [includeBlankDate, setIncludeBlankDate] = useState<boolean>(false);
+const DateRangeSlider: React.FC<DateRangeSliderProps> = ({
+    dates,
+    onChange,
+    includeBlank,
+    setIncludeBlank,
+    value,
+}) => {
+    const [minDate, setMinDate] = useState<number | null>(null);
+    const [maxDate, setMaxDate] = useState<number | null>(null);
 
     useEffect(() => {
-        // Fetch available dates from the API
-        const fetchData = async () => {
-            try {
-                const response = await fetch(endpoint);
-                const data = await response.json();
+        const validDates = dates.filter((date): date is Date => date !== null);
+        if (validDates.length > 0) {
+            const minTimestamp = Math.min(...validDates.map(d => d.getTime()));
+            const maxTimestamp = Math.max(...validDates.map(d => d.getTime()));
+            setMinDate(minTimestamp);
+            setMaxDate(maxTimestamp);
+        } else {
+            setMinDate(null);
+            setMaxDate(null);
+        }
+    }, [dates]);
 
-                const minDate = new Date(data.min_date);
-                const maxDate = new Date(data.max_date);
-                const availableDates = data.available_dates.map((date: string) => new Date(date));
-
-                setMinDate(minDate);
-                setMaxDate(maxDate);
-                setAvailableDates(availableDates);
-                setValue([0, availableDates.length - 1]); // Initialize slider with the first and last index
-            } catch (error) {
-                console.error('Error fetching dates:', error);
-            }
-        };
-
-        fetchData();
-    }, [endpoint]);
-
-    const handleChange = (event: React.ChangeEvent<unknown>, newValue: number | number[]) => {
-        setValue(newValue as number[]);
-        onChange([availableDates[(newValue as number[])[0]], availableDates[(newValue as number[])[1]]], includeBlankDate);
+    const handleSliderChange = (event: Event, newValue: number | number[]) => {
+        const [start, end] = newValue as number[];
+        onChange([new Date(start), new Date(end)]);
     };
 
-    const handleIncludeBlankDateChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-        setIncludeBlankDate(event.target.checked);
-        onChange([availableDates[value[0]], availableDates[value[1]]], event.target.checked);
+    const formatDate = (value: number) => {
+        const date = new Date(value);
+        return date.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
     };
 
-    const valueLabelFormat = (index: number) => {
-        const date = availableDates[index];
-        return `${date.getDate().toString().padStart(2, '0')}/${(date.getMonth() + 1).toString().padStart(2, '0')}/${date.getFullYear()}`;
-    };
-
-    if (minDate && maxDate && minDate.getTime() === maxDate.getTime()) {
-        // If minDate and maxDate are the same, show a static label
+    if (minDate === null || maxDate === null) {
         return (
-            <div>
-                <p>Available Date: {valueLabelFormat(0)}</p>
+            <div style={{ marginTop: '16px' }}>
+                <div>No valid date</div>
                 <div style={{ marginTop: '8px' }}>
-                    <input
-                        type="checkbox"
-                        id="include-blank-date"
-                        checked={includeBlankDate}
-                        onChange={handleIncludeBlankDateChange}
-                    />
-                    <label htmlFor="include-blank-date" style={{ marginLeft: '8px' }}>Include Blank Dates</label>
+                    <label>
+                        <input
+                            type="checkbox"
+                            checked={includeBlank}
+                            onChange={(e) => setIncludeBlank(e.target.checked)}
+                        />
+                        Include blank dates
+                    </label>
                 </div>
             </div>
         );
     }
 
-    return (
-        <div style={{ marginTop: '16px' }}>
-            {minDate && maxDate && (
-                <div style={{ display: 'flex', alignItems: 'center' }}>
-                    <p>Selected range: {valueLabelFormat(value[0])} - {valueLabelFormat(value[1])}</p>
-                    <div style={{ width: '30%', marginRight: '16px', marginLeft: '16px' }}>
-                        <Slider
-                            value={value}
-                            min={0}
-                            max={availableDates.length - 1}
-                            marks={availableDates.map((_, index) => ({ value: index, label: '' }))}
-                            step={1}
-                            onChange={handleChange}
-                            valueLabelDisplay="auto"
-                            valueLabelFormat={valueLabelFormat}
-                            disableSwap
-                        />
-                    </div>
-                    <div>
+    // Compare only the date part, ignoring time
+    if (minDate === maxDate) {
+        return (
+            <div style={{ marginTop: '16px' }}>
+                <div>Available date: {formatDate(minDate)}</div>
+                <div style={{ marginTop: '8px' }}>
+                    <label>
                         <input
                             type="checkbox"
-                            id="include-blank-date"
-                            checked={includeBlankDate}
-                            onChange={handleIncludeBlankDateChange}
+                            checked={includeBlank}
+                            onChange={(e) => setIncludeBlank(e.target.checked)}
                         />
-                        <label htmlFor="include-blank-date" style={{ marginLeft: '8px' }}>Include Blank Dates</label>
-                    </div>
+                        Include blank dates
+                    </label>
                 </div>
-            )}
+            </div>
+        );
+    }
+
+    const sliderValue: [number, number] = [
+        value[0] ? value[0].getTime() : minDate,
+        value[1] ? value[1].getTime() : maxDate
+    ];
+
+    return (
+        <div style={{ width: '100%', maxWidth: '200px', padding: '16px 0' }}>
+            <Slider
+                value={sliderValue}
+                onChange={handleSliderChange}
+                valueLabelDisplay="auto"
+                min={minDate}
+                max={maxDate}
+                valueLabelFormat={formatDate}
+            />
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '8px' }}>
+                <span>{formatDate(sliderValue[0])}</span>
+                <span>{formatDate(sliderValue[1])}</span>
+            </div>
+            <div style={{ marginTop: '8px' }}>
+                <label>
+                    <input
+                        type="checkbox"
+                        checked={includeBlank}
+                        onChange={(e) => setIncludeBlank(e.target.checked)}
+                    />
+                    Include blank dates
+                </label>
+            </div>
         </div>
     );
 };

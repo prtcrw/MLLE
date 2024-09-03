@@ -61,8 +61,6 @@ WHERE {
     ?dataset_type rdfs:label ?dataset_used_as.
     ?dataset ml:specifiesDimensionShape ?dataset_shape.
 
-    #DATEFILTER
-
     OPTIONAL {
         ?ml_process bfo:BFO_0000222/iof-core:hasValueExpressionAtAllTimes/iof-core:hasDateTimeValue ?ml_input_timestamp
     }
@@ -181,17 +179,6 @@ class FindDatasetsQueryBuilder(QueryBuilder):
                     "?model rdf:type/rdfs:subClassOf#ml_input_constraint.",
                     "VALUES ?model " + self.model_input,
                 )
-
-        # Handle date range filtering
-        date_filter = f"""FILTER(
-                (?ml_input_timestamp >= \"{self.start_date}\"^^xsd:dateTime && 
-                ?ml_input_timestamp <= \"{self.end_date}\"^^xsd:dateTime)"""
-
-        if self.include_blank_date:
-            date_filter += " || !BOUND(?ml_input_timestamp)"
-
-        date_filter += ")"
-        query = query.replace("#DATEFILTER", date_filter)
 
         # Apply sort based on the mapping
         if self.sort_string:
@@ -433,55 +420,3 @@ async def get_model_output(request: Request) -> Response:
         for true, pred in zip(true_classes, predicted_classes)
     ]
     return JSONResponse({"results": results})
-
-
-DATE_RANGE_QUERY = """
-PREFIX ml: <http://www.semanticweb.org/mnd14/ml/>
-PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
-PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
-PREFIX bfo: <http://purl.obolibrary.org/obo/>
-PREFIX iof-core: <https://spec.industrialontologies.org/ontology/core/Core/>
-
-SELECT (MIN(?ml_input_timestamp) AS ?minDate) 
-       (MAX(?ml_input_timestamp) AS ?maxDate) 
-       ?ml_input_timestamp
-WHERE {
-  ?ml_process ml:hasDataInput ?dataset.
-  ?ml_process bfo:BFO_0000063*/(bfo:BFO_0000057 | ml:executes) ?model.
-  OPTIONAL {
-    ?ml_process bfo:BFO_0000222/iof-core:hasValueExpressionAtAllTimes/iof-core:hasDateTimeValue ?ml_input_timestamp
-  }
-} 
-GROUP BY ?ml_input_timestamp
-ORDER BY ?ml_input_timestamp
-"""
-
-
-@router.get("/date-range")
-async def get_date_range(request: Request) -> JSONResponse:
-    app = request.app
-
-    try:
-        result = app.sparql_client.query(DATE_RANGE_QUERY)
-        min_date = result[1]["minDate"]
-        max_date = result[1]["maxDate"]
-        available_dates = [row["ml_input_timestamp"] for row in result]
-        # to show the slidebar
-        min_date = "2023-04-13T07:56:00-04:00"
-        max_date = "2024-08-13T07:56:00-04:00"
-        available_dates = [
-            min_date,
-            "2024-05-11T07:56:00-04:00",
-            "2024-06-11T07:56:00-04:00",
-            "2024-07-13T07:56:00-04:00",            
-            max_date,
-        ]
-        return JSONResponse(
-            content={
-                "min_date": min_date,
-                "max_date": max_date,
-                "available_dates": sorted(available_dates),
-            }
-        )
-    except Exception as e:
-        return JSONResponse(content={"error": str(e)}, status_code=500)

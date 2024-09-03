@@ -47,8 +47,6 @@ WHERE {
     OPTIONAL {
         ?ml_process bfo:BFO_0000222/iof-core:hasValueExpressionAtAllTimes/iof-core:hasDateTimeValue ?ml_input_timestamp
     }
-    
-    #DATEFILTER
 
     ?model rdf:type ?model_type_iri.
     ?model_type_iri rdfs:subClassOf+ ml:MachineLearningModel.
@@ -95,10 +93,7 @@ class FindModelsQueryBuilder(QueryBuilder):
         dataset_role: Optional[List[str]] = None,
         specific_IRI: Optional[str] = None,
         model_types: Optional[List[str]] = None,
-        sort: Optional[List[str]] = None,
-        start_date: Optional[str] = None,
-        end_date: Optional[str] = None,
-        include_blank_date: Optional[bool] = False,
+        sort: Optional[List[str]] = None
     ):
 
         self.dataset_name = (
@@ -110,9 +105,6 @@ class FindModelsQueryBuilder(QueryBuilder):
         self.model_types = model_types
         self.sort_string = to_order_by_string(sort, self.SORT_KEY_MAPPING)
         self.dataset_role = parse_option_params(dataset_role)
-        self.start_date = start_date
-        self.end_date = end_date
-        self.include_blank_date = include_blank_date
 
     def build_query(self) -> str:
         query = FIND_MODELS_QUERY
@@ -155,18 +147,6 @@ class FindModelsQueryBuilder(QueryBuilder):
                 "#MODEL_TYPE_FILTER", f" FILTER(?model_type IN ({model_types_str}))"
             )
 
-        # Handle date range filtering
-        date_filter = f"""FILTER(
-                (?ml_input_timestamp >= \"{self.start_date}\"^^xsd:dateTime && 
-                ?ml_input_timestamp <= \"{self.end_date}\"^^xsd:dateTime)"""
-
-        if self.include_blank_date:
-            date_filter += " || !BOUND(?ml_input_timestamp)"
-
-        date_filter += ")"
-
-        query = query.replace("#DATEFILTER", date_filter)
-
         # Add sorting
         if self.sort_string:
             query += self.sort_string
@@ -182,18 +162,9 @@ async def get_models(
         default=None, description="Dataset roles as JSON string"
     ),
     specific_IRI=Query(default=None, description="Specific IRI"),
-    start_date: Optional[str] = Query(
-        default=None, description="Start date in YYYY-MM-DD format"
-    ),
-    end_date: Optional[str] = Query(
-        default=None, description="End date in YYYY-MM-DD format"
-    ),
-    include_blank_date: bool = Query(
-        default=False, description="Include entries with blank date"
-    ),
     model_types: Optional[List[str]] = Query(
         default=None, description="Model types"
-    ),  # Add model_types parameter
+    ),
     page: int = Query(default=1, description="Page number"),
     items_per_page: int = Query(
         default=10, description="Number of models to return per page"
@@ -210,10 +181,7 @@ async def get_models(
         dataset_role=dataset_role,
         specific_IRI=specific_IRI,
         model_types=model_types,
-        sort=sort,
-        start_date=start_date,
-        end_date=end_date,
-        include_blank_date=include_blank_date,
+        sort=sort
     )
 
     if format == "json":
@@ -473,34 +441,3 @@ WHERE {
 GROUP BY ?ml_input_timestamp
 ORDER BY ?ml_input_timestamp
 """
-
-
-@router.get("/date-range")
-async def get_date_range(request: Request) -> JSONResponse:
-    app = request.app
-
-    try:
-        result = app.sparql_client.query(DATE_RANGE_QUERY)
-        min_date = result[1]["minDate"]
-        max_date = result[1]["maxDate"]
-        available_dates = [row["ml_input_timestamp"] for row in result]
-
-        # to show the slidebar
-        min_date = "2023-04-13T07:56:00-04:00"
-        max_date = "2024-08-13T07:56:00-04:00"
-        available_dates = [
-            min_date,
-            "2024-05-11T07:56:00-04:00",
-            "2024-07-13T07:56:00-04:00",
-            "2024-06-11T07:56:00-04:00",
-            max_date,
-        ]
-        return JSONResponse(
-            content={
-                "min_date": min_date,
-                "max_date": max_date,
-                "available_dates": sorted(available_dates),
-            }
-        )
-    except Exception as e:
-        return JSONResponse(content={"error": str(e)}, status_code=500)

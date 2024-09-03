@@ -1,15 +1,15 @@
-import React, {useState} from 'react';
-import {useNavigate} from 'react-router-dom';
-import {buildV1Url, downloadFromResponse} from '../../services/api';
+import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { buildV1Url, downloadFromResponse } from '../../services/api';
 import LoadingBar from '../../components/LoadingBar.tsx';
 import ErrorMessage from '../../components/ErrorMessage.tsx';
 import Search from '../../components/Search.tsx';
-import Table, {SortDirection} from '../../components/Table.tsx';
+import Table, { SortDirection } from '../../components/Table.tsx';
 import Pagination from '../../components/Pagination.tsx';
-import {DownloadIcon} from '../../components/Icons.tsx';
+import { DownloadIcon } from '../../components/Icons.tsx';
 import FindModelsFilter from './FindModelsFilter.tsx';
 import Modal from '../../components/Modal.tsx';
-import {pascalCaseToWords, lowercaseToPascalCase} from '../../components/FormatUtilities';
+import { pascalCaseToWords, lowercaseToPascalCase } from '../../components/FormatUtilities';
 import DropdownFilter from '../../components/DropdownFilter';
 import DateRangeSlider from '../../components/DateRangeSlider';
 
@@ -57,7 +57,7 @@ const FindDatasetUsages: React.FC = () => {
         "Dataset Used For",
     ];
     const [currentSorts, setCurrentSorts] = useState<{ key: string; direction: SortDirection }[]>([
-        {key: "Model Name", direction: "asc"}
+        { key: "Model Name", direction: "asc" }
     ]);
     const [isLoading, setIsLoading] = useState(false);
     const [message, setMessage] = useState('');
@@ -66,8 +66,9 @@ const FindDatasetUsages: React.FC = () => {
     const [isPopupOpen, setIsPopupOpen] = useState(false);
     const [iriQueryResult, setQueryResult] = useState<IRIQueryData[] | null>(null);
     const [clickedIri, setClickedIri] = useState<string | null>(null);
-    const [dateRange, setDateRange] = useState<[Date, Date]>([new Date(), new Date()]);
-    const [includeBlankDate, setIncludeBlankDate] = useState(false);
+    const [filteredModels, setFilteredModels] = useState<ModelData[]>([]);
+    const [includeBlank, setIncludeBlank] = useState<boolean>(true);
+    const [dateRange, setDateRange] = useState<[Date | null, Date | null]>([null, null]);
 
     const fetchData = async (
         searchTerm: string,
@@ -89,7 +90,7 @@ const FindDatasetUsages: React.FC = () => {
             });
 
             // Add sorts as query params
-            for (const {key, direction} of sorts) {
+            for (const { key, direction } of sorts) {
                 urlParams.append('sort', `${key},${direction}`);
             }
 
@@ -102,11 +103,6 @@ const FindDatasetUsages: React.FC = () => {
             modelTypes.forEach(type => {
                 urlParams.append('model_types', type);
             });
-
-            // Add date filter
-            urlParams.append('start_date', dateRange[0].toISOString());
-            urlParams.append('end_date', dateRange[1].toISOString());
-            urlParams.append('include_blank_date', includeBlankDate.toString());
 
             if (format !== '') {
                 urlParams.append('format', format);
@@ -122,6 +118,7 @@ const FindDatasetUsages: React.FC = () => {
                 setCurrentPage(currentPage);
                 setTotalPages(fetchedModels["total_pages"]);
                 setModels(fetchedModels["data"]);
+
                 if (fetchedModels["data"].length === 0) {
                     setMessage("No models found.");
                 } else {
@@ -148,7 +145,7 @@ const FindDatasetUsages: React.FC = () => {
     };
 
     const handleCheckboxChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const {name, checked} = e.target;
+        const { name, checked } = e.target;
         setSelectedCheckboxes(prev => ({
             ...prev,
             [name]: checked
@@ -197,7 +194,7 @@ const FindDatasetUsages: React.FC = () => {
                         e.preventDefault();
                         handleIriClick(value);
                     }}
-                    style={{color: 'blue', textDecoration: 'underline'}}
+                    style={{ color: 'blue', textDecoration: 'underline' }}
                 >
                     {pascalCaseToWords(getUniqueIriPart(value))}
                 </a>
@@ -242,23 +239,37 @@ const FindDatasetUsages: React.FC = () => {
         setQueryResult(null);
     };
 
-    const handleDateRangeChange = (range: [Date, Date], includeBlank: boolean) => {
-        setDateRange(range);
-        setIncludeBlankDate(includeBlank);
+    useEffect(() => {
+        filterModels();
+    }, [models, includeBlank, dateRange]);
+
+    const filterModels = () => {
+        const filtered = models.filter(model => {
+            const modelDate = model.ml_input_timestamp ? new Date(model.ml_input_timestamp) : null;
+            if (!modelDate) return includeBlank;
+            const [startDate, endDate] = dateRange;
+            return (!startDate || modelDate >= startDate) && (!endDate || modelDate <= endDate);
+        });
+        setFilteredModels(filtered);
     };
+
+    const handleDateRangeChange = (newDateRange: [Date | null, Date | null]) => {
+        setDateRange(newDateRange);
+    };
+
 
     return (
         <div>
-            <LoadingBar isLoading={isLoading}/>
+            <LoadingBar isLoading={isLoading} />
             <h1>Find Dataset Usages</h1>
-            <div style={{margin: '8px 0'}}>
-                <Search onSearch={handleSearch} placeholder={'Dataset Name'}/>
-                <div style={{display: 'flex', alignItems: 'center'}}>
+            <div style={{ margin: '8px 0' }}>
+                <Search onSearch={handleSearch} placeholder={'Dataset Name'} />
+                <div style={{ display: 'flex', alignItems: 'center' }}>
                     <FindModelsFilter
                         selectedFilters={selectedCheckboxes}
                         onFilterChange={handleCheckboxChange}
                     />
-                    <div style={{marginLeft: '8px'}}>
+                    <div style={{ marginLeft: '8px' }}>
                         <DropdownFilter
                             endpoint={buildV1Url('models/types')}
                             selectedValues={modelTypes}
@@ -269,31 +280,34 @@ const FindDatasetUsages: React.FC = () => {
                 </div>
                 <div>
                     <DateRangeSlider
-                        endpoint={buildV1Url('models/date-range')}
-                        onChange={handleDateRangeChange}
-                    />
-                </div>
+                    dates={models.map(model => model.ml_input_timestamp ? new Date(model.ml_input_timestamp) : null)}
+                    onChange={handleDateRangeChange}
+                    includeBlank={includeBlank}
+                    setIncludeBlank={setIncludeBlank}
+                    value={dateRange}
+                />
+                    </div>
             </div>
             <div>
-                <div style={{margin: '8px 0'}}>
+                <div style={{ margin: '8px 0' }}>
                     <button onClick={handleAnalyzeDeployedModels}>Analyze Deployed Models</button>
                 </div>
                 {models.length > 0 &&
-                    <div style={{display: 'flex', justifyContent: 'flex-end'}}>
+                    <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
                         <button onClick={handleDownload}
-                                style={{display: 'flex', alignItems: 'center', justifyContent: 'space-between'}}>
-                            <span style={{marginRight: '4px'}}>Download Results</span>
-                            <DownloadIcon width={14} height={14}/>
+                            style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                            <span style={{ marginRight: '4px' }}>Download Results</span>
+                            <DownloadIcon width={14} height={14} />
                         </button>
                     </div>
                 }
-                <Table data={models}
-                       headers={sortHeaders}
-                       mapItemToRow={mapItemToRow}
-                       currentSorts={currentSorts}
-                       onSort={handleSort}
-                       onRemoveSort={handleRemoveSort}
-                       message={message}/>
+                <Table data={filteredModels}
+                    headers={sortHeaders}
+                    mapItemToRow={mapItemToRow}
+                    currentSorts={currentSorts}
+                    onSort={handleSort}
+                    onRemoveSort={handleRemoveSort}
+                    message={message} />
                 <Pagination
                     currentPage={currentPage}
                     totalPages={totalPages}
@@ -302,29 +316,29 @@ const FindDatasetUsages: React.FC = () => {
             </div>
             {(isPopupOpen && iriQueryResult) && (
                 <Modal onClose={closePopup}>
-                    <h2 style={{wordBreak: 'break-all', whiteSpace: 'normal'}}>
+                    <h2 style={{ wordBreak: 'break-all', whiteSpace: 'normal' }}>
                         {clickedIri}
                     </h2>
                     <div className="divider"></div>
                     {iriQueryResult.map((value, index) => (
-                        <pre style={{whiteSpace: 'pre-wrap'}}>
-              <div key={index}>
-                <ul>
-                  {Object.entries(value).map(([key, val], idx) => (
-                      val && (
-                          <li key={key + '-' + idx}>
-                              <span className="item-name">{key}</span>
-                              <span className="item-value">{val}</span>
-                          </li>
-                      )
-                  ))}
-                </ul>
-              </div>
-            </pre>
+                        <pre style={{ whiteSpace: 'pre-wrap' }}>
+                            <div key={index}>
+                                <ul>
+                                    {Object.entries(value).map(([key, val], idx) => (
+                                        val && (
+                                            <li key={key + '-' + idx}>
+                                                <span className="item-name">{key}</span>
+                                                <span className="item-value">{val}</span>
+                                            </li>
+                                        )
+                                    ))}
+                                </ul>
+                            </div>
+                        </pre>
                     ))}
                 </Modal>
             )}
-            {error && <ErrorMessage message={error}/>}
+            {error && <ErrorMessage message={error} />}
         </div>
     );
 };
