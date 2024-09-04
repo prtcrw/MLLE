@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 
+
 interface DropdownFilterProps {
     endpoint: string;  // API endpoint to fetch the options
     selectedValues: string[];  // Selected values in the dropdown
@@ -60,11 +61,15 @@ const DropdownFilter: React.FC<DropdownFilterProps> = ({ endpoint, selectedValue
         setIsOpen(!isOpen);
     };
 
+    const capitalizeWords = (str: string) => {
+        return str.replace(/\b\w/g, (char) => char.toUpperCase());
+    };
+
     const getSelectedSummary = () => {
         if (selectedValues.length === 0) {
             return `Select ${label}`;
         } else if (selectedValues.length === 1) {
-            return selectedValues[0];
+            return capitalizeWords(selectedValues[0]);
         } else {
             return `${selectedValues.length} items selected`;
         }
@@ -83,12 +88,16 @@ const DropdownFilter: React.FC<DropdownFilterProps> = ({ endpoint, selectedValue
                     boxSizing: 'border-box',
                     overflow: 'hidden',
                     textOverflow: 'ellipsis',
-                    whiteSpace: 'nowrap'
+                    whiteSpace: 'nowrap',
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center'
                 }} 
                 onClick={toggleDropdown}
-                title={selectedValues.join(', ')} // Tooltip to show full selected items
+                title={selectedValues.map(capitalizeWords).join(', ')} // Tooltip to show full selected items
             >
                 {getSelectedSummary()}
+                <span style={{ marginLeft: '8px' }}>&#9660;</span> {/* Dropdown arrow */}
             </div>
             {isOpen && (
                 <div 
@@ -117,7 +126,7 @@ const DropdownFilter: React.FC<DropdownFilterProps> = ({ endpoint, selectedValue
                                 htmlFor={`checkbox-${option}`}
                                 style={{ cursor: 'pointer' }}
                             >
-                                {option}
+                                {capitalizeWords(option)}
                             </label>
                         </div>
                     ))}

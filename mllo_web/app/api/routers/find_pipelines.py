@@ -102,8 +102,6 @@ class FindPipelinesQueryBuilder(QueryBuilder):
 
     def build_query(self) -> str:
         query = QUERY
-        print("_____________")
-        print(self.pipeline_types)
         # pipeline type filter
         if self.pipeline_types:
             pipeline_filter = "FILTER(?pipeline_type IN ({}))".format(
