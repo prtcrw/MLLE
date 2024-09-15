@@ -58,7 +58,6 @@ WHERE {
         GROUP BY
             ?pipeline ?pipeline_type
     }
-    ?pipeline_associated_model_iri rdf:type/rdfs:subClassOf+ ml:MachineLearningModel
     OPTIONAL {
         ?pipeline ml:hasDataInput ?pipeline_data_input_iri
     }
@@ -70,6 +69,7 @@ WHERE {
         {
             ?pipeline bfo:BFO_0000063+/(bfo:BFO_0000057 | ml:executes) ?pipeline_associated_model_iri
         }
+	?pipeline_associated_model_iri rdf:type/rdfs:subClassOf* ml:MachineLearningModel
     }
 }
 """
