@@ -95,7 +95,7 @@ WHERE {
         ?model_performance_assessment ml:hasDataOutput/iof-core:hasSimpleExpressionValue ?model_performance_value
     }
     OPTIONAL {
-        ?data_preprocessing_pipeline ml:hasDataOutput ?dataset.
+        ?data_preprocessing_pipeline bfo:BFO_0000063*/ml:hasDataOutput ?dataset.
         ?data_preprocessing_pipeline rdf:type ml:MachineLearningDataPreparationPipeline
     }
 }
