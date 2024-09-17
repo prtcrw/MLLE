@@ -51,7 +51,12 @@ const Menu: React.FC<{ isMenuOpen: boolean; toggleMenu: () => void; isMobile: bo
             className={`menu-container ${isMenuOpen ? (isMobile ? 'mobile-open' : 'open') : closing ? (isMobile ? 'mobile-closing' : 'closing') : ''}`}>
             <div className="menu-content">
                 <div className="menu-header">
-                    <Link to='/'><h2 className="menu-title">MLLO</h2></Link>
+                    <Link to='/'>
+                        <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '0.5rem' }}>
+                            <img src={'/logo.png'} width={76} />
+                            <h2 className="menu-title">MLLE</h2>
+                        </div>
+                    </Link>
                     <button onClick={handleMenuToggle} className="close-button">
                         ✕
                     </button>
