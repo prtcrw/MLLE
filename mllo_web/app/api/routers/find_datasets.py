@@ -1,4 +1,5 @@
 import json
+import re
 import math
 from collections import defaultdict
 from contextlib import closing
@@ -128,9 +129,7 @@ class FindDatasetsQueryBuilder(QueryBuilder):
         include_blank_date: Optional[bool] = False,
     ):
         self.query_variables = query_variables
-        self.model_input = (
-            search_term.strip() if search_term and len(search_term) > 0 else None
-        )
+        self.model_input = re.sub(re.compile(r'\s+'), '', search_term) if search_term and len(search_term) > 0 else None
         self.type_query = type_query
         self.direct_type = direct_type
         self.sort_string = to_order_by_string(sort, self.SORT_KEY_MAPPING)

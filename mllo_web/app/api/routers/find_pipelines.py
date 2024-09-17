@@ -1,4 +1,5 @@
 import math
+import re
 from typing import Optional, List
 
 from fastapi import APIRouter, Request, Query
@@ -92,9 +93,7 @@ class FindPipelinesQueryBuilder(QueryBuilder):
         pipeline_types: Optional[List[str]] = None,
     ):
 
-        self.search_term = (
-            search_term.strip() if search_term and len(search_term) > 0 else None
-        )
+        self.search_term = re.sub(re.compile(r'\s+'), '', search_term) if search_term and len(search_term) > 0 else None
         self.pipeline_constraint = self.search_term
         self.toggle_constraint = toggle_constraint
         self.sort_string = to_order_by_string(sort, self.SORT_KEY_MAPPING)

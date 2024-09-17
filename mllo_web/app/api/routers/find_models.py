@@ -1,4 +1,5 @@
 import math
+import re
 from typing import Optional, List
 
 from fastapi import APIRouter, Request, Query
@@ -96,12 +97,8 @@ class FindModelsQueryBuilder(QueryBuilder):
         sort: Optional[List[str]] = None
     ):
 
-        self.dataset_name = (
-            search_term.strip() if search_term and len(search_term) > 0 else None
-        )
-        self.specific_IRI = (
-            specific_IRI.strip() if specific_IRI and len(specific_IRI) > 0 else None
-        )
+        self.dataset_name = re.sub(re.compile(r'\s+'), '', search_term) if search_term and len(search_term) > 0 else None
+        self.specific_IRI = re.sub(re.compile(r'\s+'), '', specific_IRI) if specific_IRI and len(specific_IRI) > 0 else None
         self.model_types = model_types
         self.sort_string = to_order_by_string(sort, self.SORT_KEY_MAPPING)
         self.dataset_role = parse_option_params(dataset_role)

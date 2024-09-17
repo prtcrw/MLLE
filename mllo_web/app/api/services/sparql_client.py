@@ -21,7 +21,7 @@ class TotalRecordsQueryBuilder(QueryBuilder):
 
     def build_query(self) -> str:
         query = self.delegate.build_query()
-        query = re.sub(r"SELECT", "SELECT (COUNT(*) AS ?total_records) WHERE { SELECT", query, count=1) + " }"
+        query = re.sub(r"SELECT", "SELECT (COUNT(*) AS ?total_records) WHERE { SELECT ", query, count=1) + " }"
         return query
 
 
