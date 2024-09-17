@@ -33,28 +33,17 @@ const Menu: React.FC<{ isMenuOpen: boolean; toggleMenu: () => void; isMobile: bo
         }
     };
 
-    const modelSubmenuItems = [
+    const analyzerSubmenuItems = [
+        { label: 'Find Pipelines', path: '/pipelines' },
+        { label: 'Find Datasets', path: '/datasets' },
+        { label: 'Find Dataset Usages', path: '/datasets/usages' },
         { label: 'Analyze Deployed Models', path: '/models/analyze-deployed-models' },
+        { label: 'Plot Performance', path: '/datasets/plot-performance' },
+        { label: 'Analyze Model Output', path: '/datasets/analyze-model-output' }
     ];
 
-    const pipelineSubmenuItems = [
-        {
-            label: 'Find Pipelines', path: '/pipelines',
-            children: [
-                {label: 'Pipeline Editor', path: '/pipelines/edit-pipeline'},
-            ]
-        },
-    ];
-
-    const datasetSubmenuItems = [
-        {
-            label: 'Find Datasets', path: '/datasets',
-            children: [
-                {label: 'Plot Performance', path: '/datasets/plot-performance'},
-                {label: 'Analyze Model Output', path: '/datasets/analyze-model-output'},
-            ]
-        },
-        {label: 'Find Dataset Usages', path: '/datasets/usages'}
+    const editorSubmenuItems = [
+        { label: 'Pipeline Editor', path: '/pipelines/edit-pipeline' }
     ];
 
     return (
@@ -67,22 +56,16 @@ const Menu: React.FC<{ isMenuOpen: boolean; toggleMenu: () => void; isMobile: bo
                         ✕
                     </button>
                 </div>
-                <h4>Model</h4>
+                <h4>Analyzer</h4>
                 <ul>
                     <li>
-                        <Submenu items={modelSubmenuItems} onItemClick={handleSubmenuClick}/>
+                        <Submenu items={analyzerSubmenuItems} onItemClick={handleSubmenuClick}/>
                     </li>
                 </ul>
-                <h4>Pipeline</h4>
+                <h4>Editor</h4>
                 <ul>
                     <li>
-                        <Submenu items={pipelineSubmenuItems} onItemClick={handleSubmenuClick}/>
-                    </li>
-                </ul>
-                <h4>Dataset</h4>
-                <ul>
-                    <li>
-                        <Submenu items={datasetSubmenuItems} onItemClick={handleSubmenuClick}/>
+                        <Submenu items={editorSubmenuItems} onItemClick={handleSubmenuClick}/>
                     </li>
                 </ul>
             </div>
