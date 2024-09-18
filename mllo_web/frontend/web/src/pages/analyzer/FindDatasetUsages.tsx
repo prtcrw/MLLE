@@ -14,6 +14,7 @@ import DropdownFilter from '../../components/DropdownFilter';
 import DateRangeSlider from '../../components/DateRangeSlider';
 
 interface ModelData {
+    dataSetName:string;
     modelName: string;
     modelType: string;
     modelPerformanceMetric: string;
@@ -31,10 +32,10 @@ interface IRIQueryData {
 }
 
 const defaultSelectedCheckboxes = {
-    "test_data": false,
-    "validation_data": false,
-    "training_data": false,
-    "production_data": false,
+    "test_data": true,
+    "validation_data": true,
+    "training_data": true,
+    "production_data": true,
     "raw_data": false,
 };
 
@@ -47,6 +48,7 @@ const FindDatasetUsages: React.FC = () => {
     const [itemsPerPage, setItemsPerPage] = useState(10);
     const [modelTypes, setModelTypes] = useState<string[]>([]); // Add model types state
     const sortHeaders = [
+        "Dataset Name",
         "Model Name",
         "Model Type",
         "Model Performance Metric",
@@ -54,10 +56,10 @@ const FindDatasetUsages: React.FC = () => {
         "Model Objective",
         "Data Preprocessing",
         "ML Input Timestamp",
-        "Dataset Used For",
+        "Dataset Used As",
     ];
     const [currentSorts, setCurrentSorts] = useState<{ key: string; direction: SortDirection }[]>([
-        { key: "Model Name", direction: "asc" }
+        { key: "Dataset Name", direction: "asc" }
     ]);
     const [isLoading, setIsLoading] = useState(false);
     const [message, setMessage] = useState('');

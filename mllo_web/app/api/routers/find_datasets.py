@@ -4,6 +4,8 @@ import math
 from collections import defaultdict
 from contextlib import closing
 from typing import Optional, List
+import os
+import pandas as pd
 
 import numpy as np
 from fastapi import APIRouter, Request, Query
@@ -338,11 +340,19 @@ async def get_datasets_performances(
         {"model_performance_metric": dict(datasets_group_by_model_performance_metric)}
     )
 
+@router.get("/model-pca")
+async def get_model_pca(
+    request: Request,
+    input_dataset_name: str = Query(None, description="Name of the input dataset"),
+    output_dataset_name: str = Query(None, description="Name of the output dataset")
+) -> Response:
 
-@router.get("/model-input")
-async def get_model_input(request: Request) -> Response:
-    mnist = fetch_openml("mnist_784", version=1)
-    data = mnist.data / 255.0  # Normalize pixel values
+    input_dataset_dir = os.path.join('datasets', 'input_datasets', input_dataset_name)
+    output_dataset_dir = os.path.join('datasets', 'output_datasets', output_dataset_name)
+
+    # Load the input dataset (e.g., MNIST dataset)
+    input_data = np.load(input_dataset_dir)
+    data = input_data.reshape(input_data.shape[0], 28*28)
 
     # Apply PCA with 2 components for 2D plot
     n_components = 2
@@ -350,9 +360,12 @@ async def get_model_input(request: Request) -> Response:
     pca.fit(data)
     pca_data = pca.transform(data)
 
-    labels = mnist.target.tolist()
+    # Load the output dataset (e.g., classification labels)
+    output_data = np.genfromtxt(output_dataset_dir, delimiter=',')
+    labels = output_data.tolist()
     unique_labels = list(set(labels))
 
+    # Prepare the results for the frontend
     results = {
         "metadata": {
             "algorithm": "PCA",
@@ -370,51 +383,53 @@ async def get_model_input(request: Request) -> Response:
 
     return JSONResponse({"results": results})
 
+@router.get("/model-input-list")
+async def list_model_inputs(request: Request) -> Response:
+    dataset_dir = os.path.join('datasets', 'input_datasets')
+
+    # Get the list of all .npy files in the directory
+    datasets = [f for f in os.listdir(dataset_dir) if f.endswith('.npy')]
+    datasets.sort()
+    return JSONResponse({"datasets": datasets})
+
+@router.get("/model-output-list")
+async def list_model_outputs(request: Request) -> Response:
+    dataset_dir = os.path.join('datasets', 'output_datasets')
+
+    # Get the list of all CSV files in the directory
+    datasets = [f for f in os.listdir(dataset_dir) if f.endswith('.csv')]
+    datasets.sort()
+    return JSONResponse({"datasets": datasets})
 
 @router.get("/model-output")
-async def get_model_output(request: Request) -> Response:
-    # Load the MNIST dataset
-    (x_train, y_train), (x_test, y_test) = mnist.load_data()
+async def get_model_output(request: Request, dataset_names: List[str] = Query(None, description="List of dataset names", delimiter=",")) -> JSONResponse:
+    if not dataset_names:
+        return JSONResponse({"error": "No dataset names provided"}, status_code=400)
 
-    # Preprocess the data
-    x_train = x_train.reshape(x_train.shape[0], 28, 28, 1).astype("float32") / 255
-    x_test = x_test.reshape(x_test.shape[0], 28, 28, 1).astype("float32") / 255
-    y_train = to_categorical(y_train)
+    # Load the MNIST dataset (do this only once)
+    (_, _), (_, y_test) = mnist.load_data()
     y_test = to_categorical(y_test)
-
-    # Create the CNN model
-    model = Sequential(
-        [
-            Conv2D(32, (3, 3), activation="relu", input_shape=(28, 28, 1)),
-            MaxPooling2D((2, 2)),
-            Flatten(),
-            Dense(128, activation="relu"),
-            Dense(10, activation="softmax"),
-        ]
-    )
-
-    # Compile the model
-    model.compile(
-        optimizer="adam", loss="categorical_crossentropy", metrics=["accuracy"]
-    )
-
-    # Train the model
-    model.fit(
-        x_train, y_train, epochs=1, batch_size=128, validation_data=(x_test, y_test)
-    )
-
-    # Make predictions on the test set
-    predictions = model.predict(x_test)
-
-    # Convert predictions to class labels
-    predicted_classes = np.argmax(predictions, axis=1)
-
-    # Convert y_test from one-hot encoded to class labels
     true_classes = np.argmax(y_test, axis=1)
 
-    # Create a list of dictionaries with true and predicted labels
-    results = [
-        {"true_label": int(true), "predicted_label": int(pred)}
-        for true, pred in zip(true_classes, predicted_classes)
-    ]
-    return JSONResponse({"results": results})
+    all_results = []
+    print(dataset_names)
+    for dataset_name in dataset_names:
+        file_path = os.path.join('datasets', 'output_datasets', dataset_name)
+        if not os.path.exists(file_path):
+            return JSONResponse({"error": f"Dataset not found: {dataset_name}"}, status_code=404)
+
+        predicted_classes = np.genfromtxt(file_path, delimiter=',')
+
+        # Ensure predicted_classes has the same length as true_classes
+        if len(predicted_classes) != len(true_classes):
+            return JSONResponse({"error": f"Mismatch in data length for dataset: {dataset_name}"}, status_code=400)
+
+        # Create a list of dictionaries with true and predicted labels
+        results = [
+            {"true_label": int(true), "predicted_label": int(pred)}
+            for true, pred in zip(true_classes, predicted_classes)
+        ]
+
+        all_results.append({"dataset": dataset_name, "results": results})
+
+    return JSONResponse({"results": all_results})

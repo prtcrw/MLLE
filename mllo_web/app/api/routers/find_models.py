@@ -29,6 +29,7 @@ PREFIX iof-core: <https://spec.industrialontologies.org/ontology/core/Core/>
 PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>
 
 SELECT DISTINCT 
+    ?dataset
     (STRAFTER(STR(?model), "#") AS ?model_name) 
     ?model_type
     ?model_performance_metric
@@ -73,11 +74,13 @@ WHERE {
         ?data_preprocessing_pipeline rdf:type ml:MachineLearningDataPreparationPipeline
     }
 }
+
 """
 
 
 class FindModelsQueryBuilder(QueryBuilder):
     SORT_KEY_MAPPING = {
+        "Dataset Name": "dataset_name",
         "Model Name": "model_name",
         "Model Type": "model_type",
         "Model Performance Metric": "model_performance_metric",
@@ -210,6 +213,7 @@ async def get_models(
         return StreamingResponse(
             generate_csv_response(
                 header=[
+                    "dataset_name",
                     "model_name",
                     "model_type",
                     "model_performance_metric",
