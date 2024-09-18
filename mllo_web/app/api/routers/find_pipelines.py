@@ -109,21 +109,19 @@ class FindPipelinesQueryBuilder(QueryBuilder):
             query = query.replace("#pipeline_type_filter", pipeline_filter)
 
         if self.toggle_constraint:
-            replacement_string_for_dataset_association = (
-                "FILTER EXISTS{?pipeline ml:hasDataInput| ml:hasDataOutput ?dataset}\n"
-            )
+            replacement_string_for_dataset_association = "FILTER EXISTS{?pipeline ml:hasDataInput| ml:hasDataOutput ?dataset}\n"
             replacement_string_for_specific_dataset = "?dataset rdf:type/rdfs:subClassOf* <http://purl.obolibrary.org/obo/IAO_0000100>.\n"
 
             if (
                 self.pipeline_constraint is not None
                 and len(self.pipeline_constraint) > 0
             ):
-                replacement_string_for_specific_dataset += (
+                replacement_string_for_specific_dataset +=
                     'FILTER(STRAFTER(STR(?dataset),"#")='
                     + '"'
                     + self.pipeline_constraint
                     + '")\n'
-                )
+                
 
             query = query.replace(
                 "#dataset_or_ml_filter",
@@ -133,20 +131,19 @@ class FindPipelinesQueryBuilder(QueryBuilder):
 
         else:
             replacement_string_for_model_association = "FILTER EXISTS{{?pipeline bfo:BFO_0000117*/(bfo:BFO_0000057 | ml:executes) ?model}\nUNION\n{?pipeline bfo:BFO_0000063+/(bfo:BFO_0000057 | ml:executes) ?model}}\n"
-            replacement_string_for_specific_model = (
-                "?model rdf:type/rdfs:subClassOf* ml:MachineLearningModel.\n"
-            )
+            replacement_string_for_specific_model = "?model rdf:type/rdfs:subClassOf* ml:MachineLearningModel.\n"
+            
 
             if (
                 self.pipeline_constraint is not None
                 and len(self.pipeline_constraint) > 0
             ):
-                replacement_string_for_specific_model += (
+                replacement_string_for_specific_model += 
                     'FILTER(STRAFTER(STR(?model),"#")='
                     + '"'
                     + self.pipeline_constraint
                     + '")\n'
-                )
+                
 
             query = query.replace(
                 "#dataset_or_ml_filter",
