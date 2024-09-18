@@ -46,9 +46,9 @@ WHERE {
             ?ml_process
             (GROUP_CONCAT(?dataset_characteristic; separator=";") as ?dataset_characteristics)
         WHERE {
-            ?model rdf:type/rdfs:subClassOf#ml_input_constraint.
-            ?ml_process ml:hasDataInput ?dataset.
             ?ml_process ml:executes | bfo:BFO_0000057 ?model.
+            ?ml_process ml:hasDataInput ?dataset.
+            ?model rdf:type/rdfs:subClassOf#ml_input_constraint.
             OPTIONAL {
                 ?dataset ml:hasInformationContentEntityCharacteristic ?dataset_characteristic
             }
@@ -173,10 +173,9 @@ class FindDatasetsQueryBuilder(QueryBuilder):
                         "#ml_input_constraint", "* ml:" + self.model_input
                     )
             else:
-                self.model_input = "{" + self.model_input + "}"
                 query = query.replace(
                     "?model rdf:type/rdfs:subClassOf#ml_input_constraint.",
-                    "VALUES ?model " + self.model_input,
+                    'FILTER(STRAFTER(STR(?model),"#")='+ '"'+ self.model_input + '")'
                 )
 
         # Apply sort based on the mapping
