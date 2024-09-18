@@ -109,7 +109,7 @@ class FindPipelinesQueryBuilder(QueryBuilder):
             query = query.replace("#pipeline_type_filter", pipeline_filter)
 
         if self.toggle_constraint:
-            replacement_string_for_dataset_association = "FILTER EXISTS{?pipeline ml:hasDataInput| ml:hasDataOutput ?dataset}\n"
+            replacement_string_for_dataset_association = "?pipeline ml:hasDataInput| ml:hasDataOutput ?dataset\n"
             replacement_string_for_specific_dataset = "?dataset rdf:type/rdfs:subClassOf* <http://purl.obolibrary.org/obo/IAO_0000100>.\n"
 
             if (
@@ -125,12 +125,11 @@ class FindPipelinesQueryBuilder(QueryBuilder):
 
             query = query.replace(
                 "#dataset_or_ml_filter",
-                replacement_string_for_specific_dataset
-                + replacement_string_for_dataset_association,
+                replacement_string_for_dataset_association
+                + replacement_string_for_specific_dataset,
             )
-
         else:
-            replacement_string_for_model_association = "FILTER EXISTS{{?pipeline bfo:BFO_0000117*/(bfo:BFO_0000057 | ml:executes) ?model}\nUNION\n{?pipeline bfo:BFO_0000063+/(bfo:BFO_0000057 | ml:executes) ?model}}\n"
+            replacement_string_for_model_association = "{?pipeline bfo:BFO_0000117*/(bfo:BFO_0000057 | ml:executes) ?model}\nUNION\n{?pipeline bfo:BFO_0000063+/(bfo:BFO_0000057 | ml:executes) ?model}\n"
             replacement_string_for_specific_model = "?model rdf:type/rdfs:subClassOf* ml:MachineLearningModel.\n"
             
 
@@ -147,8 +146,8 @@ class FindPipelinesQueryBuilder(QueryBuilder):
 
             query = query.replace(
                 "#dataset_or_ml_filter",
-                replacement_string_for_specific_model
-                + replacement_string_for_model_association,
+                replacement_string_for_model_association
+                + replacement_string_for_specific_model,
             )
 
         # Apply sort based on the mapping
