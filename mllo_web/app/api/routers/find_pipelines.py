@@ -109,7 +109,7 @@ class FindPipelinesQueryBuilder(QueryBuilder):
             query = query.replace("#pipeline_type_filter", pipeline_filter)
 
         if self.toggle_constraint:
-            replacement_string_for_dataset_association = "?pipeline ml:hasDataInput| ml:hasDataOutput ?dataset\n"
+            replacement_string_for_dataset_association = "?pipeline ml:hasDataInput| ml:hasDataOutput ?dataset.\n"
             replacement_string_for_specific_dataset = "?dataset rdf:type/rdfs:subClassOf* <http://purl.obolibrary.org/obo/IAO_0000100>.\n"
 
             if (
