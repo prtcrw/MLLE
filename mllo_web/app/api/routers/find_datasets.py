@@ -173,7 +173,7 @@ class FindDatasetsQueryBuilder(QueryBuilder):
             else:
                 query = query.replace(
                     "?model rdf:type/rdfs:subClassOf#ml_input_constraint.",
-                    'FILTER(STRAFTER(STR(?model),"#")='+ '"'+ self.model_input + '")'
+                    'FILTER(CONTAINS(STRAFTER(STR(?model),"#"),'+ '"'+ self.model_input + '"))'
                 )
 
         # Apply sort based on the mapping

@@ -115,7 +115,7 @@ class FindPipelinesQueryBuilder(QueryBuilder):
                 self.pipeline_constraint is not None
                 and len(self.pipeline_constraint) > 0
             ):
-                replacement_string_for_specific_dataset += 'FILTER(STRAFTER(STR(?dataset),"#")=' + '"' + self.pipeline_constraint + '")\n'
+                replacement_string_for_specific_dataset += 'FILTER(CONTAINS(STRAFTER(STR(?dataset),"#"),' + '"' + self.pipeline_constraint + '"))\n'
                 
 
             query = query.replace(
@@ -132,7 +132,7 @@ class FindPipelinesQueryBuilder(QueryBuilder):
                 self.pipeline_constraint is not None
                 and len(self.pipeline_constraint) > 0
             ):
-                replacement_string_for_specific_model += 'FILTER(STRAFTER(STR(?model),"#")=' + '"' + self.pipeline_constraint + '")\n'
+                replacement_string_for_specific_model += 'FILTER(CONTAINS(STRAFTER(STR(?model),"#"),' + '"' + self.pipeline_constraint + '"))\n'
                 
 
             query = query.replace(

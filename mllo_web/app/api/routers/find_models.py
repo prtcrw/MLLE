@@ -137,7 +137,7 @@ class FindModelsQueryBuilder(QueryBuilder):
         else:
             dataset_name = f'"{self.dataset_name}")'
             query = query.replace(
-                "#DATASET_FILTER", f'FILTER(STRAFTER(STR(?dataset),"#")={dataset_name}'
+                "#DATASET_FILTER", f'FILTER(CONTAINS(STRAFTER(STR(?dataset),"#"),{dataset_name})'
             )
 
         # Handle model type filtering
