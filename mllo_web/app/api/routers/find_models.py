@@ -142,7 +142,7 @@ class FindModelsQueryBuilder(QueryBuilder):
 
         # Handle model type filtering
         if self.model_types:
-            model_types_str = " ".join([f'"{mtype}"' for mtype in self.model_types])
+            model_types_str = ",".join([f'"{mtype}"' for mtype in self.model_types])
             query = query.replace(
                 "#MODEL_TYPE_FILTER", f" FILTER(?model_type IN ({model_types_str}))"
             )
