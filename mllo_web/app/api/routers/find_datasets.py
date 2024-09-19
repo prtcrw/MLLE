@@ -164,7 +164,7 @@ class FindDatasetsQueryBuilder(QueryBuilder):
             if self.type_query:
                 if self.direct_type:
                     query = query.replace(
-                        "#ml_input_constraint", " ml:" + self.model_input
+                        "/rdfs:subClassOf#ml_input_constraint", " ml:" + self.model_input
                     )
                 else:
                     query = query.replace(
