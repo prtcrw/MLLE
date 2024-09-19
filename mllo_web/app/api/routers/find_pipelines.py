@@ -49,12 +49,10 @@ WHERE {
                 ?pipeline_type_iri rdfs:label ?pipeline_type
             }
             #dataset_or_ml_filter                       
-            OPTIONAL {
                 ?pipeline bfo:BFO_0000117 ?pipeline_component.
                 ?pipeline_component rdf:type ?pipeline_component_type.
                 ?pipeline_component_type rdfs:subClassOf+ iof-core:PlannedProcess.
                 ?pipeline_component_type rdfs:label ?pipeline_component_label
-            }
         }
         GROUP BY
             ?pipeline ?pipeline_type
