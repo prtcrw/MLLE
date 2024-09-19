@@ -12,10 +12,6 @@ from fastapi import APIRouter, Request, Query
 from fastapi.responses import StreamingResponse, Response, JSONResponse
 from sklearn.datasets import fetch_openml
 from sklearn.decomposition import PCA
-from tensorflow.keras.datasets import mnist
-from tensorflow.keras.layers import Conv2D, MaxPooling2D, Flatten, Dense
-from tensorflow.keras.models import Sequential
-from tensorflow.keras.utils import to_categorical
 
 from mllo_web.app.api.routers.utilities import (
     generate_csv_response,
@@ -308,6 +304,7 @@ async def get_datasets_performances(
     request: Request,
     search_term: str = Query(default=None, description="Search term"),
     dataset_role: str = Query(default=None, description="Dataset roles"),
+    type_query: bool = Query(default=True, description="Toggle for Model Name <-> Model Type")
 ) -> Response:
     app = request.app
     query_builder = FindDatasetsQueryBuilder(
@@ -318,6 +315,7 @@ async def get_datasets_performances(
         ],
         search_term=search_term,
         dataset_role=dataset_role,
+        type_query=type_query,
         sort=["Dataset Name, asc"],
     )
     datasets = app.sparql_client.query(query_builder.build_query())

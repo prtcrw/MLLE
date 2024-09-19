@@ -202,8 +202,9 @@ const FindDatasets: React.FC = () => {
     const handlePlotPerformance = () => {
         let url = '/datasets/plot-performance';
         if (searchTerm) {
-            url += '?search_term=' + searchTerm;
+            url += '?search_term=' + searchTerm+'&';
         }
+        url+='?type_query=' + toggleConstraint.toString();
         navigate(url);
     };
 

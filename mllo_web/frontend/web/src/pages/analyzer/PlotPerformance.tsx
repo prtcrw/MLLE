@@ -1,4 +1,4 @@
-import React, {useEffect, useState, useLocation} from 'react';
+import React, {useEffect, useState} from 'react';
 import {buildV1Url} from '../../services/api';
 import LoadingBar from '../../components/LoadingBar.tsx';
 import {Bar, Line} from 'react-chartjs-2';
@@ -71,6 +71,7 @@ const PlotPerformance: React.FC = () => {
         try {
             // Fetch data with filters
             const queryParams = new URLSearchParams(window.location.search)
+            console.log(queryParams)
             const response = await fetch(buildV1Url(`datasets/performances/?${queryParams.toString()}`));
             let fetchedData = await response.json();
             fetchedData = convertToCamelCase(fetchedData['model_performance_metric']);
