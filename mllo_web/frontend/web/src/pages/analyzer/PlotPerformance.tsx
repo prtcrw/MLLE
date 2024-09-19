@@ -1,4 +1,4 @@
-import React, {useEffect, useState} from 'react';
+import React, {useEffect, useState, useLocation} from 'react';
 import {buildV1Url} from '../../services/api';
 import LoadingBar from '../../components/LoadingBar.tsx';
 import {Bar, Line} from 'react-chartjs-2';
@@ -70,7 +70,8 @@ const PlotPerformance: React.FC = () => {
         setIsLoading(true); // Set loading to true
         try {
             // Fetch data with filters
-            const response = await fetch(buildV1Url(`datasets/performances`));
+            const queryParams = new URLSearchParams(window.location.search)
+            const response = await fetch(buildV1Url(`datasets/performances/?${queryParams.toString()}`));
             let fetchedData = await response.json();
             fetchedData = convertToCamelCase(fetchedData['model_performance_metric']);
             setFetchedData(fetchedData);
@@ -205,6 +206,10 @@ const PlotPerformance: React.FC = () => {
         await fetchData();
     }
 
+    useEffect(() => {
+        handleLoadDataset(); // Automatically trigger on page load
+    }, []); 
+
     return (
         <>
             <LoadingBar isLoading={isLoading}/>
@@ -267,9 +272,6 @@ const PlotPerformance: React.FC = () => {
                                 <option value="datasetName">Dataset Name</option>
                             </select>
                         </label>
-                    </div>
-                    <div className="filter-item">
-                        <button onClick={handleLoadDataset}>Load Dataset</button>
                     </div>
                 </div>
                 {data && (

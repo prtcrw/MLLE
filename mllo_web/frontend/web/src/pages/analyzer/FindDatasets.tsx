@@ -111,7 +111,6 @@ const FindDatasets: React.FC = () => {
                 type_query: toggleConstraint.toString(),
                 direct_type: selectedCheckboxes["direct_type"].toString(),
             });
-
             // Add sorts as query params
             for (const {key, direction} of sorts) {
                 urlParams.append('sort', `${key},${direction}`);
@@ -203,7 +202,7 @@ const FindDatasets: React.FC = () => {
     const handlePlotPerformance = () => {
         let url = '/datasets/plot-performance';
         if (searchTerm) {
-            url += '?search-term=' + searchTerm;
+            url += '?search_term=' + searchTerm;
         }
         navigate(url);
     };
