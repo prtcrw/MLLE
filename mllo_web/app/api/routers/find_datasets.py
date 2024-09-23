@@ -10,7 +10,6 @@ import pandas as pd
 import numpy as np
 from fastapi import APIRouter, Request, Query
 from fastapi.responses import StreamingResponse, Response, JSONResponse
-from sklearn.datasets import fetch_openml
 from sklearn.decomposition import PCA
 
 from mllo_web.app.api.routers.utilities import (
@@ -405,19 +404,16 @@ async def get_model_output(request: Request, dataset_names: List[str] = Query(No
         return JSONResponse({"error": "No dataset names provided"}, status_code=400)
 
     # Load the MNIST dataset (do this only once)
-    (_, _), (_, y_test) = mnist.load_data()
-    y_test = to_categorical(y_test)
-    true_classes = np.argmax(y_test, axis=1)
+    true_classes = np.genfromtxt(os.path.join('datasets', 'y_test.csv'), delimiter= ',')
 
     all_results = []
-    print(dataset_names)
     for dataset_name in dataset_names:
         file_path = os.path.join('datasets', 'output_datasets', dataset_name)
         if not os.path.exists(file_path):
             return JSONResponse({"error": f"Dataset not found: {dataset_name}"}, status_code=404)
 
         predicted_classes = np.genfromtxt(file_path, delimiter=',')
-
+        
         # Ensure predicted_classes has the same length as true_classes
         if len(predicted_classes) != len(true_classes):
             return JSONResponse({"error": f"Mismatch in data length for dataset: {dataset_name}"}, status_code=400)

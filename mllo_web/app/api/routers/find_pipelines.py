@@ -252,7 +252,6 @@ async def get_pipeline_types(request: Request) -> JSONResponse:
     try:
         result = app.sparql_client.query(query)
         pipeline_types = [row['pipeline_type'] for row in result]
-        print(pipeline_types)
         return JSONResponse(content=pipeline_types)
     except Exception as e:
         return JSONResponse(content={"error": str(e)}, status_code=500)
