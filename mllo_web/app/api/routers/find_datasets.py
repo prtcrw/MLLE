@@ -40,7 +40,9 @@ WHERE {
     #ml_input_constraint
     ?model rdf:type/rdfs:label ?model_type.
     #MODEL_TYPE_FILTER
-    OPTIONAL{?model bfo:BFO_0000178 ?model_objective}
+    ?model bfo:BFO_0000178 ?model_objective.
+    ?model_objective rdf:type/rdfs:label ?objective_type.
+    #OBJECTIVE_TYPE_FILTER
     ?ml_process ml:hasDataInput ?dataset.
     #DATASETTYPE_CONSTRAINT
     ?dataset rdf:type ?dataset_type.
@@ -86,8 +88,7 @@ class FindDatasetsQueryBuilder(QueryBuilder):
         self,
         query_variables: List[str],
         search_term: Optional[str] = None,
-        type_query: bool = True,
-        direct_type: bool = False,
+        type_query: bool = False,
         dataset_role: Optional[List[str]] = None,
         sort: Optional[List[str]] = None,
         start_date: Optional[str] = None,
@@ -98,7 +99,6 @@ class FindDatasetsQueryBuilder(QueryBuilder):
         self.query_variables = query_variables
         self.model_input = re.sub(re.compile(r'\s+'), '', search_term) if search_term and len(search_term) > 0 else None
         self.type_query = type_query
-        self.direct_type = direct_type
         self.sort_string = to_order_by_string(sort, self.SORT_KEY_MAPPING)
         self.dataset_role = parse_option_params(dataset_role)
         self.start_date = start_date
@@ -129,7 +129,13 @@ class FindDatasetsQueryBuilder(QueryBuilder):
             )
 
         if self.model_input:
-            query = query.replace(
+            if self.type_query:
+                query = query.replace(
+                    "#OBJECTIVE_TYPE_FILTER",
+                    'FILTER(CONTAINS(STR(?objective_type),'+ '"'+ self.model_input + '"))'
+                )
+            else:
+                query = query.replace(
                     "#ml_input_constraint",
                     'FILTER(CONTAINS(STRAFTER(STR(?model),"#"),'+ '"'+ self.model_input + '"))'
                 )
@@ -194,7 +200,6 @@ async def get_datasets(
         dataset_role=dataset_role,
         type_query=type_query,
         model_types=model_types,
-        direct_type=direct_type,
         sort=sort,
         start_date=start_date,
         end_date=end_date,
