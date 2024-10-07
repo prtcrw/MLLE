@@ -36,29 +36,14 @@ PREFIX iof-core: <https://spec.industrialontologies.org/ontology/core/Core/>
 SELECT DISTINCT 
     #variables
 WHERE {
-    {
-        SELECT 
-            ?dataset
-            ?model
-            ?ml_process
-            (GROUP_CONCAT(?dataset_characteristic; separator=";") as ?dataset_characteristics)
-        WHERE {
-            ?ml_process ml:executes | bfo:BFO_0000057 ?model.
-            ?ml_process ml:hasDataInput ?dataset.
-            ?model rdf:type/rdfs:subClassOf#ml_input_constraint.
-            OPTIONAL {
-                ?dataset ml:hasInformationContentEntityCharacteristic ?dataset_characteristic
-            }
-        }
-        GROUP BY
-            ?dataset ?model ?ml_process
-    }
+    ?ml_process ml:executes | bfo:BFO_0000057 ?model.
+    #ml_input_constraint
     ?model rdf:type/rdfs:label ?model_type.
+    #MODEL_TYPE_FILTER
+    OPTIONAL{?model bfo:BFO_0000178 ?model_objective}
+    ?ml_process ml:hasDataInput ?dataset.
     #DATASETTYPE_CONSTRAINT
     ?dataset rdf:type ?dataset_type.
-    ?dataset_type rdfs:label ?dataset_used_as.
-    ?dataset ml:specifiesDimensionShape ?dataset_shape.
-
     OPTIONAL {
         ?ml_process bfo:BFO_0000222/iof-core:hasValueExpressionAtAllTimes/iof-core:hasDateTimeValue ?ml_input_timestamp
     }
@@ -66,18 +51,7 @@ WHERE {
         ?dataset ml:informationContentEntityDerivedFrom ?dataset_source
     }
     OPTIONAL {
-        ?ml_process ml:executes ?model.
-        ?ml_process ml:hasDataInput ?dataset.
         ?ml_process ml:hasDataOutput ?model_output
-        OPTIONAL { 
-            ?model_performance_assessment bfo:BFO_0000059 ?model_performance_metric_iri.
-            ?model_performance_assessment ml:hasDataInput ?model_output.
-            ?model_performance_assessment rdf:type/rdfs:subClassOf+ ml:ModelPerformanceAssessment.
-            ?model_performance_metric_iri rdf:type ?model_performance_metric_type.
-            ?model_performance_metric_type rdfs:subClassOf+ ml:PerformanceMetric.
-            ?model_performance_metric_type rdfs:label ?model_performance_metric.
-            ?model_performance_assessment ml:hasDataOutput/iof-core:hasSimpleExpressionValue ?model_performance_value
-        }
         OPTIONAL {
             ?utilization_process ml:hasDataInput ?model_output.
             ?utilization_process rdf:type/rdfs:label ?model_output_utilization
@@ -92,24 +66,19 @@ WHERE {
         ?model_performance_metric_type rdfs:label ?model_performance_metric.
         ?model_performance_assessment ml:hasDataOutput/iof-core:hasSimpleExpressionValue ?model_performance_value
     }
-    OPTIONAL {
-        ?data_preprocessing_pipeline bfo:BFO_0000063*/ml:hasDataOutput ?dataset.
-        ?data_preprocessing_pipeline rdf:type ml:MachineLearningDataPreparationPipeline
-    }
 }
 """
 
 
 class FindDatasetsQueryBuilder(QueryBuilder):
     SORT_KEY_MAPPING = {
-        "Dataset Name": "dataset_name",
-        "Dataset Used As": "dataset_used_as",
+        "Model Input": "dataset",
+        "Model": "model",
         "ML Input Timestamp": "ml_input_timestamp",
-        "Dataset Shape": "dataset_shape",
-        "Dataset Characteristics": "dataset_characteristics",
-        "Dataset Source": "dataset_source",
+        "Model Objective": "model_objective",
         "Model Type": "model_type",
         "Model Output": "model_output",
+        "Raw Data": "raw_data",
         "Model Output Utilization": "model_output_utilization",
     }
 
@@ -123,6 +92,7 @@ class FindDatasetsQueryBuilder(QueryBuilder):
         sort: Optional[List[str]] = None,
         start_date: Optional[str] = None,
         end_date: Optional[str] = None,
+        model_types: Optional[List[str]] = None,
         include_blank_date: Optional[bool] = False,
     ):
         self.query_variables = query_variables
@@ -134,6 +104,7 @@ class FindDatasetsQueryBuilder(QueryBuilder):
         self.start_date = start_date
         self.end_date = end_date
         self.include_blank_date = include_blank_date
+        self.model_types = model_types
 
     def build_query(self) -> str:
         query = QUERY
@@ -157,23 +128,16 @@ class FindDatasetsQueryBuilder(QueryBuilder):
                 ),
             )
 
-        if not self.model_input:
-            query = query.replace("#ml_input_constraint", "+ ml:MachineLearningModel")
-        else:
-            if self.type_query:
-                if self.direct_type:
-                    query = query.replace(
-                        "/rdfs:subClassOf#ml_input_constraint", " ml:" + self.model_input
-                    )
-                else:
-                    query = query.replace(
-                        "#ml_input_constraint", "* ml:" + self.model_input
-                    )
-            else:
-                query = query.replace(
-                    "?model rdf:type/rdfs:subClassOf#ml_input_constraint.",
+        if self.model_input:
+            query = query.replace(
+                    "#ml_input_constraint",
                     'FILTER(CONTAINS(STRAFTER(STR(?model),"#"),'+ '"'+ self.model_input + '"))'
                 )
+        if self.model_types:
+            model_types_str = ",".join([f'"{mtype}"' for mtype in self.model_types])
+            query = query.replace(
+                "#MODEL_TYPE_FILTER", f" FILTER(?model_type IN ({model_types_str}))"
+            )
 
         # Apply sort based on the mapping
         if self.sort_string:
@@ -193,6 +157,9 @@ async def get_datasets(
         default=True, description="Toggle for Model Name <-> Model Type"
     ),
     direct_type: bool = Query(default=False, description="Direct Type constraint"),
+    model_types: Optional[List[str]] = Query(
+        default=None, description="Model types"
+    ),
     start_date: Optional[str] = Query(
         default=None, description="Start date in YYYY-MM-DD format"
     ),
@@ -215,18 +182,18 @@ async def get_datasets(
     app = request.app
     query_builder = FindDatasetsQueryBuilder(
         query_variables=[
-            '(STRAFTER(STR(?dataset), "#") AS ?dataset_name)',
-            "?dataset_used_as" "?ml_input_timestamp",
-            "?dataset_shape",
-            "?dataset_characteristics",
-            "?dataset_source",
+            "?model",
             "?model_type",
+            "?model_objective",
+            "?dataset",
+            "?ml_input_timestamp",
             "?model_output",
             "?model_output_utilization",
         ],
         search_term=search_term,
         dataset_role=dataset_role,
         type_query=type_query,
+        model_types=model_types,
         direct_type=direct_type,
         sort=sort,
         start_date=start_date,
@@ -251,15 +218,6 @@ async def get_datasets(
             ).build_query()
         )
 
-        # Process data for JSON response
-        for dataset in datasets:
-            # Split dataset_characteristics by semicolon, remove leading/trailing whitespaces
-            if len(dataset["dataset_characteristics"]) > 0:
-                dataset["dataset_characteristics"] = [
-                    component.strip()
-                    for component in dataset["dataset_characteristics"].split(";")
-                ]
-
         return JSONResponse(
             {
                 "data": datasets,
@@ -272,17 +230,13 @@ async def get_datasets(
         return StreamingResponse(
             generate_csv_response(
                 header=[
-                    "dataset_name",
-                    "dataset_used_as",
-                    "ml_input_timestamp",
-                    "dataset_shape",
-                    "dataset_characteristics",
-                    "dataset_source",
+                    "model",
                     "model_type",
+                    "model_objective",
+                    "model_input",
+                    "ml_input_timestamp",
                     "model_output",
                     "model_output_utilization",
-                    "model_performance_metric",
-                    "model_performance_value",
                 ],
                 values=[x.values() for x in datasets],
             ),
@@ -309,6 +263,9 @@ async def get_datasets_performances(
     query_builder = FindDatasetsQueryBuilder(
         query_variables=[
             '(STRAFTER(STR(?dataset), "#") AS ?dataset_name)',
+            '(STRAFTER(STR(?model), "#") AS ?model_name)',
+            '?model_type',
+            '(STRAFTER(STR(?dataset_source), "#") AS ?raw_data)',
             "?model_performance_metric",
             "?model_performance_value",
         ],

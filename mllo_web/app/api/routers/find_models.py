@@ -30,49 +30,66 @@ PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>
 
 SELECT DISTINCT 
     ?dataset
-    (STRAFTER(STR(?model), "#") AS ?model_name) 
-    ?model_type
+    ?dataset_used_as 
+    ?dataset_used_for
+    ?dataset_characteristics
+    ?ml_input_timestamp
+    ?model_name 
     ?model_performance_metric
     ?model_performance_value
-    ?model_objective
-    ?data_preprocessing_pipeline
-    ?ml_input_timestamp
-    ?dataset_used_as 
+
 WHERE {
+    {
+        SELECT 
+            ?dataset
+            ?model_name
+            ?ml_process
+            (GROUP_CONCAT(?dataset_characteristic; separator=";") as ?dataset_characteristics)
+        WHERE {
+        ?ml_process ml:hasDataInput/ml:informationContentEntityDerivedFrom* ?dataset.
+        ?ml_process (bfo:BFO_0000057 | ml:executes) ?model_name.
+        #DATASET_FILTER
+        OPTIONAL {
+            ?dataset ml:hasInformationContentEntityCharacteristic ?dataset_characteristic
+            }
+        }
+        GROUP BY
+            ?dataset ?model_name ?ml_process
+    }
+
     #DATASETTYPE_CONSTRAINT
     ?dataset rdf:type ?dataset_type.
     ?dataset_type rdfs:label ?dataset_used_as.
-    #DATASET_FILTER
-    ?ml_process ml:hasDataInput ?dataset.
-    ?ml_process bfo:BFO_0000063*/(bfo:BFO_0000057 | ml:executes) ?model.
-    
-    OPTIONAL {
-        ?ml_process bfo:BFO_0000222/iof-core:hasValueExpressionAtAllTimes/iof-core:hasDateTimeValue ?ml_input_timestamp
-    }
-
-    ?model rdf:type ?model_type_iri.
+    ?model_name rdf:type ?model_type_iri.
     ?model_type_iri rdfs:subClassOf+ ml:MachineLearningModel.
     ?model_type_iri rdfs:label ?model_type.
     
     #MODEL_TYPE_FILTER
 
     OPTIONAL {
-        ?model bfo:BFO_0000178 ?model_objective.
-        ?model_objective rdf:type/rdfs:subClassOf* iof-core:ObjectiveSpecification.
+        ?ml_process bfo:BFO_0000222/iof-core:hasValueExpressionAtAllTimes/iof-core:hasDateTimeValue ?ml_input_timestamp
     }
+        
+    {?ml_process ml:hasDataOutput ?model_output.
+    ?utilization_process ml:hasDataInput ?model_output.
+    ?utilization_process rdf:type/rdfs:label ?dataset_used_for.}
+    UNION
+    {
+    ?ml_process rdf:type/rdfs:subClassOf* ml:MachineLearningTraining.
+    ?ml_process rdfs:label ?dataset_used_for.
+    }
+
     OPTIONAL {
-        ?ml_process ml:hasDataOutput+/^ml:hasDataInput ?model_performance_assessment.
+        ?model_performance_assessment ml:hasDataInput ?model_output.
         ?model_performance_assessment bfo:BFO_0000059 ?model_performance_metric_iri.
         ?model_performance_assessment rdf:type/rdfs:subClassOf* ml:ModelPerformanceAssessment.
         ?model_performance_metric_iri rdf:type ?model_performance_metric_type.
         ?model_performance_metric_type rdfs:subClassOf+ ml:PerformanceMetric.
         ?model_performance_metric_type rdfs:label ?model_performance_metric.
-        ?model_performance_assessment ml:hasDataOutput/iof-core:hasSimpleExpressionValue ?model_performance_value
+        ?model_performance_assessment ml:hasDataOutput/iof-core:hasSimpleExpressionValue ?model_performance_value.
     }
-    OPTIONAL {
-        ?data_preprocessing_pipeline ml:hasDataOutput ?dataset.
-        ?data_preprocessing_pipeline rdf:type ml:MachineLearningDataPreparationPipeline
-    }
+      
+
 }
 
 """
@@ -81,14 +98,13 @@ WHERE {
 class FindModelsQueryBuilder(QueryBuilder):
     SORT_KEY_MAPPING = {
         "Dataset Name": "dataset_name",
+        "Dataset Used As": "dataset_used_as",
+        "Dataset Used For": "dataset_used_for",
+        "Dataset Characteristics": "dataset_characteristics",
+        "ML Input Timestamp": "ml_input_timestamp",
         "Model Name": "model_name",
-        "Model Type": "model_type",
         "Model Performance Metric": "model_performance_metric",
         "Model Performance Value": "model_performance_value",
-        "Model Objective": "model_objective",
-        "Data Preprocessing": "data_preprocessing_pipeline",
-        "ML Input Timestamp": "ml_input_timestamp",
-        "Dataset Used For": "dataset_used_as",
     }
 
     def __init__(
@@ -200,6 +216,14 @@ async def get_models(
                 query_builder, page=page, items_per_page=items_per_page
             ).build_query()
         )
+    # Process data for JSON response
+        for dataset in models:
+            # Split dataset_characteristics by semicolon, remove leading/trailing whitespaces
+            if len(dataset["dataset_characteristics"]) > 0:
+                dataset["dataset_characteristics"] = [
+                    component.strip()
+                    for component in dataset["dataset_characteristics"].split(";")
+                ]
 
         return JSONResponse(
             {
@@ -214,14 +238,13 @@ async def get_models(
             generate_csv_response(
                 header=[
                     "dataset_name",
+                    "dataset_used_as",
+                    "dataset_used_for",
+                    "ml_input_timestamp",
                     "model_name",
-                    "model_type",
                     "model_performance_metric",
                     "model_performance_value",
-                    "model_objective",
-                    "data_preprocessing_pipeline",
-                    "ml_input_timestamp",
-                    "dataset_used_as",
+                    "dataset_characteristics",
                 ],
                 values=[x.values() for x in models],
             ),

@@ -15,14 +15,13 @@ import DateRangeSlider from '../../components/DateRangeSlider';
 
 interface ModelData {
     dataSetName:string;
+    datasetUsedAs: string;
+    datasetUsedFor: string;
+    datasetCharacteristics: string;
+    mlInputTimestamp: string;
     modelName: string;
-    modelType: string;
     modelPerformanceMetric: string;
     modelPerformanceValue: number;
-    modelObjective: string;
-    dataPreprocessing: string;
-    mlInputTimestamp: string;
-    datasetUsedFor: string;
 }
 
 interface IRIQueryData {
@@ -36,7 +35,7 @@ const defaultSelectedCheckboxes = {
     "validation_data": true,
     "training_data": true,
     "production_data": true,
-    "raw_data": false,
+    "raw_data": true,
 };
 
 const FindDatasetUsages: React.FC = () => {
@@ -49,14 +48,13 @@ const FindDatasetUsages: React.FC = () => {
     const [modelTypes, setModelTypes] = useState<string[]>([]); // Add model types state
     const sortHeaders = [
         "Dataset Name",
+        "Dataset Used As",
+        "Dataset Used For",
+        "Dataset Characteristics",
+        "ML Input Timestamp",
         "Model Name",
-        "Model Type",
         "Model Performance Metric",
         "Model Performance Value",
-        "Model Objective",
-        "Data Preprocessing",
-        "ML Input Timestamp",
-        "Dataset Used As",
     ];
     const [currentSorts, setCurrentSorts] = useState<{ key: string; direction: SortDirection }[]>([
         { key: "Dataset Name", direction: "asc" }
@@ -187,7 +185,28 @@ const FindDatasetUsages: React.FC = () => {
         }
     };
 
-    const mapItemToRow = (_header: string, value: any) => {
+    const mapItemToRow = (header: string, value: any) => {
+
+        if (header === "Dataset Name" && typeof value === 'string') {
+            return (
+                <a
+                    href="#"
+                    onClick={(e) => {
+                        if (e.altKey) {  // Check if Alt key is pressed
+                            e.preventDefault();  // Prevent the default behavior
+                            navigate(`/pipelines/?search_term=${getUniqueIriPart(value)}&toggle_constraint=true`);  // Redirect to the "Find Pipelines" page
+                        } else {  // Default click behavior
+                            e.preventDefault();  // Prevent the default behavior
+                            handleIriClick(value);  // Handle it as an IRI click
+                        }
+                    }}
+                    style={{color: 'blue', textDecoration: 'underline'}}
+                >
+                    {pascalCaseToWords(getUniqueIriPart(value))}
+                </a>
+            );
+        }
+
         if (typeof value === 'string' && value.startsWith('http')) {
             return (
                 <a
@@ -196,21 +215,39 @@ const FindDatasetUsages: React.FC = () => {
                         e.preventDefault();
                         handleIriClick(value);
                     }}
-                    style={{ color: 'blue', textDecoration: 'underline' }}
+                    style={{color: 'blue', textDecoration: 'underline'}}
                 >
                     {pascalCaseToWords(getUniqueIriPart(value))}
                 </a>
             );
         }
+        if (header === "Dataset Characteristics" && Array.isArray(value)) {
+            return (
+                <div>
+                    {getUniqueIriPart(value).map((iri: string, index: number) => (
+                        <div key={index}>
+                            <a
+                                href="#"
+                                onClick={(e) => {
+                                    e.preventDefault();
+                                    handleIriClick(value[index]);
+                                }}
+                                style={{color: 'blue', textDecoration: 'underline', marginRight: '8px'}}
+                            >
+                                {pascalCaseToWords(getUniqueIriPart(iri))}
+                            </a>
+                        </div>
+                    ))}
+                </div>
+            );
+        }
+
         if (typeof value === 'string') {
-            // Check if the string is in PascalCase
             if (/^[A-Z][a-z0-9]+([A-Z][a-z0-9]*)*$/.test(value)) {
                 value = pascalCaseToWords(value);
             } else if (/^[a-z ]+$/.test(value)) {
-                // If the string is in lowercase with spaces, convert to PascalCase
                 value = lowercaseToPascalCase(value);
             }
-
             return (
                 <span>{value}</span>
             );

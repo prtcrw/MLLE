@@ -25,19 +25,19 @@ SELECT DISTINCT
     ?pipeline_type
     ?pipeline_components
     (STRAFTER(STR(?pipeline_data_input_iri), "#") AS ?pipeline_data_input)
+    (STRAFTER(STR(?pipeline_data_output_iri), "#") AS ?pipeline_data_output)
     (STRAFTER(STR(?pipeline_associated_model_iri), "#") AS ?pipeline_associated_model) 
 WHERE { 
-    ?pipeline rdf:type ?pipeline_type_iri.
-    ?pipeline_type_iri rdfs:label ?pipeline_type .
-    #pipeline_type_filter
     
     {
         SELECT 
             ?pipeline 
             ?pipeline_type 
-            (GROUP_CONCAT(?pipeline_component_label; separator=";") AS ?pipeline_components)
+            (GROUP_CONCAT(DISTINCT ?pipeline_component_label; separator=";") AS ?pipeline_components)
         WHERE {
 	        ?pipeline rdf:type ?pipeline_type_iri.
+            ?pipeline_type_iri rdfs:label ?pipeline_type .
+            #pipeline_type_filter
             {
                 ?pipeline_type_iri rdfs:subClassOf+ ml:DataProcessingPipeline.
                 ?pipeline_type_iri rdfs:label ?pipeline_type
@@ -60,6 +60,9 @@ WHERE {
     OPTIONAL {
         ?pipeline ml:hasDataInput ?pipeline_data_input_iri
     }
+        OPTIONAL {
+        ?pipeline ml:hasDataOutput ?pipeline_data_output_iri
+    }
     OPTIONAL {
         {
             ?pipeline bfo:BFO_0000117*/(bfo:BFO_0000057 | ml:executes) ?pipeline_associated_model_iri
@@ -80,6 +83,7 @@ class FindPipelinesQueryBuilder(QueryBuilder):
         "Pipeline Type": "pipeline_type",
         "Pipeline Components": "pipeline_components",
         "Pipeline Data Input": "pipeline_data_input",
+        "Pipeline Data Output": "pipeline_data_output",
         "Pipeline Associated Model": "pipeline_associated_model",
     }
 
@@ -213,6 +217,7 @@ async def get_pipelines(
                     "pipeline_type",
                     "pipeline_components",
                     "pipeline_data_input",
+                    "pipeline_data_output",
                     "pipeline_associated_model",
                 ],
                 values=[x.values() for x in pipelines],
@@ -234,14 +239,14 @@ async def get_pipeline_types(request: Request) -> JSONResponse:
 
     SELECT DISTINCT ?pipeline_type
     WHERE {
-        ?pipeline rdf:type ?pipeline_type_iri .
-        {
+            ?pipeline rdf:type ?pipeline_type_iri. 
+            {
             ?pipeline_type_iri rdfs:subClassOf+ ml:DataProcessingPipeline .
             ?pipeline_type_iri rdfs:label ?pipeline_type .
         }
         UNION
         {
-            VALUES ?pipeline_type_iri { ml:MachineLearningModelDevelopmentPipeline }
+            VALUES ?pipeline_type_iri { ml:MachineLearningModelDevelopmentPipeline  ml:DataProcessingPipeline}
             ?pipeline_type_iri rdfs:label ?pipeline_type .
         }
     }

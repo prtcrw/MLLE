@@ -3,7 +3,7 @@ from io import StringIO
 from typing import Optional, List
 
 
-def to_order_by_string(sort: Optional[List[str]], mapping: dict) -> str | None:
+def to_order_by_string(sort: Optional[List[str]], mapping: dict) -> str:
     parsed_sort = []
     for key, direction in parse_option_params(sort).items():
         mapped_key = mapping.get(key)

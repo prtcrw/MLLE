@@ -12,15 +12,14 @@ import FindDatasetsFilter from './FindDatasetsFilter.tsx';
 import Modal from '../../components/Modal.tsx';
 import {pascalCaseToWords, lowercaseToPascalCase} from '../../components/FormatUtilities';
 import DateRangeSlider from '../../components/DateRangeSlider';
+import DropdownFilter from '../../components/DropdownFilter';
 
 interface DatasetData {
-    datasetName: string;
-    datasetUsedAs: string;
-    ml_input_timestamp: string;
-    datasetShape: string;
-    datasetCharacteristics: string[];
-    datasetSource: string;
+    model: string;
     modelType: string;
+    modelObjective: string;
+    modelInput: string;
+    ml_input_timestamp: string;
     modelOutput: string;
     modelOutputUtilization: string;
 }
@@ -42,25 +41,24 @@ const defaultSelectedCheckboxes = {
 
 const FindDatasets: React.FC = () => {
     const [searchTerm, setSearchTerm] = useState('');
-    const [toggleConstraint, setToggleConstraint] = useState<boolean>(true);
+    const [toggleConstraint, setToggleConstraint] = useState<boolean>(false);
     const [selectedCheckboxes, setSelectedCheckboxes] = useState<{ [key: string]: boolean }>(defaultSelectedCheckboxes);
     const [datasets, setDatasets] = useState<DatasetData[]>([]);
+    const [modelTypes, setModelTypes] = useState<string[]>([]); // Add model types state
     const [currentPage, setCurrentPage] = useState(1);
     const [totalPages, setTotalPages] = useState(0);
     const [itemsPerPage, setItemsPerPage] = useState(10);
     const sortHeaders = [
-        "Dataset Name",
-        "Dataset Used As",
-        "ML Input Timestamp",
-        "Dataset Shape",
-        "Dataset Characteristics",
-        "Dataset Source",
+        "Model",
         "Model Type",
+        "Model Objective",
+        "Model Input",
+        "ML Input Timestamp",
         "Model Output",
         "Model Output Utilization",
     ];
     const [currentSorts, setCurrentSorts] = useState<{ key: string; direction: SortDirection }[]>([
-        {key: "Dataset Name", direction: "asc"}
+        {key: "Model", direction: "asc"}
     ]);
     const [isLoading, setIsLoading] = useState(false);
     const [message, setMessage] = useState('');
@@ -98,6 +96,7 @@ const FindDatasets: React.FC = () => {
         sorts: { key: string; direction: SortDirection }[],
         selectedCheckboxes: { [key: string]: boolean },
         toggleConstraint: boolean,
+        modelTypes: string[],
         format: string = ''
     ) => {
         setIsLoading(true); // Set loading to true
@@ -119,6 +118,11 @@ const FindDatasets: React.FC = () => {
             // Add dataset_role as query params
             Object.keys(selectedCheckboxes).filter(key => selectedCheckboxes[key]).map((key) => {
                 urlParams.append('dataset_role', `${key},${selectedCheckboxes[key]}`);
+            });
+
+            // Add model types as query param
+            modelTypes.forEach(type => {
+                urlParams.append('model_types', type);
             });
 
             if (format !== '') {
@@ -153,28 +157,28 @@ const FindDatasets: React.FC = () => {
 
     const handleSearch = async (searchTerm: string) => {
         setSearchTerm(searchTerm);
-        await fetchData(searchTerm, 1, itemsPerPage, currentSorts, selectedCheckboxes, toggleConstraint);
+        await fetchData(searchTerm, 1, itemsPerPage, currentSorts, selectedCheckboxes, toggleConstraint,modelTypes);
     };
 
     const handleDownload = async () => {
-        await fetchData(searchTerm, 1, itemsPerPage, currentSorts, selectedCheckboxes, toggleConstraint, 'csv');
+        await fetchData(searchTerm, 1, itemsPerPage, currentSorts, selectedCheckboxes, toggleConstraint,modelTypes, 'csv');
     };
 
     const handlePageChange = async (page: number = 1, itemsPerPage: number = 10) => {
         setCurrentPage(page);
         setItemsPerPage(itemsPerPage);
-        await fetchData(searchTerm, page, itemsPerPage, currentSorts, selectedCheckboxes, toggleConstraint);
+        await fetchData(searchTerm, page, itemsPerPage, currentSorts, selectedCheckboxes, toggleConstraint,modelTypes);
     };
 
     const handleSort = async (sorts: { key: string; direction: SortDirection }[]) => {
         setCurrentSorts(sorts);
-        await fetchData(searchTerm, currentPage, itemsPerPage, sorts, selectedCheckboxes, toggleConstraint);
+        await fetchData(searchTerm, currentPage, itemsPerPage, sorts, selectedCheckboxes, toggleConstraint,modelTypes);
     };
 
     const handleRemoveSort = async (key: string) => {
         const newSorts = currentSorts.filter(sort => sort.key !== key);
         setCurrentSorts(newSorts);
-        await fetchData(searchTerm, currentPage, itemsPerPage, newSorts, selectedCheckboxes, toggleConstraint); // Update data with new sorts
+        await fetchData(searchTerm, currentPage, itemsPerPage, newSorts, selectedCheckboxes, toggleConstraint,modelTypes); // Update data with new sorts
     };
 
     const handleToggleConstraint = () => {
@@ -235,26 +239,6 @@ const FindDatasets: React.FC = () => {
                 </a>
             );
         }
-        if (header === "Dataset Characteristics" && Array.isArray(value)) {
-            return (
-                <div>
-                    {getUniqueIriPart(value).map((iri: string, index: number) => (
-                        <div key={index}>
-                            <a
-                                href="#"
-                                onClick={(e) => {
-                                    e.preventDefault();
-                                    handleIriClick(value[index]);
-                                }}
-                                style={{color: 'blue', textDecoration: 'underline', marginRight: '8px'}}
-                            >
-                                {pascalCaseToWords(getUniqueIriPart(iri))}
-                            </a>
-                        </div>
-                    ))}
-                </div>
-            );
-        }
         if (typeof value === 'string') {
             if (/^[A-Z][a-z0-9]+([A-Z][a-z0-9]*)*$/.test(value)) {
                 value = pascalCaseToWords(value);
@@ -294,13 +278,21 @@ const FindDatasets: React.FC = () => {
     return (
         <div>
             <LoadingBar isLoading={isLoading}/>
-            <h1>Find Datasets</h1>
+            <h1>Find Models</h1>
             <div style={{margin: '8px 0'}}>
-                <Search onSearch={handleSearch} placeholder={!toggleConstraint ? 'Model Name' : 'Model Type'}/>
+                <Search onSearch={handleSearch} placeholder={!toggleConstraint ? 'Model Name' : 'Objective Type'}/>
                 <FindDatasetsFilter
                     selectedFilters={selectedCheckboxes}
                     onFilterChange={handleCheckboxChange}
                 />
+                <div style={{ marginLeft: '8px' }}>
+                        <DropdownFilter
+                            endpoint={buildV1Url('models/types')}
+                            selectedValues={modelTypes}
+                            onChange={setModelTypes}
+                            label="Model Type"
+                        />
+                    </div>
                 <div style={{
                     display: 'flex',
                     alignItems: 'center',
@@ -310,18 +302,7 @@ const FindDatasets: React.FC = () => {
                 }}>
                     <span className="toggle-label">Model Name</span>
                     <ToggleSwitch isChecked={toggleConstraint} onToggle={handleToggleConstraint}/>
-                    <span className="toggle-label" style={{marginLeft: '8px'}}>Model Type</span>
-                    <label style={{display: 'flex', alignItems: 'center', marginLeft: '16px'}}>
-                        <input
-                            type="checkbox"
-                            name="direct_type"
-                            checked={selectedCheckboxes["direct_type"] || false}
-                            onChange={handleCheckboxChange}
-                            disabled={!toggleConstraint} // Disable when toggle is not on "Model Type"
-                            style={{marginRight: '8px'}}
-                        />
-                        <span>Direct Type</span>
-                    </label>
+                    <span className="toggle-label" style={{marginLeft: '8px'}}>Objective Type</span>
                 </div>
             </div>
             <DateRangeSlider

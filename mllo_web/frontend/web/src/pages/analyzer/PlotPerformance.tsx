@@ -23,6 +23,9 @@ ChartJS.register(CategoryScale, LinearScale, BarElement, LineElement, Filler, Po
 type PerformanceData = {
     datasetName: string;
     modelPerformanceValue: number;
+    modelName: string;
+    modelType: string;
+    rawData: string;
 }
 
 type PerformanceMetrics = {
@@ -37,6 +40,9 @@ const convertToCamelCase = (data: any): PerformanceMetrics => {
         if (data.hasOwnProperty(metric)) {
             camelCaseData[metric] = data[metric].map((item: any) => ({
                 datasetName: item['dataset_name'],
+                modelName: item['model_name'],
+                modelType: item['model_type'],
+                rawData: item['raw_data'],
                 modelPerformanceValue: parseFloat(item['model_performance_value']),
             }));
         }
@@ -50,14 +56,17 @@ const PlotPerformance: React.FC = () => {
     const [yAxisMetric, setYAxisMetric] = useState(''); // Initially empty
     const [performanceCutoff, setPerformanceCutoff] = useState(50);
     const [orderBy, setOrderBy] = useState('Ascending');
-    const [groupBy, setGroupBy] = useState('datasetName');
+    const [groupBy, setGroupBy] = useState('default');
     const [isLoading, setIsLoading] = useState(false);
     const [fetchedData, setFetchedData] = useState<PerformanceMetrics>(null);
     const [data, setData] = useState<any>(null);
     const [options, setOptions] = useState<any>({});
     const [yAxisMetricOptions, setYAxisMetricOptions] = useState<string[]>([]);
-    const [minCutoff, setMinCutoff] = useState(0.0);
+    const [uniqueModelNames, setUniqueModelNames] = useState<string[]>([]);
+    const [modelColorMapping, setModelColorMapping] = useState<{ [key: string]: string }>({}); // State for color mapping    
     const [maxCutoff, setMaxCutoff] = useState(100.0);
+    const [minCutoff, setMinCutoff] = useState(0.0);
+    const [hiddenModels, setHiddenModels] = useState<string[]>([]); // Track hidden models for onclick chart behavior
 
     useEffect(() => {
         if (yAxisMetric && performanceCutoff && orderBy && groupBy) {
@@ -71,19 +80,36 @@ const PlotPerformance: React.FC = () => {
         try {
             // Fetch data with filters
             const queryParams = new URLSearchParams(window.location.search)
-            console.log(queryParams)
             const response = await fetch(buildV1Url(`datasets/performances/?${queryParams.toString()}`));
             let fetchedData = await response.json();
             fetchedData = convertToCamelCase(fetchedData['model_performance_metric']);
             setFetchedData(fetchedData);
-
+            console.log(fetchedData)
             // Extract the first metric key as the default yAxisMetric
             const initialMetric = Object.keys(fetchedData)[0];
             setYAxisMetric(initialMetric);
             setYAxisMetricOptions(Object.keys(fetchedData));
+            //set color mapping
+            const uniqueModelNames = [...new Set(fetchedData[Object.keys(fetchedData)].map(item => item.modelName))];
+            const colorPalette = generateColorPalette(uniqueModelNames.length);
+            setUniqueModelNames(uniqueModelNames)
+            // Create a mapping from model name to a color
+            const modelColorMapping: {[key: string]: string} = uniqueModelNames.reduce((acc, modelName, index) => {
+                acc[modelName] = colorPalette[index % colorPalette.length];
+                return acc;
+            }, {});
+            setModelColorMapping(modelColorMapping);
         } finally {
             setIsLoading(false); // Set loading to false after fetching
         }
+    };
+    const generateColorPalette = (numColors: number): string[] => {
+        const colors = [];
+        for (let i = 0; i < numColors; i++) {
+            const hue = (i * 360 / numColors) % 360; // Distribute hues evenly
+            colors.push(`hsl(${hue}, 70%, 50%)`); // HSL with 70% saturation and 50% lightness
+        }
+        return colors;
     };
 
     const calculateVariance = (values: number[]): number => {
@@ -93,22 +119,25 @@ const PlotPerformance: React.FC = () => {
     };
 
     const drawChart = async () => {
-        setIsLoading(true); // Set loading to true
+        setIsLoading(true);
         try {
-            // Prepare the chart data
-            const filteredData = fetchedData[yAxisMetric].filter(item => item.modelPerformanceValue >= performanceCutoff) as PerformanceData[];
-
+            const filteredData = fetchedData[yAxisMetric].filter(
+                item => item.modelPerformanceValue >= performanceCutoff && !hiddenModels.includes(item.modelName)
+            ) as PerformanceData[];
             const chartData = {
                 labels: filteredData.map(item => item.datasetName),
                 datasets: [{
-                    label: yAxisMetric.charAt(0).toUpperCase() + yAxisMetric.slice(1), // Capitalize the label
+                    label: yAxisMetric.charAt(0).toUpperCase() + yAxisMetric.slice(1),
                     data: filteredData.map(item => item.modelPerformanceValue),
-                    backgroundColor: plotType === 'Bar' ? 'rgba(75, 192, 192, 0.2)' : 'rgba(153, 102, 255, 0.2)',
-                    borderColor: plotType === 'Bar' ? 'rgba(75, 192, 192, 1)' : 'rgba(153, 102, 255, 1)',
+                    modelNames: filteredData.map(item => item.modelName), 
+                    modelTypes: filteredData.map(item => item.modelType), 
+                    rawDatas: filteredData.map(item => item.rawData), 
+                    backgroundColor: filteredData.map(item => modelColorMapping[item.modelName]), // Use dynamic color
+                    borderColor: filteredData.map(item => modelColorMapping[item.modelName]), // Same color for border
                     borderWidth: 1,
-                    fill: plotType === 'Line', // Fill the area under the line only if it's a Line chart
                 }]
             };
+    
 
             // Sort the chart data based on orderBy and groupBy
             const sortedData = sortChartData(chartData, orderBy, groupBy);
@@ -128,62 +157,124 @@ const PlotPerformance: React.FC = () => {
             const adjustedMinY = minY - adjustmentFactor * standardDeviation;
             const adjustedMaxY = maxY + adjustmentFactor * standardDeviation;
 
+
             const chartOptions = {
                 responsive: true,
                 plugins: {
-                    legend: {position: 'top'},
-                    tooltip: {
-                        callbacks: {
-                            label: (context: any) => `${context.dataset.label}: ${context.raw}`
+                    legend: { 
+                        display: true,
+                        labels: {
+                            generateLabels: (chart) => {
+                                return uniqueModelNames.map(modelName => {
+                                    
+                                    // Find the corresponding modelType for the modelName
+                                    const modelItem = filteredData.find(item => item.modelName === modelName);
+                                    const modelType = modelItem ? modelItem.modelType : '';
+            
+                                    return {
+                                        text: `${modelName}\n(${modelType})`,  // Display modelName with modelType below
+                                        fillStyle: modelColorMapping[modelName], // Use the same color mapping
+                                        hidden: false,
+                                    };
+                                });
+                            }
                         }
                     },
-                    datalabels: {
-                        anchor: 'end',
-                        align: 'end',
-                        clamp: true
+                                  tooltip: {
+                    callbacks: {
+                        // Customize tooltip to show both rawData and modelPerformanceValue
+                        label: (context: any) => {
+                            const rawData = context.dataset.rawDatas[context.dataIndex];
+                            const performance = context.raw;
+                            const performanceType = context.dataset.label;
+                            return [
+                                `${performanceType}: ${performance}`,
+                                `Raw Data: ${rawData}`
+                            ];
+                        }
                     }
                 },
-                scales: {
-                    y: {
-                        min: adjustedMinY,
-                        max: adjustedMaxY,
-                    }
+                datalabels: {
+                    anchor: 'end',
+                    align: 'end',
+                    clamp: true
                 }
-            };
-
+            },
+            scales: {
+                y: {
+                    min: adjustedMinY,
+                    max: adjustedMaxY,
+                },
+                x: {
+                    barPercentage: 0.5,   // Adjust bar width 
+                    categoryPercentage: 1 // Adjust overall category width
+                }
+            }
+        };
             setOptions(chartOptions);
         } finally {
             setIsLoading(false); // Set loading to false after fetching
         }
     };
 
+    const groupDataBy = (data: any[], groupBy: string): { [key: string]: any[] } => {
+        return data.reduce((acc: { [key: string]: any[] }, item: any) => {
+            const groupKey = item[groupBy]; // dynamic group key based on groupBy
+            if (!acc[groupKey]) {
+                acc[groupKey] = [];
+            }
+            acc[groupKey].push(item);
+            return acc;
+        }, {});
+    };
+    
     const sortChartData = (chartData: any, orderBy: string, groupBy: string) => {
-        // Sort the data based on orderBy and groupBy
+        // Access both data and model names in the dataset
         const data = chartData.datasets[0].data as number[];
-        const sortedData = data.map((item, index) => ({
+        const modelNames = chartData.datasets[0].modelNames as string[];
+        const modelTypes = chartData.datasets[0].modelTypes as string[];
+        const rawDatas = chartData.datasets[0].rawDatas as string[];
+
+        // Create a combined array with datasetName, modelPerformanceValue,  modelName and modelType
+        const combinedData = data.map((item, index) => ({
             datasetName: chartData.labels[index],
             modelPerformanceValue: item,
+            modelName: modelNames[index],
+            modelType: modelTypes[index],
+            rawData: rawDatas[index],
         }));
-
-        // Sort by modelPerformanceValue
-        sortedData.sort((a, b) => {
-            if (orderBy === 'Ascending') {
-                return a.modelPerformanceValue - b.modelPerformanceValue;
-            } else {
-                return b.modelPerformanceValue - a.modelPerformanceValue;
-            }
-        });
-
-        if (groupBy) {
-            // TODO: ...
+    
+        // Group data by the selected `groupBy` field 
+        const groupedData = groupDataBy(combinedData, groupBy);
+    
+        // Flatten the grouped data for sorting and further processing
+        let sortedData: any[] = [];
+    
+        for (const groupKey in groupedData) {
+            let group = groupedData[groupKey];
+            // Sort the group by modelPerformanceValue (either ascending or descending)
+            group.sort((a, b) => {
+                if (orderBy === 'Ascending') {
+                    return a.modelPerformanceValue - b.modelPerformanceValue;
+                } else {
+                    return b.modelPerformanceValue - a.modelPerformanceValue;
+                }
+            });
+            sortedData = sortedData.concat(group);
         }
-
-        // Update labels and data in the chartData object
+    
+        // Update labels, data, and modelNames in the chartData object after sorting
         chartData.labels = sortedData.map(item => item.datasetName);
         chartData.datasets[0].data = sortedData.map(item => item.modelPerformanceValue);
-
+        chartData.datasets[0].rawDatas = sortedData.map(item => item.rawData);
+        chartData.datasets[0].ModelNames = sortedData.map(item => item.modelName);
+        chartData.datasets[0].modelTypes = sortedData.map(item => item.modelType);
+        chartData.datasets[0].backgroundColor = sortedData.map(item => modelColorMapping[item.modelName]);
+        chartData.datasets[0].borderColor = sortedData.map(item => modelColorMapping[item.modelName]);
+    
         return chartData;
     };
+    
 
     const updateCutoffValues = () => {
         const values = fetchedData[yAxisMetric].map(item => item.modelPerformanceValue);
@@ -270,7 +361,11 @@ const PlotPerformance: React.FC = () => {
                         <label>
                             Group By:
                             <select value={groupBy} onChange={(e) => setGroupBy(e.target.value)}>
+                                <option value="default">Model Performance</option> // sets the default sort to model performance value
+                                <option value="rawData">Raw Data</option>
                                 <option value="datasetName">Dataset Name</option>
+                                <option value="modelName">Model Name</option>
+                                <option value="modelType">Model Type</option>
                             </select>
                         </label>
                     </div>

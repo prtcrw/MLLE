@@ -1,21 +1,22 @@
-import React, {useState} from 'react';
-import {Link, useNavigate} from 'react-router-dom';
-import {buildV1Url, downloadFromResponse} from '../../services/api';
+import React, { useEffect, useState } from 'react';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
+import { buildV1Url, downloadFromResponse } from '../../services/api';
 import LoadingBar from '../../components/LoadingBar.tsx';
 import ErrorMessage from '../../components/ErrorMessage.tsx';
 import Search from '../../components/Search.tsx';
-import Table, {SortDirection} from '../../components/Table.tsx';
+import Table, { SortDirection } from '../../components/Table.tsx';
 import Pagination from '../../components/Pagination.tsx';
 import ToggleSwitch from '../../components/ToggleSwitch.tsx';
-import DropdownFilter from '../../components/DropdownFilter.tsx';  // Import the updated DropdownFilter
-import {DownloadIcon} from '../../components/Icons.tsx';
-import {pascalCaseToWords, lowercaseToPascalCase} from '../../components/FormatUtilities';
+import DropdownFilter from '../../components/DropdownFilter.tsx';
+import { DownloadIcon } from '../../components/Icons.tsx';
+import { pascalCaseToWords, lowercaseToPascalCase } from '../../components/FormatUtilities';
 
 interface PipelineData {
     pipelineName: string;
     pipelineType: string;
     pipelineComponents: string[];
     pipelineDataInput: string;
+    pipelineDataOutput: string;
     pipelineAssociatedModel: string;
 }
 
@@ -26,28 +27,49 @@ const FindPipelines: React.FC = () => {
     const [currentPage, setCurrentPage] = useState(1);
     const [totalPages, setTotalPages] = useState(0);
     const [itemsPerPage, setItemsPerPage] = useState(10);
-    const [pipelineTypes, setPipelineTypes] = useState<string[]>([]);  // State to hold selected pipeline types
+    const [pipelineTypes, setPipelineTypes] = useState<string[]>([]);
     const sortHeaders = [
         "Pipeline Name",
         "Pipeline Type",
         "Pipeline Components",
         "Pipeline Data Input",
+        "Pipeline Data Output",
         "Pipeline Associated Model",
     ];
     const [currentSorts, setCurrentSorts] = useState<{ key: string; direction: SortDirection }[]>([
-        {key: "Pipeline Name", direction: 'asc'}
+        { key: "Pipeline Name", direction: 'asc' }
     ]);
     const [isLoading, setIsLoading] = useState(false);
     const [message, setMessage] = useState('');
     const [error, setError] = useState<string | null>(null);
     const navigate = useNavigate();
+    const location = useLocation(); // Use useLocation to access the current URL
 
-    const fetchData = async (searchTerm: string,
-                             currentPage: number,
-                             itemsPerPage: number,
-                             sorts: { key: string; direction: SortDirection }[],
-                             toggleConstraint: boolean,
-                             format: string = '') => {
+    useEffect(() => {
+        const urlParams = new URLSearchParams(location.search);
+        const searchTermFromUrl = urlParams.get('search_term');
+        const toggleConstraintFromUrl = urlParams.get('toggle_constraint');
+
+        // Only update the state if the 'search_term' exists in the URL
+        if (searchTermFromUrl) {
+            setSearchTerm(searchTermFromUrl);
+            if (toggleConstraintFromUrl) {
+                setToggleConstraint(toggleConstraintFromUrl === 'true');
+            }
+
+            // Fetch data with the extracted search term and toggle constraint
+            fetchData(searchTermFromUrl, currentPage, itemsPerPage, currentSorts, toggleConstraintFromUrl === 'true');
+        }
+    }, [location.search]); // Depend on location.search to run when the URL changes
+
+    const fetchData = async (
+        searchTerm: string,
+        currentPage: number,
+        itemsPerPage: number,
+        sorts: { key: string; direction: SortDirection }[],
+        toggleConstraint: boolean,
+        format: string = ''
+    ) => {
         setIsLoading(true);
         setMessage('');
         setError(null);
@@ -66,7 +88,7 @@ const FindPipelines: React.FC = () => {
                 });
             }
 
-            for (const {key, direction} of sorts) {
+            for (const { key, direction } of sorts) {
                 urlParams.append('sort', `${key},${direction}`);
             }
 
@@ -156,57 +178,65 @@ const FindPipelines: React.FC = () => {
         }
     };
 
+    // Placeholder logic based on the presence of searchTerm in the URL
+    const placeholder = searchTerm
+        ? `${pascalCaseToWords(searchTerm)}`
+        : !toggleConstraint
+            ? 'Model Constraint'
+            : 'Dataset Constraint';
+
     return (
         <div>
-            <LoadingBar isLoading={isLoading}/>
+            <LoadingBar isLoading={isLoading} />
             <h1>Find Pipelines</h1>
 
-            <div style={{margin: '8px 0'}}>
-                <Search onSearch={handleSearch}
-                        placeholder={!toggleConstraint ? 'Model Constraint' : 'Dataset Constraint'}/>
-                <div style={{display: 'flex', alignItems: 'center'}}>
+            <div style={{ margin: '8px 0' }}>
+                <Search 
+                    onSearch={handleSearch}
+                    placeholder={placeholder} 
+                />
+                <div style={{ display: 'flex', alignItems: 'center' }}>
                     <span className="toggle-label">Model Constraint</span>
-                    <ToggleSwitch isChecked={toggleConstraint} onToggle={handleToggleConstraint}/>
+                    <ToggleSwitch isChecked={toggleConstraint} onToggle={handleToggleConstraint} />
                     <span className="toggle-label">Dataset Constraint</span>
-                    <div style={{marginLeft: '16px'}}>
+                    <div style={{ marginLeft: '16px' }}>
                         <DropdownFilter
-                            endpoint={buildV1Url('pipelines/types')}  // Pass the API endpoint for fetching pipeline types
+                            endpoint={buildV1Url('pipelines/types')}
                             selectedValues={pipelineTypes}
                             onChange={setPipelineTypes}
                             label="Pipeline Types"
                         />
                     </div>
                 </div>
-
             </div>
             <div>
-                <div style={{margin: '8px 0'}}>
+                <div style={{ margin: '8px 0' }}>
                     <button onClick={handleComparePipelines}>Compare Pipelines</button>
-                    <button style={{marginLeft: '4px'}} onClick={handleViewPipeline}>View Pipeline</button>
+                    <button style={{ marginLeft: '4px' }} onClick={handleViewPipeline}>View Pipeline</button>
                 </div>
                 {pipelines.length > 0 &&
-                    <div style={{display: 'flex', justifyContent: 'flex-end'}}>
+                    <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
                         <button onClick={handleDownload}
-                                style={{display: 'flex', alignItems: 'center', justifyContent: 'space-between'}}>
-                            <span style={{marginRight: '4px'}}>Download Results</span>
-                            <DownloadIcon width={14} height={14}/>
+                            style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                            <span style={{ marginRight: '4px' }}>Download Results</span>
+                            <DownloadIcon width={14} height={14} />
                         </button>
                     </div>
                 }
                 <Table data={pipelines}
-                       headers={sortHeaders}
-                       mapItemToRow={mapItemToRow}
-                       currentSorts={currentSorts}
-                       onSort={handleSort}
-                       onRemoveSort={handleRemoveSort}
-                       message={message}/>
+                    headers={sortHeaders}
+                    mapItemToRow={mapItemToRow}
+                    currentSorts={currentSorts}
+                    onSort={handleSort}
+                    onRemoveSort={handleRemoveSort}
+                    message={message} />
                 <Pagination
                     currentPage={currentPage}
                     totalPages={totalPages}
                     onPageChange={handlePageChange}
                 />
             </div>
-            {error && <ErrorMessage message={error}/>}
+            {error && <ErrorMessage message={error} />}
         </div>
     );
 };
