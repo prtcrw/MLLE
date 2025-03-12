@@ -97,7 +97,7 @@ WHERE {
 
 class FindModelsQueryBuilder(QueryBuilder):
     SORT_KEY_MAPPING = {
-        "Dataset Name": "dataset_name",
+        "Dataset Name": "dataset",
         "Dataset Used As": "dataset_used_as",
         "Dataset Used For": "dataset_used_for",
         "Dataset Characteristics": "dataset_characteristics",
