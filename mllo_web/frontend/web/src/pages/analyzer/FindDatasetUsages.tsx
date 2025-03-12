@@ -31,10 +31,10 @@ interface IRIQueryData {
 }
 
 const defaultSelectedCheckboxes = {
-    "test_data": true,
-    "validation_data": true,
-    "training_data": true,
-    "production_data": true,
+    "test_data": false,
+    "validation_data": false,
+    "training_data": false,
+    "production_data": false,
     "raw_data": true,
 };
 
@@ -44,7 +44,7 @@ const FindDatasetUsages: React.FC = () => {
     const [models, setModels] = useState<ModelData[]>([]);
     const [currentPage, setCurrentPage] = useState(1);
     const [totalPages, setTotalPages] = useState(0);
-    const [itemsPerPage, setItemsPerPage] = useState(10);
+    const [itemsPerPage, setItemsPerPage] = useState(20);
     const [modelTypes, setModelTypes] = useState<string[]>([]); // Add model types state
     const sortHeaders = [
         "Dataset Name",
@@ -152,7 +152,7 @@ const FindDatasetUsages: React.FC = () => {
         }));
     };
 
-    const handlePageChange = async (page: number = 1, itemsPerPage: number = 10) => {
+    const handlePageChange = async (page: number = 1, itemsPerPage: number = 100) => {
         setCurrentPage(page);
         setItemsPerPage(itemsPerPage);
         await fetchData(searchTerm, page, itemsPerPage, currentSorts, selectedCheckboxes, modelTypes);
@@ -187,25 +187,25 @@ const FindDatasetUsages: React.FC = () => {
 
     const mapItemToRow = (header: string, value: any) => {
 
-        if (header === "Dataset Name" && typeof value === 'string') {
-            return (
-                <a
-                    href="#"
-                    onClick={(e) => {
-                        if (e.altKey) {  // Check if Alt key is pressed
-                            e.preventDefault();  // Prevent the default behavior
-                            navigate(`/pipelines/?search_term=${getUniqueIriPart(value)}&toggle_constraint=true`);  // Redirect to the "Find Pipelines" page
-                        } else {  // Default click behavior
-                            e.preventDefault();  // Prevent the default behavior
-                            handleIriClick(value);  // Handle it as an IRI click
-                        }
-                    }}
-                    style={{color: 'blue', textDecoration: 'underline'}}
-                >
-                    {pascalCaseToWords(getUniqueIriPart(value))}
-                </a>
-            );
-        }
+        // if (header === "Dataset Name" && typeof value === 'string') {
+        //     return (
+        //         <a
+        //             href="#"
+        //             onClick={(e) => {
+        //                 if (e.altKey) {  // Check if Alt key is pressed
+        //                     e.preventDefault();  // Prevent the default behavior
+        //                     navigate(`/pipelines/?search_term=${getUniqueIriPart(value)}&toggle_constraint=true`);  // Redirect to the "Find Pipelines" page
+        //                 } else {  // Default click behavior
+        //                     e.preventDefault();  // Prevent the default behavior
+        //                     handleIriClick(value);  // Handle it as an IRI click
+        //                 }
+        //             }}
+        //             style={{color: 'blue', textDecoration: 'underline'}}
+        //         >
+        //             {pascalCaseToWords(getUniqueIriPart(value))}
+        //         </a>
+        //     );
+        // }
 
         if (typeof value === 'string' && value.startsWith('http')) {
             return (
@@ -222,22 +222,18 @@ const FindDatasetUsages: React.FC = () => {
             );
         }
         if (header === "Dataset Characteristics" && Array.isArray(value)) {
+            // Display each characteristic on its own line with semicolon at the end
             return (
                 <div>
-                    {getUniqueIriPart(value).map((iri: string, index: number) => (
-                        <div key={index}>
-                            <a
-                                href="#"
-                                onClick={(e) => {
-                                    e.preventDefault();
-                                    handleIriClick(value[index]);
-                                }}
-                                style={{color: 'blue', textDecoration: 'underline', marginRight: '8px'}}
-                            >
-                                {pascalCaseToWords(getUniqueIriPart(iri))}
-                            </a>
-                        </div>
-                    ))}
+                    {value.length > 0 ? (
+                        value.map((characteristic, index) => (
+                            <div key={index} style={{ marginBottom: '4px' }}>
+                                {characteristic};
+                            </div>
+                        ))
+                    ) : (
+                        <span>-</span> // Display dash for empty characteristics
+                    )}
                 </div>
             );
         }
@@ -251,7 +247,8 @@ const FindDatasetUsages: React.FC = () => {
             return (
                 <span>{value}</span>
             );
-        } else {
+        } 
+        else {
             return value;
         }
     };
@@ -366,7 +363,7 @@ const FindDatasetUsages: React.FC = () => {
                                     {Object.entries(value).map(([key, val], idx) => (
                                         val && (
                                             <li key={key + '-' + idx}>
-                                                <span className="item-name">{key}</span>
+                                                <span className="item-name">{key} </span>
                                                 <span className="item-value">{val}</span>
                                             </li>
                                         )
@@ -376,6 +373,7 @@ const FindDatasetUsages: React.FC = () => {
                         </pre>
                     ))}
                 </Modal>
+                
             )}
             {error && <ErrorMessage message={error} />}
         </div>

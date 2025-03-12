@@ -27,6 +27,7 @@ PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
 PREFIX bfo: <http://purl.obolibrary.org/obo/>
 PREFIX iof-core: <https://spec.industrialontologies.org/ontology/core/Core/>
 PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>
+PREFIX owl: <http://www.w3.org/2002/07/owl#>
 
 SELECT DISTINCT 
     ?dataset
@@ -44,18 +45,35 @@ WHERE {
             ?dataset
             ?model_name
             ?ml_process
-            (GROUP_CONCAT(?dataset_characteristic; separator=";") as ?dataset_characteristics)
+            (GROUP_CONCAT(DISTINCT ?characteristic_type; separator=";") AS ?characteristic_types)
+            (GROUP_CONCAT(DISTINCT ?property_info; separator=";") AS ?property_infos)
         WHERE {
-        ?ml_process ml:hasDataInput/ml:informationContentEntityDerivedFrom* ?dataset.
-        ?ml_process (bfo:BFO_0000057 | ml:executes) ?model_name.
-        #DATASET_FILTER
-        OPTIONAL {
-            ?dataset ml:hasInformationContentEntityCharacteristic ?dataset_characteristic
+            ?ml_process ml:hasDataInput/ml:informationContentEntityDerivedFrom* ?dataset.
+            ?ml_process (bfo:BFO_0000057 | ml:executes) ?model_name.
+            #DATASET_FILTER
+            
+            # Get the types of all characteristics
+            OPTIONAL {
+                ?dataset ml:hasInformationContentEntityCharacteristic ?characteristic.
+                ?characteristic rdf:type/rdfs:label ?type.
+                BIND(?type AS ?characteristic_type)
+            }
+            
+            # Get property information separately
+            OPTIONAL {
+                ?dataset ml:hasInformationContentEntityCharacteristic ?characteristic.
+                ?characteristic rdf:type/rdfs:label ?type.
+                ?characteristic ?data_property ?data_property_value.
+                ?data_property rdf:type owl:DatatypeProperty.
+                ?data_property rdfs:label ?data_property_name.
+                BIND(CONCAT(?type, ", ", ?data_property_name, ": ", STR(?data_property_value)) AS ?property_info)
             }
         }
         GROUP BY
             ?dataset ?model_name ?ml_process
     }
+    
+    # Combine types and property info in the backend
 
     #DATASETTYPE_CONSTRAINT
     ?dataset rdf:type ?dataset_type.
@@ -88,10 +106,14 @@ WHERE {
         ?model_performance_metric_type rdfs:label ?model_performance_metric.
         ?model_performance_assessment ml:hasDataOutput/iof-core:hasSimpleExpressionValue ?model_performance_value.
     }
-      
-
+    
+    # Process the combined result
+    BIND(CONCAT(
+        IF(BOUND(?characteristic_types), ?characteristic_types, ""),
+        IF(BOUND(?property_infos) && BOUND(?characteristic_types), ";", ""),
+        IF(BOUND(?property_infos), ?property_infos, "")
+    ) AS ?dataset_characteristics)
 }
-
 """
 
 
@@ -218,12 +240,34 @@ async def get_models(
         )
     # Process data for JSON response
         for dataset in models:
-            # Split dataset_characteristics by semicolon, remove leading/trailing whitespaces
-            if len(dataset["dataset_characteristics"]) > 0:
-                dataset["dataset_characteristics"] = [
-                    component.strip()
-                    for component in dataset["dataset_characteristics"].split(";")
+            # Process dataset_characteristics by splitting on semicolon
+            if dataset.get("dataset_characteristics") and len(dataset["dataset_characteristics"]) > 0:
+                # Split into individual items
+                characteristics = [
+                    item.strip()
+                    for item in dataset["dataset_characteristics"].split(";")
+                    if item.strip()
                 ]
+                
+                # Group characteristics by type
+                type_to_props = {}
+                
+                for char in characteristics:
+                    # Check if it's a type with properties
+                    if "," in char:
+                        # Extract the type name (before the first comma)
+                        type_name = char.split(",", 1)[0].strip()
+                        # Store under the type
+                        type_to_props[type_name] = char
+                    else:
+                        # It's a standalone type, only store if we don't have properties for it
+                        if char not in type_to_props:
+                            type_to_props[char] = char
+                
+                # Get the final list of unique characteristics
+                dataset["dataset_characteristics"] = list(type_to_props.values())
+            else:
+                dataset["dataset_characteristics"] = []
 
         return JSONResponse(
             {
