@@ -187,25 +187,25 @@ const FindDatasetUsages: React.FC = () => {
 
     const mapItemToRow = (header: string, value: any) => {
 
-        // if (header === "Dataset Name" && typeof value === 'string') {
-        //     return (
-        //         <a
-        //             href="#"
-        //             onClick={(e) => {
-        //                 if (e.altKey) {  // Check if Alt key is pressed
-        //                     e.preventDefault();  // Prevent the default behavior
-        //                     navigate(`/pipelines/?search_term=${getUniqueIriPart(value)}&toggle_constraint=true`);  // Redirect to the "Find Pipelines" page
-        //                 } else {  // Default click behavior
-        //                     e.preventDefault();  // Prevent the default behavior
-        //                     handleIriClick(value);  // Handle it as an IRI click
-        //                 }
-        //             }}
-        //             style={{color: 'blue', textDecoration: 'underline'}}
-        //         >
-        //             {pascalCaseToWords(getUniqueIriPart(value))}
-        //         </a>
-        //     );
-        // }
+        if (header === "Dataset Name" && typeof value === 'string') {
+            return (
+                <a
+                    href="#"
+                    onClick={(e) => {
+                        if (e.altKey) {  // Check if Alt key is pressed
+                            e.preventDefault();  // Prevent the default behavior
+                            navigate(`/pipelines/?search_term=${getUniqueIriPart(value)}&toggle_constraint=true`);  // Redirect to the "Find Pipelines" page
+                        } else {  // Default click behavior
+                            e.preventDefault();  // Prevent the default behavior
+                            handleIriClick(value);  // Handle it as an IRI click
+                        }
+                    }}
+                    style={{color: 'blue', textDecoration: 'underline'}}
+                >
+                    {pascalCaseToWords(getUniqueIriPart(value))}
+                </a>
+            );
+        }
 
         if (typeof value === 'string' && value.startsWith('http')) {
             return (
