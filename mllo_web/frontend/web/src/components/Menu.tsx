@@ -36,6 +36,7 @@ const Menu: React.FC<{ isMenuOpen: boolean; toggleMenu: () => void; isMobile: bo
     const analyzerSubmenuItems = [
         { label: 'Find Pipelines', path: '/pipelines' },
         { label: 'Find Models', path: '/datasets' },
+        { label: 'Natural Language Query', path: '/datasets/natural-language-query' },
         { label: 'Find Dataset Usages', path: '/datasets/usages' },
         { label: 'Analyze Deployed Models', path: '/models/analyze-deployed-models' },
         { label: 'Plot Performance', path: '/datasets/plot-performance' },

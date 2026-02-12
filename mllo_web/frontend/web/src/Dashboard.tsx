@@ -8,6 +8,7 @@ import PipelineEditor from './pages/editor/PipelineEditor.tsx';
 import FindDatasetUsages from './pages/analyzer/FindDatasetUsages.tsx';
 import FindPipelines from './pages/analyzer/FindPipelines.tsx';
 import FindDatasets from './pages/analyzer/FindDatasets.tsx';
+import NaturalLanguageQuery from './pages/analyzer/NaturalLanguageQuery.tsx';
 import PlotPerformance from './pages/analyzer/PlotPerformance.tsx';
 import AnalyzeModelOutput from './pages/analyzer/AnalyzeModelOutput.tsx';
 import AnalyzeDeployedModels from './pages/analyzer/AnalyzeDeployedModels.tsx';
@@ -34,6 +35,7 @@ const Dashboard: React.FC = () => {
                         <Route path="/pipelines/compare-pipelines" element={<ComparePipelines/>}/>
                         <Route path="/pipelines/edit-pipeline" element={<PipelineEditor/>}/>
                         <Route path="/datasets" element={<FindDatasets/>}/>
+                        <Route path="/datasets/natural-language-query" element={<NaturalLanguageQuery/>}/>
                         <Route path="/datasets/usages" element={<FindDatasetUsages/>}/>
                         <Route path="/datasets/plot-performance" element={<PlotPerformance/>}/>
                         <Route path="/datasets/analyze-model-output" element={<AnalyzeModelOutput/>}/>
