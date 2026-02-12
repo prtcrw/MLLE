@@ -53,18 +53,23 @@ class SparqlClient(ABC):
 class MobiSparqlClient(SparqlClient):
 
     def __init__(self, config: AppConfig):
-        self.endpoint = config.sparql_client_endpoint
-        if config.sparql_client_auth_type:
-            if config.sparql_client_auth_type == 'basic':
-                self.auth = requests.auth.HTTPBasicAuth(config.sparql_client_auth_username,
-                                                        config.sparql_client_auth_password)
+        self.endpoint = config.mobi_endpoint
+        if config.mobi_auth_type:
+            if config.mobi_auth_type == 'basic':
+                self.auth = requests.auth.HTTPBasicAuth(config.mobi_auth_username,
+                                                        config.mobi_auth_password)
             else:
-                if config.sparql_client_auth_type:
-                    raise AttributeError(f'Unsupported authentication method: {config.sparql_client_auth_type}')
+                if config.mobi_auth_type:
+                    raise AttributeError(f'Unsupported authentication method: {config.mobi_auth_type}')
                 else:
                     raise AttributeError(f'No authentication method specified.')
 
     def query(self, statement: str) -> dict:
+        headers = {'Accept': 'application/sparql-results+json'}
+    
+        print(f"\n{'='*60}")
+        print(f"SPARQL Query:\n{statement}")
+        print(f"{'='*60}\n")
         with contextlib.closing(requests.Session()) as session:
             response = session.get(self.endpoint, params={
                 'query': statement,
@@ -93,6 +98,68 @@ class MobiSparqlClient(SparqlClient):
                     parsed_result[var] = binding[var]['value']
                 else:
                     parsed_result[var] = None  # If the key is not present, set value as None
+            results_dict_list.append(parsed_result)
+
+        return results_dict_list
+
+class GraphDBSparqlClient(SparqlClient):
+
+    def __init__(self, config: AppConfig):
+        self.endpoint = config.graphdb_endpoint
+        self.auth = None
+
+        if config.graphdb_auth_type == 'basic':
+            self.auth = requests.auth.HTTPBasicAuth(
+                config.graphdb_auth_username,
+                config.graphdb_auth_password
+            )
+        elif config.graphdb_auth_type not in ('none', '', None):
+            raise AttributeError(f'Unsupported authentication method: {config.graphdb_auth_type}')
+
+    def query(self, statement: str) -> dict:
+        headers = {
+            'Accept': 'application/sparql-results+json',
+            'Content-Type': 'application/x-www-form-urlencoded'
+        }
+
+        print(f"\n{'='*60}")
+        print(f"SPARQL Query:\n{statement}")
+        print(f"{'='*60}\n")
+
+        with contextlib.closing(requests.Session()) as session:
+            response = session.post(
+                self.endpoint,
+                data={'query': statement},
+                auth=self.auth,
+                headers=headers,
+                verify=False
+            )
+
+            print(f"Status: {response.status_code}")
+            print(f"Content-Type: {response.headers.get('Content-Type')}")
+            print(f"Response body: {response.text[:500]}")
+
+            if not response.ok:
+                raise ValueError(f"GraphDB Error {response.status_code}: {response.text}")
+
+            if not response.text:
+                raise ValueError("GraphDB returned an empty response")
+
+            res = response.json()
+            return self.to_dict(res)
+
+    def to_dict(self, sparql_result):
+        results_dict_list = []
+        vars_list = sparql_result.get('head', {}).get('vars', [])
+        bindings = sparql_result.get('results', {}).get('bindings', [])
+
+        for binding in bindings:
+            parsed_result = {}
+            for var in vars_list:
+                if var in binding:
+                    parsed_result[var] = binding[var]['value']
+                else:
+                    parsed_result[var] = None
             results_dict_list.append(parsed_result)
 
         return results_dict_list
