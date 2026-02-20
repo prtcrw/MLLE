@@ -31,3 +31,4 @@ dist-ssr
 /datasets
 /Ontology
 /BS_MLLO
+*.png
