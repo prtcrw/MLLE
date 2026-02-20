@@ -1,41 +1,20 @@
 import logging
 import re
-from typing import Optional
-
-from fastapi import APIRouter, Request
-from fastapi.responses import JSONResponse
-from pydantic import BaseModel
 
 import httpx
 
 logger = logging.getLogger(__name__)
-
-router = APIRouter(prefix="/v1/nlq", tags=["natural-language-query"])
 
 
 # ──────────────────────────────────────────────────────────────────────
 # Configuration – adjust these or pull from app.state / env vars
 # ──────────────────────────────────────────────────────────────────────
 LLM_BASE_URL = "http://localhost:1234/v1"          # LM Studio OpenAI-compat endpoint
-LLM_MODEL    = "local-model"                        # model name loaded in LM Studio
-MAX_REPAIR_ATTEMPTS = 2                             # how many times to retry invalid SPARQL
+LLM_MODEL    = "openai/gpt-oss-120b"                 # model name loaded in LM Studio
+MAX_REPAIR_ATTEMPTS = 10                             # how many times to retry invalid SPARQL
 
 # Named graph that holds the ontology in GraphDB / Mobi
 ONTOLOGY_GRAPH = "http://www.semanticweb.org/mnd14/ml/"
-
-
-# ──────────────────────────────────────────────────────────────────────
-# Request / Response schemas
-# ──────────────────────────────────────────────────────────────────────
-class NLQueryRequest(BaseModel):
-    question: str
-
-
-class NLQueryResponse(BaseModel):
-    sparql: str
-    results: list
-    answer: str
-
 
 # ──────────────────────────────────────────────────────────────────────
 # 1. Fetch ontology schema from GraphDB
@@ -52,6 +31,7 @@ SELECT DISTINCT
     ?domain
     ?range
 WHERE {
+    GRAPH ?g {
     {
         ?entity rdf:type owl:Class .
         BIND("Class" AS ?type)
@@ -81,6 +61,8 @@ WHERE {
         OPTIONAL { ?entity rdfs:label ?label }
     }
 }
+}
+
 ORDER BY ?type ?entity
 """
 
@@ -126,15 +108,22 @@ WHERE {
 def _build_ontology_context(schema_rows: list, prefix_rows: list, sample_rows: list) -> dict:
     """Organise raw SPARQL results into a structured ontology context dict."""
 
+    def _is_valid_iri(iri: str) -> bool:
+        """Reject Mobi's opaque hash IDs and other non-HTTP identifiers."""
+        return bool(iri) and (iri.startswith("http://") or iri.startswith("https://"))
+
     classes = []
     object_properties = []
     datatype_properties = []
     annotation_properties = []
 
     for row in schema_rows:
+        iri = row.get("entity") or ""
+        if not _is_valid_iri(iri):
+            continue  # skip Mobi hash IDs like "26cee95e9edf402b..."
         entry = {
-            "iri": row.get("entity", ""),
-            "label": row.get("label", ""),
+            "iri": iri,
+            "label": row.get("label") or "",
         }
         rtype = row.get("type", "")
         if rtype == "Class":
@@ -165,8 +154,8 @@ def _build_ontology_context(schema_rows: list, prefix_rows: list, sample_rows: l
     }
     ns_set.update(well_known)
     for row in prefix_rows:
-        p = row.get("prefix", "").strip()
-        n = row.get("namespace", "").strip()
+        p = (row.get("prefix") or "").strip()
+        n = (row.get("namespace") or "").strip()
         if n and p:
             ns_set[p] = n
 
@@ -184,57 +173,254 @@ def _build_ontology_context(schema_rows: list, prefix_rows: list, sample_rows: l
     }
 
 
-def _ontology_context_to_text(ctx: dict) -> str:
-    """Render the ontology context as a compact text block for the LLM prompt."""
+def _compact_iri(iri: str, prefix_map: dict[str, str]) -> str:
+    """Shorten a full IRI to prefixed form (e.g. ml:Pipeline) if possible."""
+    for prefix, ns in prefix_map.items():
+        if iri.startswith(ns):
+            return f"{prefix}:{iri[len(ns):]}"
+    # Fallback: just the local name after the last / or #
+    for sep in ("#", "/"):
+        if sep in iri:
+            return iri.rsplit(sep, 1)[-1]
+    return iri
+
+
+def _ontology_context_to_text(ctx: dict, max_chars: int = 8000) -> str:
+    """Render the ontology context as a compact text block for the LLM prompt.
+
+    Uses prefixed names instead of full IRIs to keep the text short, and
+    progressively drops less-important sections to stay within *max_chars*.
+    """
+    pfx = ctx["prefixes"]
     lines = []
 
+    # Prefix declarations (the LLM needs these to write valid SPARQL)
     lines.append("=== PREFIXES ===")
-    for p, ns in ctx["prefixes"].items():
+    for p, ns in pfx.items():
         lines.append(f"PREFIX {p}: <{ns}>")
 
+    # Classes – just list prefixed names with optional label
     lines.append("\n=== CLASSES ===")
     for c in ctx["classes"]:
-        lbl = f' (label: "{c["label"]}")' if c.get("label") else ""
-        sup = f" rdfs:subClassOf {c['superclass']}" if c.get("superclass") else ""
-        lines.append(f"  {c['iri']}{lbl}{sup}")
+        name = _compact_iri(c["iri"], pfx)
+        lbl = f'  # {c["label"]}' if c.get("label") else ""
+        lines.append(f"  {name}{lbl}")
 
+    # Object properties
     lines.append("\n=== OBJECT PROPERTIES ===")
     for p in ctx["object_properties"]:
-        lbl = f' (label: "{p["label"]}")' if p.get("label") else ""
-        dom = f" domain={p['domain']}" if p.get("domain") else ""
-        rng = f" range={p['range']}" if p.get("range") else ""
-        lines.append(f"  {p['iri']}{lbl}{dom}{rng}")
+        name = _compact_iri(p["iri"], pfx)
+        parts = [name]
+        if p.get("domain"):
+            parts.append(f"domain={_compact_iri(p['domain'], pfx)}")
+        if p.get("range"):
+            parts.append(f"range={_compact_iri(p['range'], pfx)}")
+        lines.append(f"  {' '.join(parts)}")
 
+    # Datatype properties
     lines.append("\n=== DATATYPE PROPERTIES ===")
     for p in ctx["datatype_properties"]:
-        lbl = f' (label: "{p["label"]}")' if p.get("label") else ""
-        dom = f" domain={p['domain']}" if p.get("domain") else ""
-        rng = f" range={p['range']}" if p.get("range") else ""
-        lines.append(f"  {p['iri']}{lbl}{dom}{rng}")
+        name = _compact_iri(p["iri"], pfx)
+        parts = [name]
+        if p.get("domain"):
+            parts.append(f"domain={_compact_iri(p['domain'], pfx)}")
+        if p.get("range"):
+            parts.append(f"range={_compact_iri(p['range'], pfx)}")
+        lines.append(f"  {' '.join(parts)}")
 
-    lines.append("\n=== ANNOTATION PROPERTIES ===")
-    for p in ctx["annotation_properties"]:
-        lbl = f' (label: "{p["label"]}")' if p.get("label") else ""
-        lines.append(f"  {p['iri']}{lbl}")
+    text = "\n".join(lines)
 
-    if ctx["sample_triples"]:
-        lines.append("\n=== SAMPLE TRIPLES (for context) ===")
-        for t in ctx["sample_triples"]:
-            lines.append(f"  {t}")
+    # Progressively drop sections if the text is too long
+    if len(text) > max_chars:
+        # Drop datatype properties section
+        idx = text.find("\n=== DATATYPE PROPERTIES")
+        if idx != -1:
+            text = text[:idx]
 
-    return "\n".join(lines)
+    if len(text) > max_chars:
+        # Hard truncate with a notice
+        text = text[:max_chars] + "\n... (truncated to fit context window)"
+
+    return text
 
 
 # ──────────────────────────────────────────────────────────────────────
 # 2. LLM interaction helpers
 # ──────────────────────────────────────────────────────────────────────
+
+# Curated example queries that demonstrate correct MLLO ontology patterns.
+# These are included in the LLM prompt so it learns the property-path idioms.
+EXAMPLE_QUERIES = """
+=== EXAMPLE QUERIES ===
+
+-- Example 1: Find all ML models with their type, objective, dataset, and performance --
+PREFIX ml: <http://www.semanticweb.org/mnd14/ml/>
+PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+PREFIX bfo: <http://purl.obolibrary.org/obo/>
+PREFIX iof-core: <https://spec.industrialontologies.org/ontology/core/Core/>
+SELECT DISTINCT ?model ?model_type ?model_objective ?dataset ?ml_input_timestamp
+       ?model_output ?model_output_utilization
+       ?model_performance_metric ?model_performance_value
+WHERE {
+    ?ml_process ml:executes | bfo:BFO_0000057 ?model .
+    ?model rdf:type/rdfs:label ?model_type .
+    ?model bfo:BFO_0000178 ?model_objective .
+    ?model_objective rdf:type/rdfs:label ?objective_type .
+    ?ml_process ml:hasDataInput ?dataset .
+    ?dataset rdf:type ?dataset_type .
+    OPTIONAL {
+        ?ml_process bfo:BFO_0000222/iof-core:hasValueExpressionAtAllTimes/iof-core:hasDateTimeValue ?ml_input_timestamp
+    }
+    OPTIONAL {
+        ?ml_process ml:hasDataOutput ?model_output .
+        OPTIONAL {
+            ?utilization_process ml:hasDataInput ?model_output .
+            ?utilization_process rdf:type/rdfs:label ?model_output_utilization
+        }
+    }
+    OPTIONAL {
+        ?ml_process (ml:hasDataOutput/^ml:hasDataInput)+ ?model_performance_assessment .
+        ?model_performance_assessment bfo:BFO_0000059 ?model_performance_metric_iri .
+        ?model_performance_assessment rdf:type/rdfs:subClassOf+ ml:ModelPerformanceAssessment .
+        ?model_performance_metric_iri rdf:type ?model_performance_metric_type .
+        ?model_performance_metric_type rdfs:subClassOf+ ml:PerformanceMetric .
+        ?model_performance_metric_type rdfs:label ?model_performance_metric .
+        ?model_performance_assessment ml:hasDataOutput/iof-core:hasSimpleExpressionValue ?model_performance_value
+    }
+}
+ORDER BY ?model
+LIMIT 100
+
+-- Example 2: Find all pipelines with components and associated models --
+PREFIX ml: <http://www.semanticweb.org/mnd14/ml/>
+PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+PREFIX bfo: <http://purl.obolibrary.org/obo/>
+PREFIX iof-core: <https://spec.industrialontologies.org/ontology/core/Core/>
+SELECT DISTINCT
+    (STRAFTER(STR(?pipeline), "#") AS ?pipeline_name)
+    ?pipeline_type
+    ?pipeline_components
+    (STRAFTER(STR(?pipeline_data_input_iri), "#") AS ?pipeline_data_input)
+    (STRAFTER(STR(?pipeline_data_output_iri), "#") AS ?pipeline_data_output)
+    (STRAFTER(STR(?pipeline_associated_model_iri), "#") AS ?pipeline_associated_model)
+WHERE {
+    {
+        SELECT ?pipeline ?pipeline_type
+            (GROUP_CONCAT(DISTINCT ?pipeline_component_label; separator=";") AS ?pipeline_components)
+        WHERE {
+            ?pipeline rdf:type ?pipeline_type_iri .
+            ?pipeline_type_iri rdfs:label ?pipeline_type .
+            {
+                ?pipeline_type_iri rdfs:subClassOf+ ml:DataProcessingPipeline .
+            } UNION {
+                VALUES ?pipeline_type_iri { ml:MachineLearningModelDevelopmentPipeline }
+                ?pipeline rdf:type ?pipeline_type_iri .
+            }
+            ?pipeline bfo:BFO_0000117 ?pipeline_component .
+            ?pipeline_component rdf:type ?pipeline_component_type .
+            ?pipeline_component_type rdfs:subClassOf+ iof-core:PlannedProcess .
+            ?pipeline_component_type rdfs:label ?pipeline_component_label
+        }
+        GROUP BY ?pipeline ?pipeline_type
+    }
+    OPTIONAL { ?pipeline ml:hasDataInput ?pipeline_data_input_iri }
+    OPTIONAL { ?pipeline ml:hasDataOutput ?pipeline_data_output_iri }
+    OPTIONAL {
+        {
+            ?pipeline bfo:BFO_0000117*/(bfo:BFO_0000057 | ml:executes) ?pipeline_associated_model_iri
+        } UNION {
+            ?pipeline bfo:BFO_0000063+/(bfo:BFO_0000057 | ml:executes) ?pipeline_associated_model_iri
+        }
+        ?pipeline_associated_model_iri rdf:type/rdfs:subClassOf* ml:MachineLearningModel
+    }
+}
+
+-- Example 3: Find deployed models with execution details --
+PREFIX ml: <http://www.semanticweb.org/mnd14/ml/>
+PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+PREFIX bfo: <http://purl.obolibrary.org/obo/>
+PREFIX iof-core: <https://spec.industrialontologies.org/ontology/core/Core/>
+SELECT DISTINCT ?model_name ?model_deployed_on_system
+    (MAX(?model_training_timestamp) AS ?last_model_update)
+    ?model_execution_timestamp ?model_input ?model_output
+WHERE {
+    ?deployed_state bfo:BFO_0000167 ?model_name .
+    ?deployed_state bfo:BFO_0000167 ?model_deployed_on_system .
+    ?model_deployed_on_system rdf:type/rdfs:subClassOf* iof-core:EngineeredSystem .
+    ?model_name rdf:type/rdfs:subClassOf+ ml:MachineLearningModel .
+    ?deployed_state bfo:BFO_0000117 ?model_execution .
+    ?model_execution rdf:type/rdfs:subClassOf* ml:ModelExecution .
+    ?model_execution ml:hasDataInput ?model_input .
+    ?model_execution ml:hasDataOutput ?model_output .
+    ?ml_training ^bfo:BFO_0000117*/bfo:BFO_0000063 ?model_execution .
+    ?ml_training rdf:type/rdfs:subClassOf* ml:MachineLearningTraining .
+    ?model_execution bfo:BFO_0000224/iof-core:hasValueExpressionAtAllTimes/iof-core:hasDateTimeValue ?model_execution_timestamp .
+    ?ml_training bfo:BFO_0000224/iof-core:hasValueExpressionAtAllTimes/iof-core:hasDateTimeValue ?model_training_timestamp .
+}
+GROUP BY ?model_name ?model_deployed_on_system ?model_execution_timestamp ?model_input ?model_output
+
+-- Example 4: Find all datasets used in ML processes with their role and model --
+PREFIX ml: <http://www.semanticweb.org/mnd14/ml/>
+PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+PREFIX bfo: <http://purl.obolibrary.org/obo/>
+PREFIX iof-core: <https://spec.industrialontologies.org/ontology/core/Core/>
+SELECT DISTINCT
+    (STRAFTER(STR(?dataset), "#") AS ?dataset_name)
+    ?dataset_used_as
+    ?dataset_used_for
+    (STRAFTER(STR(?model), "#") AS ?model_name)
+    ?ml_input_timestamp
+WHERE {
+    ?ml_process ml:executes | bfo:BFO_0000057 ?model .
+    ?ml_process ml:hasDataInput ?dataset .
+    ?dataset rdf:type ?dataset_type .
+    ?dataset_type rdfs:label ?dataset_used_as .
+    {
+        ?ml_process ml:hasDataOutput ?model_output .
+        ?utilization_process ml:hasDataInput ?model_output .
+        ?utilization_process rdf:type/rdfs:label ?dataset_used_for .
+    } UNION {
+        ?ml_process rdf:type/rdfs:subClassOf* ml:MachineLearningTraining .
+        ?ml_process rdfs:label ?dataset_used_for .
+    }
+    OPTIONAL {
+        ?ml_process bfo:BFO_0000222/iof-core:hasValueExpressionAtAllTimes/iof-core:hasDateTimeValue ?ml_input_timestamp
+    }
+}
+ORDER BY ?dataset_name
+LIMIT 100
+"""
+
 SYSTEM_MESSAGE = (
-    "You are an expert Semantic Web engineer.\n"
-    "Generate ONLY valid SPARQL that strictly follows the provided ontology.\n"
-    "Do not invent classes, properties, or IRIs.\n"
-    "Use only the prefixes and vocabulary listed.\n"
-    "If the question cannot be answered with the ontology, return exactly: CANNOT_ANSWER_WITH_ONTOLOGY\n"
-    "Return ONLY the SPARQL query — no explanation, no markdown fences."
+    "You are an expert Semantic Web engineer specialising in the MLLO (Machine Learning Lifecycle Ontology).\n"
+    "Generate ONLY valid SPARQL that strictly follows the provided ontology schema and example queries.\n\n"
+    "ENTITY DEFINITIONS in MLLO:\n"
+    "- DATASET: an entity used as input to an ML process via ml:hasDataInput (e.g. TrainingData, TestData, ValidationData, ProductionData, RawData)\n"
+    "- MODEL: a MachineLearningModel linked from an ML process via ml:executes | bfo:BFO_0000057\n"
+    "- PIPELINE: a DataProcessingPipeline or MachineLearningModelDevelopmentPipeline with components via bfo:BFO_0000117\n"
+    "- ML PROCESS: the central node linking models, datasets, inputs, and outputs\n\n"
+    "KEY PATTERNS:\n"
+    "- ML processes link to models via: ml:executes | bfo:BFO_0000057\n"
+    "- ML processes link to datasets via: ml:hasDataInput / ml:hasDataOutput\n"
+    "- Dataset role (type) via: ?dataset rdf:type ?dataset_type . ?dataset_type rdfs:label ?dataset_used_as\n"
+    "- Timestamps via: bfo:BFO_0000222/iof-core:hasValueExpressionAtAllTimes/iof-core:hasDateTimeValue\n"
+    "- Model types via: ?model rdf:type/rdfs:label ?model_type (with rdfs:subClassOf+ ml:MachineLearningModel)\n"
+    "- Pipeline components via: bfo:BFO_0000117\n"
+    "- Performance metrics via: ml:ModelPerformanceAssessment with bfo:BFO_0000059 linking to metric IRIs\n"
+    "- To get human-readable names use: STRAFTER(STR(?x),\"#\") or rdf:type/rdfs:label\n"
+    "- Use property paths (/, ^, +, *) as shown in the examples\n\n"
+    "IMPORTANT RULES:\n"
+    "- NEVER use bare 'rdf:type/rdfs:label' alone to find entities. Always anchor queries through ML process relationships as shown in examples.\n"
+    "- Do not invent classes, properties, or IRIs.\n"
+    "- Use only the prefixes and vocabulary listed.\n"
+    "- Always include LIMIT (default 100) unless the user asks for all results.\n"
+    "- Prefer OPTIONAL blocks for fields that may not exist.\n"
+    "- If the question cannot be answered with the ontology, return exactly: CANNOT_ANSWER_WITH_ONTOLOGY\n"
+    "- Return ONLY the SPARQL query — no explanation, no markdown fences."
 )
 
 REPAIR_MESSAGE = (
@@ -246,6 +432,10 @@ REPAIR_MESSAGE = (
 
 async def _call_llm(messages: list[dict]) -> str:
     """Call LM Studio chat completions endpoint."""
+    # Log approximate prompt size for debugging context-window issues
+    total_chars = sum(len(m.get("content", "")) for m in messages)
+    logger.info("LLM prompt: %d messages, ~%d chars total", len(messages), total_chars)
+
     async with httpx.AsyncClient(timeout=120.0) as client:
         resp = await client.post(
             f"{LLM_BASE_URL}/chat/completions",
@@ -253,7 +443,7 @@ async def _call_llm(messages: list[dict]) -> str:
                 "model": LLM_MODEL,
                 "messages": messages,
                 "temperature": 0,
-                "max_tokens": 2048,
+                "max_tokens": 1024,
             },
         )
         resp.raise_for_status()
@@ -273,6 +463,29 @@ def _extract_sparql(raw: str) -> str:
         if idx != -1:
             return raw[idx:].strip()
     return raw.strip()
+
+
+def _inject_prefixes(sparql: str, ctx: dict) -> str:
+    """Prepend missing PREFIX declarations so the triplestore can resolve QNames."""
+    prefix_map: dict[str, str] = dict(ctx["prefixes"])
+
+    # Collect prefixes already declared in the query
+    declared = {m.group(1) for m in re.finditer(r"PREFIX\s+(\w[\w-]*):\s*<[^>]+>", sparql, re.IGNORECASE)}
+
+    # Find prefixes used in the query body (prefix:localname)
+    body_lines = [l for l in sparql.split("\n") if not l.strip().upper().startswith("PREFIX")]
+    body = "\n".join(body_lines)
+    used = set(re.findall(r"(\b\w[\w-]*):", body))
+    used -= {"http", "https", "urn", "mailto", "tel", "ftp"}
+
+    missing_lines = []
+    for p in sorted(used):
+        if p not in declared and p in prefix_map:
+            missing_lines.append(f"PREFIX {p}: <{prefix_map[p]}>")
+
+    if missing_lines:
+        sparql = "\n".join(missing_lines) + "\n" + sparql
+    return sparql
 
 
 # ──────────────────────────────────────────────────────────────────────
@@ -343,196 +556,3 @@ def _validate_sparql(sparql: str, ctx: dict) -> list[str]:
     return errors
 
 
-# ──────────────────────────────────────────────────────────────────────
-# 4. Natural language answer generation
-# ──────────────────────────────────────────────────────────────────────
-async def _generate_nl_answer(question: str, sparql: str, results: list) -> str:
-    """Ask the LLM to summarise the SPARQL results in natural language."""
-    if not results:
-        return "The query returned no results."
-
-    # Truncate results for prompt size
-    results_text = str(results[:50])
-
-    messages = [
-        {
-            "role": "system",
-            "content": (
-                "You are a helpful assistant. Given a user question, the SPARQL query that was run, "
-                "and the query results, provide a clear natural language answer. Be concise."
-            ),
-        },
-        {
-            "role": "user",
-            "content": (
-                f"Question: {question}\n\n"
-                f"SPARQL Query:\n{sparql}\n\n"
-                f"Results:\n{results_text}\n\n"
-                "Please summarise the results in plain English."
-            ),
-        },
-    ]
-    try:
-        return await _call_llm(messages)
-    except Exception as e:
-        logger.warning("Failed to generate NL answer: %s", e)
-        return f"Query returned {len(results)} result(s). (NL summary unavailable)"
-
-
-# ──────────────────────────────────────────────────────────────────────
-# 5. Main endpoint
-# ──────────────────────────────────────────────────────────────────────
-@router.post("/query")
-async def natural_language_query(request: Request, body: NLQueryRequest) -> JSONResponse:
-    """
-    Accept a natural language question, generate ontology-compliant SPARQL,
-    execute it on GraphDB, and return SPARQL + results + NL answer.
-    """
-    app = request.app
-    question = body.question.strip()
-
-    if not question:
-        return JSONResponse({"error": "Question cannot be empty."}, status_code=400)
-
-    # ── Step 2: Fetch ontology schema ────────────────────────────────
-    try:
-        schema_rows = app.sparql_client.query(ONTOLOGY_SCHEMA_QUERY)
-        prefix_rows = app.sparql_client.query(PREFIX_QUERY)
-        sample_rows = app.sparql_client.query(SAMPLE_TRIPLES_QUERY)
-    except Exception as e:
-        logger.error("Failed to fetch ontology schema: %s", e)
-        return JSONResponse(
-            {"error": f"Failed to fetch ontology schema: {str(e)}"},
-            status_code=500,
-        )
-
-    ctx = _build_ontology_context(schema_rows, prefix_rows, sample_rows)
-    ontology_text = _ontology_context_to_text(ctx)
-
-    if not ctx["classes"] and not ctx["object_properties"]:
-        return JSONResponse(
-            {"error": "Ontology schema is empty. Ensure the ontology is loaded in GraphDB."},
-            status_code=500,
-        )
-
-    # ── Step 3-4: Generate SPARQL via LLM ────────────────────────────
-    user_prompt = (
-        f"User question: {question}\n\n"
-        f"Ontology schema:\n{ontology_text}\n\n"
-        "Generate a SPARQL SELECT query to answer the question. "
-        "Use ONLY the classes, properties, and prefixes listed above."
-    )
-
-    messages = [
-        {"role": "system", "content": SYSTEM_MESSAGE},
-        {"role": "user", "content": user_prompt},
-    ]
-
-    try:
-        raw_sparql = await _call_llm(messages)
-    except Exception as e:
-        logger.error("LLM call failed: %s", e)
-        return JSONResponse(
-            {"error": f"LLM call failed: {str(e)}"},
-            status_code=502,
-        )
-
-    # Check if LLM says it cannot answer
-    if "CANNOT_ANSWER_WITH_ONTOLOGY" in raw_sparql:
-        return JSONResponse({
-            "sparql": "",
-            "results": [],
-            "answer": (
-                "The question cannot be answered using the available ontology. "
-                "Please rephrase or ask about concepts defined in the knowledge graph."
-            ),
-        })
-
-    sparql = _extract_sparql(raw_sparql)
-
-    # ── Step 5: Validate + repair loop ───────────────────────────────
-    validation_log = []
-    for attempt in range(MAX_REPAIR_ATTEMPTS + 1):
-        errors = _validate_sparql(sparql, ctx)
-        if not errors:
-            break
-
-        validation_log.append({"attempt": attempt + 1, "errors": errors, "sparql": sparql})
-        logger.warning("SPARQL validation failed (attempt %d): %s", attempt + 1, errors)
-
-        if attempt < MAX_REPAIR_ATTEMPTS:
-            # Ask LLM to repair
-            messages.append({"role": "assistant", "content": sparql})
-            messages.append({
-                "role": "user",
-                "content": (
-                    f"{REPAIR_MESSAGE}\n\n"
-                    f"Validation errors:\n" + "\n".join(f"- {e}" for e in errors) + "\n\n"
-                    f"Ontology schema:\n{ontology_text}"
-                ),
-            })
-            try:
-                raw_sparql = await _call_llm(messages)
-                sparql = _extract_sparql(raw_sparql)
-            except Exception as e:
-                logger.error("LLM repair call failed: %s", e)
-                break
-    else:
-        # All repair attempts exhausted
-        return JSONResponse({
-            "sparql": sparql,
-            "results": [],
-            "answer": (
-                "Generated SPARQL could not be validated against the ontology after "
-                f"{MAX_REPAIR_ATTEMPTS} repair attempts. "
-                f"Last errors: {'; '.join(errors)}"
-            ),
-            "validation_log": validation_log,
-        })
-
-    # ── Step 6: Execute SPARQL on GraphDB ────────────────────────────
-    try:
-        results = app.sparql_client.query(sparql)
-    except Exception as e:
-        logger.error("SPARQL execution failed: %s", e)
-        return JSONResponse({
-            "sparql": sparql,
-            "results": [],
-            "answer": f"SPARQL execution failed: {str(e)}",
-        })
-
-    # ── Step 7: Generate NL answer ───────────────────────────────────
-    nl_answer = await _generate_nl_answer(question, sparql, results)
-
-    # ── Step 8: Return everything ────────────────────────────────────
-    return JSONResponse({
-        "sparql": sparql,
-        "results": results,
-        "answer": nl_answer,
-    })
-
-
-# ──────────────────────────────────────────────────────────────────────
-# 6. Utility endpoint: get ontology summary (for debugging / frontend)
-# ──────────────────────────────────────────────────────────────────────
-@router.get("/ontology-summary")
-async def get_ontology_summary(request: Request) -> JSONResponse:
-    """Return a summary of the loaded ontology schema for debugging."""
-    app = request.app
-    try:
-        schema_rows = app.sparql_client.query(ONTOLOGY_SCHEMA_QUERY)
-        prefix_rows = app.sparql_client.query(PREFIX_QUERY)
-        sample_rows = app.sparql_client.query(SAMPLE_TRIPLES_QUERY)
-    except Exception as e:
-        return JSONResponse({"error": str(e)}, status_code=500)
-
-    ctx = _build_ontology_context(schema_rows, prefix_rows, sample_rows)
-    return JSONResponse({
-        "num_classes": len(ctx["classes"]),
-        "num_object_properties": len(ctx["object_properties"]),
-        "num_datatype_properties": len(ctx["datatype_properties"]),
-        "num_annotation_properties": len(ctx["annotation_properties"]),
-        "prefixes": ctx["prefixes"],
-        "classes": [c["iri"] for c in ctx["classes"][:50]],
-        "sample_triples": ctx["sample_triples"][:10],
-    })

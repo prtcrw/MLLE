@@ -19,7 +19,13 @@ export const downloadFromResponse = async (response: Response, default_filename:
     elm.remove();
 }
 
-export const convertEnglishToSparql = async (input: string, endpoint?: string): Promise<string> => {
+export interface ConvertResult {
+    sparql: string;
+    results: Record<string, string | null>[];
+    error: string | null;
+}
+
+export const convertEnglishToSparql = async (input: string, endpoint?: string): Promise<ConvertResult> => {
     // Default to backend dev server where FastAPI serves the convert endpoint
     const base = endpoint ?? (import.meta.env.VITE_LM_ENDPOINT as string) ?? 'http://localhost:5252/api/convert-sparql';
     const resp = await fetch(base, {
@@ -35,14 +41,10 @@ export const convertEnglishToSparql = async (input: string, endpoint?: string): 
         throw new Error(`Conversion failed: ${resp.status} ${text}`);
     }
 
-    // Try json { sparql: '...' } or plain text
-    const contentType = resp.headers.get('Content-Type') || '';
-    if (contentType.includes('application/json')) {
-        const j = await resp.json();
-        if (j && typeof j.sparql === 'string') return j.sparql;
-        if (j && typeof j.result === 'string') return j.result;
-        return JSON.stringify(j);
-    }
-
-    return await resp.text();
+    const j = await resp.json();
+    return {
+        sparql: j.sparql ?? '',
+        results: j.results ?? [],
+        error: j.error ?? null,
+    };
 }

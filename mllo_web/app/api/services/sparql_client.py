@@ -67,14 +67,14 @@ class MobiSparqlClient(SparqlClient):
     def query(self, statement: str) -> dict:
         headers = {'Accept': 'application/sparql-results+json'}
     
-        print(f"\n{'='*60}")
+        # print(f"\n{'='*60}")
         print(f"SPARQL Query:\n{statement}")
-        print(f"{'='*60}\n")
+        # print(f"{'='*60}\n")
         with contextlib.closing(requests.Session()) as session:
             response = session.get(self.endpoint, params={
                 'query': statement,
             }, auth=self.auth, verify=False)
-            print(response)
+            # print(response)
             res = response.json()
             if 'error' in res:
                 errorMessage, errorDetails = res['errorMessage'], res['errorDetails']
@@ -122,9 +122,9 @@ class GraphDBSparqlClient(SparqlClient):
             'Content-Type': 'application/x-www-form-urlencoded'
         }
 
-        print(f"\n{'='*60}")
+        # print(f"\n{'='*60}")
         print(f"SPARQL Query:\n{statement}")
-        print(f"{'='*60}\n")
+        # print(f"{'='*60}\n")
 
         with contextlib.closing(requests.Session()) as session:
             response = session.post(
@@ -135,9 +135,9 @@ class GraphDBSparqlClient(SparqlClient):
                 verify=False
             )
 
-            print(f"Status: {response.status_code}")
-            print(f"Content-Type: {response.headers.get('Content-Type')}")
-            print(f"Response body: {response.text[:500]}")
+            # print(f"Status: {response.status_code}")
+            # print(f"Content-Type: {response.headers.get('Content-Type')}")
+            # print(f"Response body: {response.text[:500]}")
 
             if not response.ok:
                 raise ValueError(f"GraphDB Error {response.status_code}: {response.text}")

@@ -30,12 +30,12 @@ const Dashboard: React.FC = () => {
                     <Header isMenuOpen={isMenuOpen} toggleMenu={toggleMenu}/>
                     <Routes>
                         <Route path="/" element={<Home/>}/>
+                        <Route path="/datasets/natural-language-query" element={<NaturalLanguageQuery/>}/>
                         <Route path="/models/analyze-deployed-models" element={<AnalyzeDeployedModels/>}/>
                         <Route path="/pipelines" element={<FindPipelines/>}/>
                         <Route path="/pipelines/compare-pipelines" element={<ComparePipelines/>}/>
                         <Route path="/pipelines/edit-pipeline" element={<PipelineEditor/>}/>
                         <Route path="/datasets" element={<FindDatasets/>}/>
-                        <Route path="/datasets/natural-language-query" element={<NaturalLanguageQuery/>}/>
                         <Route path="/datasets/usages" element={<FindDatasetUsages/>}/>
                         <Route path="/datasets/plot-performance" element={<PlotPerformance/>}/>
                         <Route path="/datasets/analyze-model-output" element={<AnalyzeModelOutput/>}/>

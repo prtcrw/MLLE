@@ -20,7 +20,7 @@ class AppConfig(BaseSettings):
     log_level: LOG_LEVEL = Field(default="info", description="Emit logging messages at this level or higher.")
 
     # Switch between "mobi" and "graphdb"
-    sparql_backend: SPARQL_BACKEND = Field(default="mobi", description="SPARQL backend to use: 'mobi' or 'graphdb'.")
+    sparql_backend: SPARQL_BACKEND = Field(default="graphdb", description="SPARQL backend to use: 'mobi' or 'graphdb'.")
 
     # MOBI settings
     mobi_endpoint: str = Field(default="https://localhost:8443/mobirest/sparql",
@@ -30,7 +30,7 @@ class AppConfig(BaseSettings):
     mobi_auth_password: str = Field(default="admin", description="Password for MOBI.")
 
     # GraphDB settings
-    graphdb_endpoint: str = Field(default="http://localhost:7200/repositories/MLLO",
+    graphdb_endpoint: str = Field(default="http://localhost:7200/repositories/mllo4",
                                   description="Endpoint for GraphDB SPARQL client.")
     graphdb_auth_type: str = Field(default="none", description="Auth type for GraphDB: 'basic' or 'none'.")
     graphdb_auth_username: str = Field(default="admin", description="Username for GraphDB.")
