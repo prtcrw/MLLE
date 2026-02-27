@@ -1,12 +1,12 @@
 import logging
 import re
 
-import httpx
-
 from mllo_web.app.api.config import get_config
+from mllo_web.app.api.services.llm_client import create_llm_client
 
 logger = logging.getLogger(__name__)
 config = get_config()
+llm_client = create_llm_client(config)
 
 LLM_UNAVAILABLE_USER_MESSAGE = "Can't access AI model."
 
@@ -440,48 +440,13 @@ REPAIR_MESSAGE = (
 
 
 async def _call_llm(messages: list[dict]) -> str:
-    """Call LM Studio chat completions endpoint."""
+    """Call configured chat-completions endpoint via llm_client."""
     # Log approximate prompt size for debugging context-window issues
     total_chars = sum(len(m.get("content", "")) for m in messages)
     logger.info("LLM prompt: %d messages, ~%d chars total", len(messages), total_chars)
 
     try:
-        # If full URL override is set (Azure Foundry/OpenAI style), use it.
-        if config.llm_chat_completions_url:
-            url = config.llm_chat_completions_url
-        else:
-            base = config.llm_base_url.rstrip("/")
-            path = config.llm_chat_completions_path
-            if not path.startswith("/"):
-                path = "/" + path
-            url = f"{base}{path}"
-
-        headers = {}
-        if config.llm_api_key:
-            headers[config.llm_api_key_header] = f"{config.llm_api_key_prefix}{config.llm_api_key}"
-
-        params = {}
-        if config.llm_api_version:
-            params[config.llm_api_version_param] = config.llm_api_version
-
-        payload = {
-            "messages": messages,
-            "temperature": 0,
-            "max_tokens": 1024,
-        }
-        if config.llm_send_model:
-            payload["model"] = config.llm_model
-
-        async with httpx.AsyncClient(timeout=config.llm_timeout_seconds) as client:
-            resp = await client.post(
-                url,
-                params=params or None,
-                headers=headers or None,
-                json=payload,
-            )
-            resp.raise_for_status()
-            data = resp.json()
-            return data["choices"][0]["message"]["content"].strip()
+        return await llm_client.chat_completion(messages)
     except Exception:
         logger.exception("LLM request failed")
         raise LLMServiceError(LLM_UNAVAILABLE_USER_MESSAGE)

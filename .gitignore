@@ -32,3 +32,4 @@ dist-ssr
 /Ontology
 /BS_MLLO
 *.png
+.env

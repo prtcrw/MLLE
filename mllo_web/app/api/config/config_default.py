@@ -1,13 +1,20 @@
 from typing import Literal
 
 from pydantic import Field
-from pydantic_settings import BaseSettings
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 LOG_LEVEL = Literal["debug", "info", "warning", "error", "critical"]
 SPARQL_BACKEND = Literal["mobi", "graphdb"]
+LLM_CLIENT_TYPE = Literal["openai_compatible", "azure_foundry"]
 
 
 class AppConfig(BaseSettings):
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        env_file_encoding="utf-8",
+        extra="ignore",
+    )
+
     host: str = Field(default="127.0.0.1",
                       description="IP address to bind to. Use `0.0.0.0` to serve to your local network.")
     port: int = Field(default=5252, description="Port to bind to.")
@@ -37,6 +44,10 @@ class AppConfig(BaseSettings):
     graphdb_auth_password: str = Field(default="admin", description="Password for GraphDB.")
 
     # LLM settings (default: OpenAI-compatible endpoint style)
+    llm_client_type: LLM_CLIENT_TYPE = Field(
+        default="openai_compatible",
+        description="LLM client implementation to use: 'openai_compatible' or 'azure_foundry'."
+    )
     llm_base_url: str = Field(
         default="http://localhost:1234/v1",
         description="Base URL for the LLM API."
@@ -66,8 +77,8 @@ class AppConfig(BaseSettings):
         description="Header name used for llm_api_key."
     )
     llm_api_key_prefix: str = Field(
-        default="Bearer ",
-        description="Prefix prepended to llm_api_key (e.g., 'Bearer '). Use empty string for raw keys."
+        default="Bearer",
+        description="Prefix prepended to llm_api_key (e.g., 'Bearer'). Use empty string for raw keys."
     )
     llm_api_version: str | None = Field(
         default=None,
@@ -80,6 +91,26 @@ class AppConfig(BaseSettings):
     llm_timeout_seconds: float = Field(
         default=120.0,
         description="Timeout in seconds for LLM API calls."
+    )
+    llm_max_tokens: int = Field(
+        default=1024,
+        description="max_tokens value for openai_compatible client payload."
+    )
+    llm_max_completion_tokens: int = Field(
+        default=1024,
+        description="max_completion_tokens value for azure_foundry client payload."
+    )
+    llm_temperature: float = Field(
+        default=0.0,
+        description="temperature value for openai_compatible client payload."
+    )
+    llm_azure_send_temperature: bool = Field(
+        default=False,
+        description="Whether azure_foundry client should send temperature."
+    )
+    llm_azure_temperature: float = Field(
+        default=1.0,
+        description="temperature value for azure_foundry payload when llm_azure_send_temperature is true."
     )
 
 
