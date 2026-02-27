@@ -9,6 +9,11 @@ const NaturalLanguageQuery: React.FC = () => {
     const [execError, setExecError] = useState<string | null>(null);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const [showSparql, setShowSparql] = useState(false);
+    const examplePrompts = [
+        'Get all pipelines.',
+        'Show me models with performance more than 0.9.'
+    ];
 
     const handleConvert = async () => {
         setError(null);
@@ -55,6 +60,22 @@ const NaturalLanguageQuery: React.FC = () => {
             <p>Enter a natural-language description and convert it to SPARQL using your configured LLM endpoint.</p>
 
             <div style={{display: 'flex', flexDirection: 'column', gap: '0.5rem'}}>
+                <div style={{display: 'flex', flexDirection: 'column', gap: '0.35rem'}}>
+                    <label style={{fontSize: '0.9rem'}}>Examples</label>
+                    <div style={{display: 'flex', flexWrap: 'wrap', gap: '0.4rem'}}>
+                        {examplePrompts.map((prompt) => (
+                            <button
+                                key={prompt}
+                                type="button"
+                                onClick={() => setInput(prompt)}
+                                disabled={loading}
+                                style={{fontSize: '0.82rem'}}
+                            >
+                                {prompt}
+                            </button>
+                        ))}
+                    </div>
+                </div>
                 <textarea
                     value={input}
                     onChange={e => setInput(e.target.value)}
@@ -71,15 +92,29 @@ const NaturalLanguageQuery: React.FC = () => {
                 {loading && <div>Converting…</div>}
                 {error && <div style={{color: 'red'}}>Error: {error}</div>}
 
-                <label>SPARQL query</label>
-                <textarea
-                    value={sparql}
-                    readOnly
-                    rows={10}
-                    style={{width: '100%', fontFamily: 'monospace'}}
-                />
-                <div style={{display: 'flex', gap: '0.5rem'}}>
-                    <button onClick={handleCopy} disabled={!sparql}>Copy</button>
+                <div style={{display: 'flex', flexDirection: 'column', gap: '0.5rem'}}>
+                    <button
+                        onClick={() => setShowSparql(!showSparql)}
+                        disabled={!sparql}
+                        style={{alignSelf: 'flex-start'}}
+                    >
+                        {showSparql ? 'Hide SPARQL Query' : 'Show SPARQL Query'}
+                    </button>
+
+                    {showSparql && (
+                        <>
+                            <label>SPARQL query</label>
+                            <textarea
+                                value={sparql}
+                                readOnly
+                                rows={10}
+                                style={{width: '100%', fontFamily: 'monospace'}}
+                            />
+                            <div style={{display: 'flex', gap: '0.5rem'}}>
+                                <button onClick={handleCopy} disabled={!sparql}>Copy</button>
+                            </div>
+                        </>
+                    )}
                 </div>
 
                 {execError && (

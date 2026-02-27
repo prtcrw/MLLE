@@ -20,7 +20,7 @@ class AppConfig(BaseSettings):
     log_level: LOG_LEVEL = Field(default="info", description="Emit logging messages at this level or higher.")
 
     # Switch between "mobi" and "graphdb"
-    sparql_backend: SPARQL_BACKEND = Field(default="graphdb", description="SPARQL backend to use: 'mobi' or 'graphdb'.")
+    sparql_backend: SPARQL_BACKEND = Field(default="mobi", description="SPARQL backend to use: 'mobi' or 'graphdb'.")
 
     # MOBI settings
     mobi_endpoint: str = Field(default="https://localhost:8443/mobirest/sparql",

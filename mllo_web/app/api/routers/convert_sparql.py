@@ -32,7 +32,7 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
-EXPLICIT_GRAPH = "FROM <http://www.ontotext.com/explicit>"
+EXPLICIT_GRAPH = ""#FROM <http://www.ontotext.com/explicit>"
 
 
 def _add_explicit_graph(sparql: str) -> str:
@@ -157,7 +157,7 @@ async def convert_sparql(request: Request, body: ConvertRequest):
     sparql = _inject_prefixes(sparql, ctx)
 
     # -- Add FROM <explicit> to prevent inferred results (GraphDB) ------
-    sparql = _add_explicit_graph(sparql)
+    #sparql = _add_explicit_graph(sparql)
 
     logger.info("=== FINAL SPARQL (sent to triplestore) ===\n%s", sparql)
 
@@ -194,7 +194,7 @@ async def convert_sparql(request: Request, body: ConvertRequest):
                     raw_sparql = await _call_llm(messages)
                     sparql = _extract_sparql(raw_sparql)
                     sparql = _inject_prefixes(sparql, ctx)
-                    sparql = _add_explicit_graph(sparql)
+                    #sparql = _add_explicit_graph(sparql)
                 except Exception as llm_err:
                     logger.error("LLM exec-repair call failed: %s", llm_err)
                     break
