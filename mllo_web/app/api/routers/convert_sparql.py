@@ -23,6 +23,7 @@ from mllo_web.app.api.routers.natural_language_query import (
     _build_ontology_context,
     _ontology_context_to_text,
     _call_llm,
+    LLMServiceError,
     _extract_sparql,
     _inject_prefixes,
     _validate_sparql,
@@ -33,6 +34,7 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 EXPLICIT_GRAPH = ""#FROM <http://www.ontotext.com/explicit>"
+ONTOLOGY_UNAVAILABLE_USER_MESSAGE = "Can't access ontology data source."
 
 
 def _add_explicit_graph(sparql: str) -> str:
@@ -71,7 +73,7 @@ async def convert_sparql(request: Request, body: ConvertRequest):
         logger.error("Failed to fetch ontology schema: %s", e)
         raise HTTPException(
             status_code=500,
-            detail=f"Failed to fetch ontology schema: {e}",
+            detail=ONTOLOGY_UNAVAILABLE_USER_MESSAGE,
         )
 
     ctx = _build_ontology_context(schema_rows, prefix_rows, sample_rows)
@@ -104,9 +106,12 @@ async def convert_sparql(request: Request, body: ConvertRequest):
 
     try:
         raw_sparql = await _call_llm(messages)
+    except LLMServiceError as e:
+        logger.error("LLM call failed: %s", e)
+        raise HTTPException(status_code=502, detail=str(e))
     except Exception as e:
         logger.error("LLM call failed: %s", e)
-        raise HTTPException(status_code=502, detail=f"LLM call failed: {e}")
+        raise HTTPException(status_code=500, detail="Unexpected server error while converting query.")
 
     if "CANNOT_ANSWER_WITH_ONTOLOGY" in raw_sparql:
         raise HTTPException(
@@ -140,6 +145,9 @@ async def convert_sparql(request: Request, body: ConvertRequest):
             try:
                 raw_sparql = await _call_llm(messages)
                 sparql = _extract_sparql(raw_sparql)
+            except LLMServiceError as e:
+                logger.error("LLM repair call failed: %s", e)
+                raise HTTPException(status_code=502, detail=str(e))
             except Exception as e:
                 logger.error("LLM repair call failed: %s", e)
                 break
@@ -195,6 +203,9 @@ async def convert_sparql(request: Request, body: ConvertRequest):
                     sparql = _extract_sparql(raw_sparql)
                     sparql = _inject_prefixes(sparql, ctx)
                     #sparql = _add_explicit_graph(sparql)
+                except LLMServiceError as e:
+                    logger.error("LLM exec-repair call failed: %s", e)
+                    raise HTTPException(status_code=502, detail=str(e))
                 except Exception as llm_err:
                     logger.error("LLM exec-repair call failed: %s", llm_err)
                     break

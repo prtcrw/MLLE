@@ -3,14 +3,21 @@ import re
 
 import httpx
 
+from mllo_web.app.api.config import get_config
+
 logger = logging.getLogger(__name__)
+config = get_config()
+
+LLM_UNAVAILABLE_USER_MESSAGE = "Can't access AI model."
+
+
+class LLMServiceError(RuntimeError):
+    """Raised when the LLM endpoint is unavailable or returns an invalid response."""
 
 
 # ──────────────────────────────────────────────────────────────────────
 # Configuration – adjust these or pull from app.state / env vars
 # ──────────────────────────────────────────────────────────────────────
-LLM_BASE_URL = "http://localhost:1234/v1"          # LM Studio OpenAI-compat endpoint
-LLM_MODEL    = "openai/gpt-oss-120b"                 # model name loaded in LM Studio
 MAX_REPAIR_ATTEMPTS = 10                             # how many times to retry invalid SPARQL
 
 # Named graph that holds the ontology in GraphDB / Mobi
@@ -438,19 +445,46 @@ async def _call_llm(messages: list[dict]) -> str:
     total_chars = sum(len(m.get("content", "")) for m in messages)
     logger.info("LLM prompt: %d messages, ~%d chars total", len(messages), total_chars)
 
-    async with httpx.AsyncClient(timeout=120.0) as client:
-        resp = await client.post(
-            f"{LLM_BASE_URL}/chat/completions",
-            json={
-                "model": LLM_MODEL,
-                "messages": messages,
-                "temperature": 0,
-                "max_tokens": 1024,
-            },
-        )
-        resp.raise_for_status()
-        data = resp.json()
-        return data["choices"][0]["message"]["content"].strip()
+    try:
+        # If full URL override is set (Azure Foundry/OpenAI style), use it.
+        if config.llm_chat_completions_url:
+            url = config.llm_chat_completions_url
+        else:
+            base = config.llm_base_url.rstrip("/")
+            path = config.llm_chat_completions_path
+            if not path.startswith("/"):
+                path = "/" + path
+            url = f"{base}{path}"
+
+        headers = {}
+        if config.llm_api_key:
+            headers[config.llm_api_key_header] = f"{config.llm_api_key_prefix}{config.llm_api_key}"
+
+        params = {}
+        if config.llm_api_version:
+            params[config.llm_api_version_param] = config.llm_api_version
+
+        payload = {
+            "messages": messages,
+            "temperature": 0,
+            "max_tokens": 1024,
+        }
+        if config.llm_send_model:
+            payload["model"] = config.llm_model
+
+        async with httpx.AsyncClient(timeout=config.llm_timeout_seconds) as client:
+            resp = await client.post(
+                url,
+                params=params or None,
+                headers=headers or None,
+                json=payload,
+            )
+            resp.raise_for_status()
+            data = resp.json()
+            return data["choices"][0]["message"]["content"].strip()
+    except Exception:
+        logger.exception("LLM request failed")
+        raise LLMServiceError(LLM_UNAVAILABLE_USER_MESSAGE)
 
 
 def _extract_sparql(raw: str) -> str:
@@ -556,5 +590,3 @@ def _validate_sparql(sparql: str, ctx: dict) -> list[str]:
                     errors.append(f"Term not in ontology: {prefix}:{local} ({full_iri})")
 
     return errors
-
-

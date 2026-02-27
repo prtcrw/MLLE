@@ -36,6 +36,52 @@ class AppConfig(BaseSettings):
     graphdb_auth_username: str = Field(default="admin", description="Username for GraphDB.")
     graphdb_auth_password: str = Field(default="admin", description="Password for GraphDB.")
 
+    # LLM settings (default: OpenAI-compatible endpoint style)
+    llm_base_url: str = Field(
+        default="http://localhost:1234/v1",
+        description="Base URL for the LLM API."
+    )
+    llm_chat_completions_path: str = Field(
+        default="/chat/completions",
+        description="Path appended to llm_base_url when llm_chat_completions_url is not set."
+    )
+    llm_chat_completions_url: str | None = Field(
+        default=None,
+        description="Optional full URL override for chat completions (useful for Azure Foundry/OpenAI endpoints)."
+    )
+    llm_model: str = Field(
+        default="openai/gpt-oss-120b",
+        description="Model name sent to chat completions when llm_send_model is true."
+    )
+    llm_send_model: bool = Field(
+        default=True,
+        description="Whether to include model in the chat completions request payload."
+    )
+    llm_api_key: str | None = Field(
+        default=None,
+        description="Optional API key for LLM endpoint."
+    )
+    llm_api_key_header: str = Field(
+        default="Authorization",
+        description="Header name used for llm_api_key."
+    )
+    llm_api_key_prefix: str = Field(
+        default="Bearer ",
+        description="Prefix prepended to llm_api_key (e.g., 'Bearer '). Use empty string for raw keys."
+    )
+    llm_api_version: str | None = Field(
+        default=None,
+        description="Optional API version value to be sent as query parameter (e.g., Azure '2024-05-01-preview')."
+    )
+    llm_api_version_param: str = Field(
+        default="api-version",
+        description="Query parameter name for llm_api_version."
+    )
+    llm_timeout_seconds: float = Field(
+        default=120.0,
+        description="Timeout in seconds for LLM API calls."
+    )
+
 
 def get_config() -> AppConfig:
     config = AppConfig()

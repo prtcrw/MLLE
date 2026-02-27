@@ -37,8 +37,19 @@ export const convertEnglishToSparql = async (input: string, endpoint?: string): 
     });
 
     if (!resp.ok) {
-        const text = await resp.text();
-        throw new Error(`Conversion failed: ${resp.status} ${text}`);
+        let message = 'Conversion failed.';
+        try {
+            const payload = await resp.json();
+            if (typeof payload?.detail === 'string' && payload.detail.trim().length > 0) {
+                message = payload.detail;
+            }
+        } catch {
+            const text = await resp.text();
+            if (text.trim().length > 0) {
+                message = text;
+            }
+        }
+        throw new Error(message);
     }
 
     const j = await resp.json();
