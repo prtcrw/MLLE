@@ -216,6 +216,7 @@ const AnalyzeDeployedModels: React.FC = () => {
                 <Pagination
                     currentPage={currentPage}
                     totalPages={totalPages}
+                    itemsPerPage={itemsPerPage}
                     onPageChange={handlePageChange}
                 />
             </div>

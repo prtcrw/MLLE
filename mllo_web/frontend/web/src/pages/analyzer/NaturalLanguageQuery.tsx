@@ -1,11 +1,191 @@
-import React, {useEffect, useState} from 'react';
+import React, {ReactNode, useEffect, useState} from 'react';
 import './styles/plot_performance.css';
 import {getSettings, listSettingsRepos, NLQResponse, queryNaturalLanguage} from '../../services/api';
+import {DownloadIcon} from '../../components/Icons';
+
+type ResultValue = string | null | string[];
+type ResultRow = Record<string, ResultValue>;
+const NLQ_STORAGE_KEY = 'mllo:nlq-state';
+
+const inlineCodeStyle: React.CSSProperties = {
+    fontFamily: 'monospace',
+    background: '#f1f3f5',
+    padding: '0.1rem 0.3rem',
+    borderRadius: '4px',
+};
+
+const renderInlineMarkdown = (text: string): ReactNode[] => {
+    const nodes: ReactNode[] = [];
+    const pattern = /(\*\*[^*]+\*\*|`[^`]+`)/g;
+    let lastIndex = 0;
+    let key = 0;
+    for (const match of text.matchAll(pattern)) {
+        const start = match.index ?? 0;
+        if (start > lastIndex) {
+            nodes.push(text.slice(lastIndex, start));
+        }
+        const token = match[0];
+        if (token.startsWith('**') && token.endsWith('**')) {
+            nodes.push(<strong key={`b-${key++}`}>{token.slice(2, -2)}</strong>);
+        } else if (token.startsWith('`') && token.endsWith('`')) {
+            nodes.push(<code key={`c-${key++}`} style={inlineCodeStyle}>{token.slice(1, -1)}</code>);
+        }
+        lastIndex = start + token.length;
+    }
+    if (lastIndex < text.length) {
+        nodes.push(text.slice(lastIndex));
+    }
+    return nodes.length > 0 ? nodes : [text];
+};
+
+const isMarkdownSeparator = (line: string): boolean => /^\s*\|?[\s:-]+\|[\s|:-]*$/.test(line);
+
+const parseTableRow = (line: string): string[] =>
+    line
+        .trim()
+        .replace(/^\|/, '')
+        .replace(/\|$/, '')
+        .split('|')
+        .map((cell) => cell.trim());
+
+const renderMarkdownAnswer = (text: string): ReactNode => {
+    const lines = text.split(/\r?\n/);
+    const blocks: ReactNode[] = [];
+    let i = 0;
+
+    while (i < lines.length) {
+        if (!lines[i].trim()) {
+            i += 1;
+            continue;
+        }
+
+        if (
+            i + 1 < lines.length &&
+            lines[i].includes('|') &&
+            isMarkdownSeparator(lines[i + 1])
+        ) {
+            const headers = parseTableRow(lines[i]);
+            const rows: string[][] = [];
+            i += 2;
+            while (i < lines.length && lines[i].includes('|') && lines[i].trim()) {
+                rows.push(parseTableRow(lines[i]));
+                i += 1;
+            }
+            blocks.push(
+                <div key={`table-${blocks.length}`} style={{overflowX: 'auto', margin: '0.75rem 0'}}>
+                    <table style={{width: '100%', borderCollapse: 'collapse'}}>
+                        <thead>
+                            <tr>
+                                {headers.map((header, index) => (
+                                    <th key={index} style={{border: '1px solid #d7d7d7', padding: '0.55rem', background: '#f5f5f5', textAlign: 'left'}}>
+                                        {renderInlineMarkdown(header)}
+                                    </th>
+                                ))}
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {rows.map((row, rowIndex) => (
+                                <tr key={rowIndex}>
+                                    {headers.map((_, colIndex) => (
+                                        <td key={colIndex} style={{border: '1px solid #e7e7e7', padding: '0.55rem', verticalAlign: 'top'}}>
+                                            {renderInlineMarkdown(row[colIndex] ?? '')}
+                                        </td>
+                                    ))}
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
+            );
+            continue;
+        }
+
+        if (/^\s*[-*]\s+/.test(lines[i])) {
+            const items: string[] = [];
+            while (i < lines.length && /^\s*[-*]\s+/.test(lines[i])) {
+                items.push(lines[i].replace(/^\s*[-*]\s+/, '').trim());
+                i += 1;
+            }
+            blocks.push(
+                <ul key={`list-${blocks.length}`} style={{margin: '0.5rem 0 1rem 1.25rem'}}>
+                    {items.map((item, index) => (
+                        <li key={index} style={{marginBottom: '0.35rem'}}>{renderInlineMarkdown(item)}</li>
+                    ))}
+                </ul>
+            );
+            continue;
+        }
+
+        const paragraphLines: string[] = [];
+        while (
+            i < lines.length &&
+            lines[i].trim() &&
+            !(i + 1 < lines.length && lines[i].includes('|') && isMarkdownSeparator(lines[i + 1])) &&
+            !/^\s*[-*]\s+/.test(lines[i])
+        ) {
+            paragraphLines.push(lines[i].trim());
+            i += 1;
+        }
+        blocks.push(
+            <p key={`p-${blocks.length}`} style={{margin: '0 0 0.85rem', lineHeight: 1.55}}>
+                {renderInlineMarkdown(paragraphLines.join(' '))}
+            </p>
+        );
+    }
+
+    return <div>{blocks}</div>;
+};
+
+const normalizeCellLines = (value: ResultValue): string[] => {
+    if (value == null) return [];
+    if (Array.isArray(value)) return value.map((item) => String(item));
+    return [String(value)];
+};
+
+const shortenValue = (val: string): string => {
+    const hashIdx = val.lastIndexOf('#');
+    if (hashIdx >= 0) return val.substring(hashIdx + 1);
+    const slashIdx = val.lastIndexOf('/');
+    if (slashIdx >= 0 && slashIdx < val.length - 1) return val.substring(slashIdx + 1);
+    return val;
+};
+
+const csvEscape = (value: string): string => `"${value.replace(/"/g, '""')}"`;
+
+const downloadCsv = (rows: ResultRow[], columns: string[]): void => {
+    const lines = [
+        columns.map(csvEscape).join(','),
+        ...rows.map((row) =>
+            columns
+                .map((column) => csvEscape(normalizeCellLines(row[column]).join(' | ')))
+                .join(',')
+        ),
+    ];
+    const blob = new Blob([lines.join('\n')], {type: 'text/csv;charset=utf-8;'});
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.setAttribute('download', 'nlq_results.csv');
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(link.href);
+};
+
+interface PersistedNLQState {
+    input: string;
+    sparql: string;
+    results: ResultRow[];
+    answer: string;
+    showSparql: boolean;
+    selectedRepo: string;
+    answerMode: 'exact' | 'conceptual' | 'auto';
+    metadata: {repo_used: string; inference_used: boolean} | null;
+    debugInfo: {tool: string; reasoning: string} | null;
+}
 
 const NaturalLanguageQuery: React.FC = () => {
     const [input, setInput] = useState('');
     const [sparql, setSparql] = useState('');
-    const [results, setResults] = useState<Record<string, string | null>[]>([]);
+    const [results, setResults] = useState<ResultRow[]>([]);
     const [answer, setAnswer] = useState('');
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
@@ -15,6 +195,7 @@ const NaturalLanguageQuery: React.FC = () => {
     const [answerMode, setAnswerMode] = useState<'exact' | 'conceptual' | 'auto'>('auto');
     const [metadata, setMetadata] = useState<{repo_used: string; inference_used: boolean} | null>(null);
     const [debugInfo, setDebugInfo] = useState<{tool: string; reasoning: string} | null>(null);
+    const [hasRestoredState, setHasRestoredState] = useState(false);
     const examplePrompts = [
         'Get all pipelines.',
         'Show me models with performance more than 0.9.'
@@ -36,6 +217,55 @@ const NaturalLanguageQuery: React.FC = () => {
         };
         void load();
     }, []);
+
+    useEffect(() => {
+        try {
+            const rawState = window.sessionStorage.getItem(NLQ_STORAGE_KEY);
+            if (!rawState) {
+                setHasRestoredState(true);
+                return;
+            }
+
+            const persistedState = JSON.parse(rawState) as PersistedNLQState;
+            setInput(persistedState.input ?? '');
+            setSparql(persistedState.sparql ?? '');
+            setResults(Array.isArray(persistedState.results) ? persistedState.results : []);
+            setAnswer(persistedState.answer ?? '');
+            setShowSparql(Boolean(persistedState.showSparql));
+            if (persistedState.selectedRepo) {
+                setSelectedRepo(persistedState.selectedRepo);
+            }
+            if (persistedState.answerMode) {
+                setAnswerMode(persistedState.answerMode);
+            }
+            setMetadata(persistedState.metadata ?? null);
+            setDebugInfo(persistedState.debugInfo ?? null);
+        } catch {
+            window.sessionStorage.removeItem(NLQ_STORAGE_KEY);
+        } finally {
+            setHasRestoredState(true);
+        }
+    }, []);
+
+    useEffect(() => {
+        if (!hasRestoredState) {
+            return;
+        }
+
+        const stateToPersist: PersistedNLQState = {
+            input,
+            sparql,
+            results,
+            answer,
+            showSparql,
+            selectedRepo,
+            answerMode,
+            metadata,
+            debugInfo,
+        };
+
+        window.sessionStorage.setItem(NLQ_STORAGE_KEY, JSON.stringify(stateToPersist));
+    }, [answer, answerMode, debugInfo, hasRestoredState, input, metadata, results, selectedRepo, showSparql, sparql]);
 
     const clearResults = () => {
         setSparql('');
@@ -72,15 +302,6 @@ const NaturalLanguageQuery: React.FC = () => {
     };
 
     const columns = results.length > 0 ? Object.keys(results[0]) : [];
-
-    const shorten = (val: string | null): string => {
-        if (val == null) return '';
-        const hashIdx = val.lastIndexOf('#');
-        if (hashIdx >= 0) return val.substring(hashIdx + 1);
-        const slashIdx = val.lastIndexOf('/');
-        if (slashIdx >= 0 && slashIdx < val.length - 1) return val.substring(slashIdx + 1);
-        return val;
-    };
 
     return (
         <div className="page-container">
@@ -134,7 +355,12 @@ const NaturalLanguageQuery: React.FC = () => {
 
                 <div style={{display: 'flex', gap: '0.5rem', flexWrap: 'wrap'}}>
                     <button onClick={handleConvert} disabled={loading || !input.trim()}>Convert</button>
-                    <button onClick={() => { setInput(''); setError(null); clearResults(); }}>Clear</button>
+                    <button onClick={() => {
+                        setInput('');
+                        setError(null);
+                        clearResults();
+                        window.sessionStorage.removeItem(NLQ_STORAGE_KEY);
+                    }}>Clear</button>
                 </div>
 
                 {loading && <div>Converting…</div>}
@@ -150,8 +376,8 @@ const NaturalLanguageQuery: React.FC = () => {
                 {answer && (
                     <div style={{marginTop: '0.5rem'}}>
                         <label>Answer</label>
-                        <div style={{padding: '0.75rem', background: '#f7f7f7', border: '1px solid #ddd'}}>
-                            {answer}
+                        <div style={{padding: '0.9rem', background: '#f7f7f7', border: '1px solid #ddd', overflowX: 'auto'}}>
+                            {renderMarkdownAnswer(answer)}
                         </div>
                     </div>
                 )}
@@ -193,9 +419,19 @@ const NaturalLanguageQuery: React.FC = () => {
 
                 {results.length > 0 && (
                     <div style={{marginTop: '1rem'}}>
-                        <label>Query Results ({results.length} row{results.length !== 1 ? 's' : ''})</label>
+                        <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap'}}>
+                            <label>Query Results ({results.length} row{results.length !== 1 ? 's' : ''})</label>
+                            <button
+                                type="button"
+                                onClick={() => downloadCsv(results, columns)}
+                                style={{display: 'inline-flex', alignItems: 'center', gap: '0.35rem'}}
+                            >
+                                <DownloadIcon width={16} height={16}/>
+                                Export CSV
+                            </button>
+                        </div>
                         <div style={{overflowX: 'auto', marginTop: '0.5rem'}}>
-                            <table style={{width: '100%', borderCollapse: 'collapse', fontFamily: 'monospace', fontSize: '0.85rem'}}>
+                            <table style={{width: '100%', minWidth: 'max-content', borderCollapse: 'collapse', fontFamily: 'monospace', fontSize: '0.85rem'}}>
                                 <thead>
                                     <tr>
                                         {columns.map(col => (
@@ -217,13 +453,17 @@ const NaturalLanguageQuery: React.FC = () => {
                                             {columns.map(col => (
                                                 <td key={col} style={{
                                                     border: '1px solid #eee',
-                                                    padding: '4px 10px',
-                                                    maxWidth: '400px',
-                                                    overflow: 'hidden',
-                                                    textOverflow: 'ellipsis',
-                                                    whiteSpace: 'nowrap',
-                                                }} title={row[col] ?? ''}>
-                                                    {shorten(row[col])}
+                                                    padding: '8px 10px',
+                                                    maxWidth: '520px',
+                                                    whiteSpace: 'normal',
+                                                    wordBreak: 'break-word',
+                                                    verticalAlign: 'top',
+                                                }}>
+                                                    <div style={{display: 'flex', flexDirection: 'column', gap: '0.2rem'}}>
+                                                        {normalizeCellLines(row[col]).map((line, index) => (
+                                                            <span key={index} title={line}>{shortenValue(line)}</span>
+                                                        ))}
+                                                    </div>
                                                 </td>
                                             ))}
                                         </tr>

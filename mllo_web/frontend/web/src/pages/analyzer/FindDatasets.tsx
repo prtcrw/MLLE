@@ -1,6 +1,6 @@
-import React, {useState, useEffect} from 'react';
-import {useNavigate} from 'react-router-dom';
-import {buildV1Url, downloadFromResponse} from '../../services/api';
+import React, {useEffect, useMemo, useState} from 'react';
+import {useLocation, useNavigate} from 'react-router-dom';
+import {buildV1Url} from '../../services/api';
 import LoadingBar from '../../components/LoadingBar.tsx';
 import ErrorMessage from '../../components/ErrorMessage.tsx';
 import Search from '../../components/Search.tsx';
@@ -13,15 +13,16 @@ import Modal from '../../components/Modal.tsx';
 import {pascalCaseToWords, lowercaseToPascalCase} from '../../components/FormatUtilities';
 import DateRangeSlider from '../../components/DateRangeSlider';
 import DropdownFilter from '../../components/DropdownFilter';
+import './styles/discovery.css';
 
 interface DatasetData {
     model: string;
-    modelType: string;
-    modelObjective: string;
-    modelInput: string;
+    model_type: string;
+    model_objective: string;
+    dataset: string;
     ml_input_timestamp: string;
-    modelOutput: string;
-    modelOutputUtilization: string;
+    model_output: string;
+    model_output_utilization: string;
 }
 
 interface IRIQueryData {
@@ -31,172 +32,377 @@ interface IRIQueryData {
 }
 
 const defaultSelectedCheckboxes = {
-    "test_data": false,
-    "validation_data": false,
-    "training_data": false,
-    "production_data": false,
-    "raw_data": false,
-    "direct_type": false,
+    test_data: false,
+    validation_data: false,
+    training_data: false,
+    production_data: false,
+    raw_data: false,
+    direct_type: false,
+};
+
+const DEFAULT_ITEMS_PER_PAGE = 10;
+const FETCH_BATCH_SIZE = 250;
+const DATASETS_VIEW_STATE_KEY = 'mllo:view-state:datasets';
+
+const sortHeaders = [
+    'Model',
+    'Model Type',
+    'Model Objective',
+    'Model Input',
+    'ML Input Timestamp',
+    'Model Output',
+    'Model Output Utilization',
+];
+
+const defaultSorts: { key: string; direction: SortDirection }[] = [
+    {key: 'Model', direction: 'asc'},
+];
+
+const parseBoolean = (value: string | null, fallback = false) => {
+    if (value === null) {
+        return fallback;
+    }
+    return value === 'true';
+};
+
+const parsePositiveInt = (value: string | null, fallback: number) => {
+    const parsed = Number.parseInt(value ?? '', 10);
+    return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
+};
+
+const parseDateParam = (value: string | null): Date | null => {
+    if (!value) {
+        return null;
+    }
+
+    const parsed = new Date(`${value}T00:00:00`);
+    return Number.isNaN(parsed.getTime()) ? null : parsed;
+};
+
+const formatDateParam = (value: Date | null) => {
+    if (!value) {
+        return null;
+    }
+
+    return value.toISOString().slice(0, 10);
+};
+
+const escapeCsvValue = (value: unknown) => {
+    const text = value === null || value === undefined ? '' : String(value);
+    return `"${text.replace(/"/g, '""')}"`;
+};
+
+const downloadCsv = (filename: string, headers: string[], rows: unknown[][]) => {
+    const csv = [headers, ...rows]
+        .map((row) => row.map(escapeCsvValue).join(','))
+        .join('\n');
+
+    const blob = new Blob([csv], {type: 'text/csv;charset=utf-8;'});
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
 };
 
 const FindDatasets: React.FC = () => {
-    const [searchTerm, setSearchTerm] = useState('');
-    const [toggleConstraint, setToggleConstraint] = useState<boolean>(false);
-    const [selectedCheckboxes, setSelectedCheckboxes] = useState<{ [key: string]: boolean }>(defaultSelectedCheckboxes);
     const [datasets, setDatasets] = useState<DatasetData[]>([]);
-    const [modelTypes, setModelTypes] = useState<string[]>([]); // Add model types state
-    const [currentPage, setCurrentPage] = useState(1);
-    const [totalPages, setTotalPages] = useState(0);
-    const [itemsPerPage, setItemsPerPage] = useState(10);
-    const sortHeaders = [
-        "Model",
-        "Model Type",
-        "Model Objective",
-        "Model Input",
-        "ML Input Timestamp",
-        "Model Output",
-        "Model Output Utilization",
-    ];
-    const [currentSorts, setCurrentSorts] = useState<{ key: string; direction: SortDirection }[]>([
-        {key: "Model", direction: "asc"}
-    ]);
     const [isLoading, setIsLoading] = useState(false);
     const [message, setMessage] = useState('');
     const [error, setError] = useState<string | null>(null);
-    const navigate = useNavigate(); // Access useNavigate hook
     const [isPopupOpen, setIsPopupOpen] = useState(false);
     const [iriQueryResult, setQueryResult] = useState<IRIQueryData[] | null>(null);
     const [clickedIri, setClickedIri] = useState<string | null>(null);
-    const [dateRange, setDateRange] = useState<[Date | null, Date | null]>([null, null]); // State for date range
-    const [includeBlankDates, setIncludeBlankDates] = useState(true); // State for include blank dates
-    const [filteredDatasets, setFilteredDatasets] = useState<DatasetData[]>([]); // State for filtered datasets
+    const [hasHydratedState, setHasHydratedState] = useState(false);
 
-    useEffect(() => {
-        // Filter the datasets based on the selected date range and includeBlank setting
-        const filtered = datasets.filter(dataset => {
+    const navigate = useNavigate();
+    const location = useLocation();
+
+    const queryState = useMemo(() => {
+        const params = new URLSearchParams(location.search);
+        const selectedRoles = params.getAll('dataset_role');
+        const selectedCheckboxes = {
+            ...defaultSelectedCheckboxes,
+            direct_type: parseBoolean(params.get('direct_type')),
+        };
+
+        for (const role of selectedRoles) {
+            if (role in selectedCheckboxes) {
+                selectedCheckboxes[role as keyof typeof selectedCheckboxes] = true;
+            }
+        }
+
+        const parsedSorts = params.getAll('sort')
+            .map((value) => {
+                const [key, direction] = value.split(',');
+                if (!key || (direction !== 'asc' && direction !== 'desc')) {
+                    return null;
+                }
+
+                return {key, direction: direction as SortDirection};
+            })
+            .filter((value): value is { key: string; direction: SortDirection } => value !== null);
+
+        return {
+            searchTerm: params.get('search_term') ?? '',
+            toggleConstraint: parseBoolean(params.get('type_query')),
+            selectedCheckboxes,
+            modelTypes: params.getAll('model_type'),
+            currentPage: parsePositiveInt(params.get('page'), 1),
+            itemsPerPage: parsePositiveInt(params.get('items_per_page'), DEFAULT_ITEMS_PER_PAGE),
+            currentSorts: parsedSorts.length > 0 ? parsedSorts : defaultSorts,
+            includeBlankDates: !params.has('include_blank_date') || parseBoolean(params.get('include_blank_date'), true),
+            dateRange: [parseDateParam(params.get('start_date')), parseDateParam(params.get('end_date'))] as [Date | null, Date | null],
+        };
+    }, [location.search]);
+
+    const filteredDatasets = useMemo(() => {
+        return datasets.filter((dataset) => {
             const datasetDate = dataset.ml_input_timestamp ? new Date(dataset.ml_input_timestamp) : null;
-            if (!includeBlankDates && !datasetDate) {
+
+            if (!datasetDate) {
+                return queryState.includeBlankDates;
+            }
+
+            const [startDate, endDate] = queryState.dateRange;
+            if (startDate && datasetDate < startDate) {
                 return false;
             }
-            if (datasetDate) {
-                const [start, end] = dateRange;
-                if ((start && datasetDate < start) || (end && datasetDate > end)) {
+            if (endDate) {
+                const inclusiveEndDate = new Date(endDate);
+                inclusiveEndDate.setHours(23, 59, 59, 999);
+                if (datasetDate > inclusiveEndDate) {
                     return false;
                 }
             }
+
             return true;
         });
-        setFilteredDatasets(filtered);
-    }, [datasets, dateRange, includeBlankDates]);
+    }, [datasets, queryState.dateRange, queryState.includeBlankDates]);
 
-    const fetchData = async (
-        searchTerm: string,
-        currentPage: number,
-        itemsPerPage: number,
-        sorts: { key: string; direction: SortDirection }[],
-        selectedCheckboxes: { [key: string]: boolean },
-        toggleConstraint: boolean,
-        modelTypes: string[],
-        format: string = ''
-    ) => {
-        setIsLoading(true); // Set loading to true
-        setMessage('');
-        setError(null);
-        try {
-            const urlParams = new URLSearchParams({
-                search_term: searchTerm,
-                page: currentPage.toString(),
-                items_per_page: itemsPerPage.toString(),
-                type_query: toggleConstraint.toString(),
-                direct_type: selectedCheckboxes["direct_type"].toString(),
-            });
-            // Add sorts as query params
-            for (const {key, direction} of sorts) {
-                urlParams.append('sort', `${key},${direction}`);
-            }
+    const totalPages = filteredDatasets.length > 0
+        ? Math.ceil(filteredDatasets.length / queryState.itemsPerPage)
+        : 0;
+    const safeCurrentPage = totalPages === 0
+        ? 1
+        : Math.min(queryState.currentPage, totalPages);
 
-            // Add dataset_role as query params
-            Object.keys(selectedCheckboxes).filter(key => selectedCheckboxes[key]).map((key) => {
-                urlParams.append('dataset_role', `${key},${selectedCheckboxes[key]}`);
-            });
+    const paginatedDatasets = useMemo(() => {
+        const startIndex = (safeCurrentPage - 1) * queryState.itemsPerPage;
+        return filteredDatasets.slice(startIndex, startIndex + queryState.itemsPerPage);
+    }, [filteredDatasets, queryState.itemsPerPage, safeCurrentPage]);
 
-            // Add model types as query param
-            modelTypes.forEach(type => {
-                urlParams.append('model_types', type);
-            });
+    const updateQueryState = (updates: {
+        searchTerm?: string;
+        toggleConstraint?: boolean;
+        selectedCheckboxes?: typeof defaultSelectedCheckboxes;
+        modelTypes?: string[];
+        currentPage?: number;
+        itemsPerPage?: number;
+        currentSorts?: { key: string; direction: SortDirection }[];
+        includeBlankDates?: boolean;
+        dateRange?: [Date | null, Date | null];
+    }) => {
+        const params = new URLSearchParams(location.search);
 
-            if (format !== '') {
-                urlParams.append('format', format);
-            }
-
-            const response = await fetch(buildV1Url(`datasets/?${urlParams.toString()}`));
-            if (!response.ok) {
-                throw new Error(`Failed to fetch datasets: ${response.statusText}`);
-            }
-
-            if (format === '' || format === 'json') {
-                const fetchedDatasets = await response.json();
-                setCurrentPage(currentPage);
-                setTotalPages(fetchedDatasets["total_pages"]);
-                setDatasets(fetchedDatasets["data"]);
-                if (fetchedDatasets["data"].length === 0) {
-                    setMessage("No datasets found.");
-                } else {
-                    setMessage('');
-                }
-            } else {
-                await downloadFromResponse(response, 'find_datasets.csv');
-            }
-        } catch (error) {
-            console.error('Error fetching datasets:', error);
-            setError((error as Error).message);
-        } finally {
-            setIsLoading(false); // Set loading to false after fetching
+        const searchTerm = updates.searchTerm ?? queryState.searchTerm;
+        if (searchTerm) {
+            params.set('search_term', searchTerm);
+        } else {
+            params.delete('search_term');
         }
+
+        params.set('type_query', String(updates.toggleConstraint ?? queryState.toggleConstraint));
+        params.set('direct_type', String((updates.selectedCheckboxes ?? queryState.selectedCheckboxes).direct_type));
+        params.set('page', String(updates.currentPage ?? queryState.currentPage));
+        params.set('items_per_page', String(updates.itemsPerPage ?? queryState.itemsPerPage));
+        params.set('include_blank_date', String(updates.includeBlankDates ?? queryState.includeBlankDates));
+
+        const selectedCheckboxes = updates.selectedCheckboxes ?? queryState.selectedCheckboxes;
+        params.delete('dataset_role');
+        Object.entries(selectedCheckboxes)
+            .filter(([key, value]) => key !== 'direct_type' && value)
+            .forEach(([key]) => params.append('dataset_role', key));
+
+        const modelTypes = updates.modelTypes ?? queryState.modelTypes;
+        params.delete('model_type');
+        modelTypes.forEach((type) => params.append('model_type', type));
+
+        const currentSorts = updates.currentSorts ?? queryState.currentSorts;
+        params.delete('sort');
+        currentSorts
+            .filter((sort) => sort.direction !== null)
+            .forEach((sort) => params.append('sort', `${sort.key},${sort.direction}`));
+
+        const dateRange = updates.dateRange ?? queryState.dateRange;
+        const [startDate, endDate] = dateRange;
+        const formattedStart = formatDateParam(startDate);
+        const formattedEnd = formatDateParam(endDate);
+        if (formattedStart) {
+            params.set('start_date', formattedStart);
+        } else {
+            params.delete('start_date');
+        }
+        if (formattedEnd) {
+            params.set('end_date', formattedEnd);
+        } else {
+            params.delete('end_date');
+        }
+
+        navigate({pathname: location.pathname, search: params.toString()}, {replace: false});
     };
 
-    const handleSearch = async (searchTerm: string) => {
-        setSearchTerm(searchTerm);
-        await fetchData(searchTerm, 1, itemsPerPage, currentSorts, selectedCheckboxes, toggleConstraint,modelTypes);
+    useEffect(() => {
+        const savedSearch = window.sessionStorage.getItem(DATASETS_VIEW_STATE_KEY);
+        if (!location.search && savedSearch) {
+            navigate({pathname: location.pathname, search: savedSearch}, {replace: true});
+            return;
+        }
+        setHasHydratedState(true);
+    }, [location.pathname, location.search, navigate]);
+
+    useEffect(() => {
+        if (!hasHydratedState) {
+            return;
+        }
+        window.sessionStorage.setItem(DATASETS_VIEW_STATE_KEY, location.search);
+    }, [hasHydratedState, location.search]);
+
+    useEffect(() => {
+        if (queryState.currentPage !== safeCurrentPage) {
+            updateQueryState({currentPage: safeCurrentPage});
+        }
+    }, [queryState.currentPage, safeCurrentPage]);
+
+    useEffect(() => {
+        if (!hasHydratedState || !location.search) {
+            setDatasets([]);
+            setMessage('Enter a search to load models.');
+            return;
+        }
+
+        const fetchAllDatasets = async () => {
+            setIsLoading(true);
+            setMessage('');
+            setError(null);
+
+            try {
+                const allDatasets: DatasetData[] = [];
+                let page = 1;
+                let totalRemotePages = 1;
+
+                while (page <= totalRemotePages) {
+                    const urlParams = new URLSearchParams({
+                        search_term: queryState.searchTerm,
+                        page: String(page),
+                        items_per_page: String(FETCH_BATCH_SIZE),
+                        type_query: String(queryState.toggleConstraint),
+                        direct_type: String(queryState.selectedCheckboxes.direct_type),
+                    });
+
+                    for (const {key, direction} of queryState.currentSorts) {
+                        urlParams.append('sort', `${key},${direction}`);
+                    }
+
+                    Object.entries(queryState.selectedCheckboxes)
+                        .filter(([key, value]) => key !== 'direct_type' && value)
+                        .forEach(([key]) => urlParams.append('dataset_role', `${key},true`));
+
+                    queryState.modelTypes.forEach((type) => {
+                        urlParams.append('model_types', type);
+                    });
+
+                    const response = await fetch(buildV1Url(`datasets/?${urlParams.toString()}`));
+                    if (!response.ok) {
+                        throw new Error(`Failed to fetch datasets: ${response.statusText}`);
+                    }
+
+                    const payload = await response.json();
+                    totalRemotePages = payload.total_pages || 0;
+                    allDatasets.push(...payload.data);
+                    page += 1;
+                }
+
+                setDatasets(allDatasets);
+                setMessage(allDatasets.length === 0 ? 'No datasets found.' : '');
+            } catch (fetchError) {
+                console.error('Error fetching datasets:', fetchError);
+                setError((fetchError as Error).message);
+            } finally {
+                setIsLoading(false);
+            }
+        };
+
+        void fetchAllDatasets();
+    }, [
+        hasHydratedState,
+        location.search,
+        queryState.currentSorts,
+        queryState.modelTypes,
+        queryState.searchTerm,
+        queryState.selectedCheckboxes,
+        queryState.toggleConstraint,
+    ]);
+
+    const handleSearch = (searchTerm: string) => {
+        updateQueryState({searchTerm, currentPage: 1});
     };
 
-    const handleDownload = async () => {
-        await fetchData(searchTerm, 1, itemsPerPage, currentSorts, selectedCheckboxes, toggleConstraint,modelTypes, 'csv');
+    const handleDownload = () => {
+        downloadCsv(
+            'find_datasets.csv',
+            ['model', 'model_type', 'model_objective', 'model_input', 'ml_input_timestamp', 'model_output', 'model_output_utilization'],
+            filteredDatasets.map((dataset) => [
+                dataset.model,
+                dataset.model_type,
+                dataset.model_objective,
+                dataset.dataset,
+                dataset.ml_input_timestamp,
+                dataset.model_output,
+                dataset.model_output_utilization,
+            ]),
+        );
     };
 
-    const handlePageChange = async (page: number = 1, itemsPerPage: number = 10) => {
-        setCurrentPage(page);
-        setItemsPerPage(itemsPerPage);
-        await fetchData(searchTerm, page, itemsPerPage, currentSorts, selectedCheckboxes, toggleConstraint,modelTypes);
+    const handlePageChange = (page: number = 1, itemsPerPage: number = DEFAULT_ITEMS_PER_PAGE) => {
+        updateQueryState({currentPage: page, itemsPerPage});
     };
 
-    const handleSort = async (sorts: { key: string; direction: SortDirection }[]) => {
-        setCurrentSorts(sorts);
-        await fetchData(searchTerm, currentPage, itemsPerPage, sorts, selectedCheckboxes, toggleConstraint,modelTypes);
+    const handleSort = (sorts: { key: string; direction: SortDirection }[]) => {
+        updateQueryState({currentSorts: sorts, currentPage: 1});
     };
 
-    const handleRemoveSort = async (key: string) => {
-        const newSorts = currentSorts.filter(sort => sort.key !== key);
-        setCurrentSorts(newSorts);
-        await fetchData(searchTerm, currentPage, itemsPerPage, newSorts, selectedCheckboxes, toggleConstraint,modelTypes); // Update data with new sorts
+    const handleRemoveSort = (key: string) => {
+        const newSorts = queryState.currentSorts.filter((sort) => sort.key !== key);
+        updateQueryState({currentSorts: newSorts.length > 0 ? newSorts : defaultSorts, currentPage: 1});
     };
 
     const handleToggleConstraint = () => {
-        setToggleConstraint(!toggleConstraint); // Toggle between Model and Dataset
-        if (!toggleConstraint) {
-            setSelectedCheckboxes(prev => ({
-                ...prev,
-                direct_type: false // Reset direct_type when toggling off Model Type
-            }));
-        }
+        const nextToggleConstraint = !queryState.toggleConstraint;
+        const nextSelectedCheckboxes = {
+            ...queryState.selectedCheckboxes,
+            direct_type: nextToggleConstraint ? queryState.selectedCheckboxes.direct_type : false,
+        };
+
+        updateQueryState({
+            toggleConstraint: nextToggleConstraint,
+            selectedCheckboxes: nextSelectedCheckboxes,
+            currentPage: 1,
+        });
     };
 
     const handleCheckboxChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const {name, checked} = e.target;
-        setSelectedCheckboxes(prev => ({
-            ...prev,
-            [name]: checked
-        }));
+        updateQueryState({
+            selectedCheckboxes: {
+                ...queryState.selectedCheckboxes,
+                [name]: checked,
+            },
+            currentPage: 1,
+        });
     };
 
     const handleAnalyzeModelOutput = () => {
@@ -204,12 +410,12 @@ const FindDatasets: React.FC = () => {
     };
 
     const handlePlotPerformance = () => {
-        let url = '/datasets/plot-performance';
-        if (searchTerm) {
-            url += '?search_term=' + searchTerm+'&';
-            url+='type_query=' + toggleConstraint.toString();
+        const urlParams = new URLSearchParams();
+        if (queryState.searchTerm) {
+            urlParams.set('search_term', queryState.searchTerm);
         }
-        navigate(url);
+        urlParams.set('type_query', String(queryState.toggleConstraint));
+        navigate(`/datasets/plot-performance?${urlParams.toString()}`);
     };
 
     const getUniqueIriPart = (iri: string): string => {
@@ -217,33 +423,34 @@ const FindDatasets: React.FC = () => {
         return parts.length > 1 ? parts[1] : iri;
     };
 
-    const mapItemToRow = (_header: string, value: any) => {
+    const mapItemToRow = (_header: string, value: any): React.ReactNode => {
         if (typeof value === 'string' && value.startsWith('http')) {
             return (
                 <a
                     href="#"
                     onClick={(e) => {
                         e.preventDefault();
-                        handleIriClick(value);
+                        void handleIriClick(value);
                     }}
-                    style={{color: 'blue', textDecoration: 'underline'}}
+                    style={{color: '#2563eb', textDecoration: 'underline'}}
                 >
                     {pascalCaseToWords(getUniqueIriPart(value))}
                 </a>
             );
         }
+
         if (typeof value === 'string') {
-            if (/^[A-Z][a-z0-9]+([A-Z][a-z0-9]*)*$/.test(value)) {
-                value = pascalCaseToWords(value);
-            } else if (/^[a-z ]+$/.test(value)) {
-                value = lowercaseToPascalCase(value);
+            let formattedValue = value;
+            if (/^[A-Z][a-z0-9]+([A-Z][a-z0-9]*)*$/.test(formattedValue)) {
+                formattedValue = pascalCaseToWords(formattedValue);
+            } else if (/^[a-z ]+$/.test(formattedValue)) {
+                formattedValue = lowercaseToPascalCase(formattedValue);
             }
-            return (
-                <span>{value}</span>
-            );
-        } else {
-            return value;
+
+            return <span>{formattedValue}</span>;
         }
+
+        return value;
     };
 
     const handleIriClick = async (iri: string) => {
@@ -257,9 +464,9 @@ const FindDatasets: React.FC = () => {
             const result = await response.json();
             setQueryResult(result);
             setIsPopupOpen(true);
-        } catch (error) {
-            console.error('Error fetching IRI details:', error);
-            setError((error as Error).message);
+        } catch (queryError) {
+            console.error('Error fetching IRI details:', queryError);
+            setError((queryError as Error).message);
         }
     };
 
@@ -268,70 +475,99 @@ const FindDatasets: React.FC = () => {
         setQueryResult(null);
     };
 
+    const tableMessage = datasets.length === 0
+        ? message
+        : filteredDatasets.length === 0
+            ? 'No datasets match the selected time filter.'
+            : '';
+
     return (
-        <div>
+        <div className="discovery-page">
             <LoadingBar isLoading={isLoading}/>
-            <h1>Find Models</h1>
-            <div style={{margin: '8px 0'}}>
-                <Search onSearch={handleSearch} placeholder={!toggleConstraint ? 'Model Name' : 'Objective Type'}/>
-                <FindDatasetsFilter
-                    selectedFilters={selectedCheckboxes}
-                    onFilterChange={handleCheckboxChange}
-                />
-                <div style={{ marginLeft: '8px' }}>
-                        <DropdownFilter
-                            endpoint={buildV1Url('models/types')}
-                            selectedValues={modelTypes}
-                            onChange={setModelTypes}
-                            label="Model Type"
+            <div className="discovery-hero">
+                <div>
+                    <h1>Find Models</h1>
+                    <p>Search models, refine by data role and time, and keep your current view when you navigate away.</p>
+                </div>
+            </div>
+
+            <section className="discovery-panel">
+                <div className="discovery-toolbar">
+                    <Search
+                        onSearch={handleSearch}
+                        placeholder={!queryState.toggleConstraint ? 'Model Name' : 'Objective Type'}
+                        value={queryState.searchTerm}
+                    />
+                    <FindDatasetsFilter
+                        selectedFilters={queryState.selectedCheckboxes}
+                        onFilterChange={handleCheckboxChange}
+                    />
+                    <DropdownFilter
+                        endpoint={buildV1Url('models/types')}
+                        selectedValues={queryState.modelTypes}
+                        onChange={(modelTypes) => updateQueryState({modelTypes, currentPage: 1})}
+                        label="Model Type"
+                    />
+                    <div className="discovery-toggle-card">
+                        <span className="toggle-label">Model Name</span>
+                        <ToggleSwitch isChecked={queryState.toggleConstraint} onToggle={handleToggleConstraint}/>
+                        <span className="toggle-label">Objective Type</span>
+                    </div>
+                </div>
+
+                <div className="discovery-secondary-row">
+                    <div className="discovery-date-card">
+                        <div className="discovery-card-title">Time Window</div>
+                        <DateRangeSlider
+                            dates={datasets.map((dataset) => dataset.ml_input_timestamp ? new Date(dataset.ml_input_timestamp) : null)}
+                            onChange={(dateRange) => updateQueryState({dateRange, currentPage: 1})}
+                            includeBlank={queryState.includeBlankDates}
+                            setIncludeBlank={(includeBlankDates) => updateQueryState({includeBlankDates, currentPage: 1})}
+                            value={queryState.dateRange}
                         />
                     </div>
-                <div style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    padding: '8px',
-                    border: '1px solid #ccc',
-                    borderRadius: '4px'
-                }}>
-                    <span className="toggle-label">Model Name</span>
-                    <ToggleSwitch isChecked={toggleConstraint} onToggle={handleToggleConstraint}/>
-                    <span className="toggle-label" style={{marginLeft: '8px'}}>Objective Type</span>
+
+                    <div className="discovery-actions">
+                        <button onClick={handleAnalyzeModelOutput}>Analyze Model Output</button>
+                        <button onClick={handlePlotPerformance}>Plot Performance</button>
+                    </div>
                 </div>
-            </div>
-            <DateRangeSlider
-                dates={datasets.map(dataset => dataset.ml_input_timestamp ? new Date(dataset.ml_input_timestamp) : null)}
-                onChange={setDateRange}
-                includeBlank={includeBlankDates}
-                setIncludeBlank={setIncludeBlankDates}
-                value={dateRange}
-            />
-            <div>
-                <div style={{margin: '8px 0'}}>
-                    <button onClick={handleAnalyzeModelOutput}>Analyze Model Output</button>
-                    <button style={{marginLeft: '4px'}} onClick={handlePlotPerformance}>Plot Performance</button>
-                </div>
-                {filteredDatasets.length > 0 &&
-                    <div style={{display: 'flex', justifyContent: 'flex-end'}}>
-                        <button onClick={handleDownload}
-                                style={{display: 'flex', alignItems: 'center', justifyContent: 'space-between'}}>
-                            <span style={{marginRight: '4px'}}>Download Results</span>
+            </section>
+
+            <section className="discovery-panel">
+                <div className="discovery-results-bar">
+                    <div>
+                        <strong>{filteredDatasets.length}</strong> matching results
+                        {filteredDatasets.length > 0 && ` • Page ${safeCurrentPage} of ${totalPages}`}
+                    </div>
+                    {filteredDatasets.length > 0 && (
+                        <button
+                            onClick={handleDownload}
+                            className="discovery-download-button"
+                        >
+                            <span>Download Current Results</span>
                             <DownloadIcon width={14} height={14}/>
                         </button>
-                    </div>
-                }
-                <Table data={filteredDatasets}
-                       headers={sortHeaders}
-                       mapItemToRow={mapItemToRow}
-                       currentSorts={currentSorts}
-                       onSort={handleSort}
-                       onRemoveSort={handleRemoveSort}
-                       message={message}/>
+                    )}
+                </div>
+
+                <Table
+                    data={paginatedDatasets}
+                    headers={sortHeaders}
+                    mapItemToRow={mapItemToRow}
+                    currentSorts={queryState.currentSorts}
+                    onSort={handleSort}
+                    onRemoveSort={handleRemoveSort}
+                    message={tableMessage}
+                />
                 <Pagination
-                    currentPage={currentPage}
+                    currentPage={safeCurrentPage}
                     totalPages={totalPages}
+                    itemsPerPage={queryState.itemsPerPage}
                     onPageChange={handlePageChange}
                 />
-            </div>
+            </section>
+
             {(isPopupOpen && iriQueryResult) && (
                 <Modal onClose={closePopup}>
                     <h2 style={{wordBreak: 'break-all', whiteSpace: 'normal'}}>
@@ -339,8 +575,8 @@ const FindDatasets: React.FC = () => {
                     </h2>
                     <div className="divider"></div>
                     {iriQueryResult.map((value, index) => (
-                        <pre style={{whiteSpace: 'pre-wrap'}}>
-                            <div key={index}>
+                        <pre key={index} style={{whiteSpace: 'pre-wrap'}}>
+                            <div>
                                 <ul>
                                     {Object.entries(value).map(([key, val], idx) => (
                                         val && (

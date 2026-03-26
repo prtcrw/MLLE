@@ -9,6 +9,7 @@ import FindModelsByDataset from './pages/analyzer/FindModelsByDataset.tsx';
 import FindPipelines from './pages/analyzer/FindPipelines.tsx';
 import FindDatasets from './pages/analyzer/FindDatasets.tsx';
 import NaturalLanguageQuery from './pages/analyzer/NaturalLanguageQuery.tsx';
+import ChatWithMLLO from './pages/analyzer/ChatWithMLLO.tsx';
 import NLQSettings from './pages/analyzer/NLQSettings.tsx';
 import PlotPerformance from './pages/analyzer/PlotPerformance.tsx';
 import AnalyzeModelOutput from './pages/analyzer/AnalyzeModelOutput.tsx';
@@ -31,6 +32,7 @@ const Dashboard: React.FC = () => {
                     <Header isMenuOpen={isMenuOpen} toggleMenu={toggleMenu}/>
                     <Routes>
                         <Route path="/" element={<Home/>}/>
+                        <Route path="/chat-with-mllo" element={<ChatWithMLLO/>}/>
                         <Route path="/datasets/natural-language-query" element={<NaturalLanguageQuery/>}/>
                         <Route path="/settings" element={<NLQSettings/>}/>
                         <Route path="/models/analyze-deployed-models" element={<AnalyzeDeployedModels/>}/>

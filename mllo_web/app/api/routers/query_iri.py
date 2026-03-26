@@ -1,7 +1,25 @@
+import re
+
 from fastapi import Request, Response
 from fastapi.responses import JSONResponse
 
+from mllo_web.app.api.config import get_config
 from mllo_web.app.api.services.sparql_client import QueryBuilder
+
+config = get_config()
+EXPLICIT_GRAPH = "FROM <http://www.ontotext.com/explicit>"
+
+
+def _inject_explicit_graph(query: str) -> str:
+    if EXPLICIT_GRAPH in query:
+        return query
+    return re.sub(
+        r"(?is)(SELECT\s+DISTINCT\b.*?)(\bWHERE\s*\{)",
+        rf"\1\n{EXPLICIT_GRAPH}\n\2",
+        query,
+        count=1,
+    )
+
 
 QUERY = """
 PREFIX ml: <http://www.semanticweb.org/mnd14/ml/>
@@ -10,9 +28,9 @@ PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
 PREFIX bfo: <http://purl.obolibrary.org/obo/>
 PREFIX iof-core: <https://spec.industrialontologies.org/ontology/core/Core/>
 PREFIX owl: <http://www.w3.org/2002/07/owl#>
-SELECT DISTINCT (GROUP_CONCAT(?datap_pair; separator="\\n") AS ?dataproperty_value_pairs) 
-                (GROUP_CONCAT(?annotp_pair; separator="\\n") AS ?annotationproperty_value_pairs) 
-                (GROUP_CONCAT(?type; separator="\\n") AS ?types)
+SELECT DISTINCT (GROUP_CONCAT(DISTINCT ?datap_pair; separator="\\n") AS ?dataproperty_value_pairs) 
+                (GROUP_CONCAT(DISTINCT ?annotp_pair; separator="\\n") AS ?annotationproperty_value_pairs) 
+                (GROUP_CONCAT(DISTINCT ?type; separator="\\n") AS ?types)
 WHERE {
     VALUES ?entity {<#iri>}
     ?entity rdf:type/rdfs:label ?type.
@@ -39,6 +57,8 @@ class IriQueryBuilder(QueryBuilder):
     def build_query(self) -> str:
         query = QUERY
         query = query.replace("#iri", self.iri)
+        if config.sparql_backend == "graphdb":
+            query = _inject_explicit_graph(query)
         return query
 
 

@@ -1,13 +1,18 @@
-import React, {useState} from 'react';
+import React, {useEffect, useState} from 'react';
 import './styles/search.css';
 
 interface SearchProps {
     onSearch: (searchTerm: string) => void;
-    placeholder?: string; // Optional placeholder prop
+    placeholder?: string;
+    value?: string;
 }
 
-const Search: React.FC<SearchProps> = ({onSearch, placeholder}) => {
-    const [searchTerm, setSearchTerm] = useState('');
+const Search: React.FC<SearchProps> = ({onSearch, placeholder, value = ''}) => {
+    const [searchTerm, setSearchTerm] = useState(value);
+
+    useEffect(() => {
+        setSearchTerm(value);
+    }, [value]);
 
     const SearchIcon = () => {
         return (
@@ -33,6 +38,7 @@ const Search: React.FC<SearchProps> = ({onSearch, placeholder}) => {
 
     const handleClear = () => {
         setSearchTerm('');
+        onSearch('');
     };
 
     const handleKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {

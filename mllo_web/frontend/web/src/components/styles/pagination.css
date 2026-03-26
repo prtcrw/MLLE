@@ -2,6 +2,8 @@
     display: flex;
     align-items: center;
     justify-content: center;
+    flex-wrap: wrap;
+    gap: 8px;
     padding-top: 8px;
 }
 
@@ -9,15 +11,17 @@
     display: flex;
     list-style-type: none;
     padding: 0;
+    margin: 0;
 }
 
 .pagination li {
-    padding: 0 4px;
+    padding: 0 2px;
 }
 
 .pagination li.active button {
-    color: rgb(255, 255, 255);
-    background-color: rgb(13, 153, 255);
+    color: #ffffff;
+    background: linear-gradient(135deg, #0284c7 0%, #2563eb 100%);
+    box-shadow: 0 8px 18px rgba(37, 99, 235, 0.22);
 }
 
 .items-per-page {
@@ -25,14 +29,10 @@
 }
 
 .items-per-page select {
-    padding: 0.5rem 1rem; /* Same padding as buttons */
-    border: solid 1px #ddd; /* Remove default border */
-    border-radius: 4px; /* Same rounded corners as buttons */
-    cursor: pointer; /* Set cursor to pointer on hover */
-    background-color: #fff; /* Optional: Set background color */
-    /* Optional: Add a border on hover to mimic button behavior */
-
-    &:hover {
-        border: 1px solid #ccc; /* Light border on hover */
-    }
+    padding: 0.5rem 0.9rem;
+    border: 1px solid #cbd5e1;
+    border-radius: 999px;
+    cursor: pointer;
+    background-color: #fff;
+    color: #0f172a;
 }

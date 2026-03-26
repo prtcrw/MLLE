@@ -52,10 +52,55 @@ export interface NLQResponse {
     question: string;
     intent: QueryIntent;
     sparql: string;
-    results: Record<string, string | null>[];
+    results: Record<string, string | null | string[]>[];
     answer: string;
     repo_used: string;
     inference_used: boolean;
+}
+
+export interface PipelineEditorNode {
+    id: string;
+    iri: string;
+    title: string;
+    kind: 'input' | 'operation' | 'output' | 'model';
+    status: 'stable' | 'draft' | 'warning';
+    position: number;
+    note: string;
+}
+
+export interface PipelineEditorEdge {
+    source: string;
+    target: string;
+    relation: string;
+}
+
+export interface PipelineEditorDraft {
+    pipelineName: string;
+    savedAt: string;
+    validationStatus: 'unknown' | 'passed' | 'failed';
+    validationMessage: string;
+    nodes: PipelineEditorNode[];
+    edges: PipelineEditorEdge[];
+}
+
+export interface PipelineEditorVersion {
+    version: string;
+    label: string;
+    note: string;
+    status: 'ready' | 'review' | 'archived';
+    savedAt: string;
+}
+
+export interface PipelineEditorState {
+    draft: PipelineEditorDraft | null;
+    history: PipelineEditorVersion[];
+}
+
+export interface PipelineEditorValidationResponse {
+    ok: boolean;
+    validation_status: 'passed' | 'failed';
+    validation_message: string;
+    violations: string[];
 }
 
 export const convertEnglishToSparql = async (input: string, endpoint?: string): Promise<ConvertResult> => {
@@ -161,6 +206,76 @@ export const queryNaturalLanguage = async (
     if (!response.ok) {
         const payload = await response.json().catch(() => ({}));
         throw new Error(payload?.detail || 'Natural language query failed.');
+    }
+    return await response.json();
+}
+
+export const getPipelineEditorState = async (pipelineName: string): Promise<PipelineEditorState> => {
+    const response = await fetch(`${buildV1Url('pipeline-editor/draft')}?pipeline_name=${encodeURIComponent(pipelineName)}`);
+    if (!response.ok) {
+        const payload = await response.json().catch(() => ({}));
+        throw new Error(payload?.detail || 'Failed to load pipeline editor state.');
+    }
+    return await response.json();
+}
+
+export const savePipelineDraft = async (draft: PipelineEditorDraft): Promise<PipelineEditorState> => {
+    const response = await fetch(buildV1Url('pipeline-editor/save-draft'), {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(draft),
+    });
+    if (!response.ok) {
+        const payload = await response.json().catch(() => ({}));
+        throw new Error(payload?.detail || 'Failed to save pipeline draft.');
+    }
+    return await response.json();
+}
+
+export const resetPipelineDraft = async (pipelineName: string): Promise<void> => {
+    const response = await fetch(`${buildV1Url('pipeline-editor/draft')}?pipeline_name=${encodeURIComponent(pipelineName)}`, {
+        method: 'DELETE',
+    });
+    if (!response.ok) {
+        const payload = await response.json().catch(() => ({}));
+        throw new Error(payload?.detail || 'Failed to reset pipeline draft.');
+    }
+}
+
+export const validatePipelineDraft = async (draft: PipelineEditorDraft): Promise<PipelineEditorValidationResponse> => {
+    const response = await fetch(buildV1Url('pipeline-editor/validate'), {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(draft),
+    });
+    if (!response.ok) {
+        const payload = await response.json().catch(() => ({}));
+        throw new Error(payload?.detail || 'Failed to validate pipeline draft.');
+    }
+    return await response.json();
+}
+
+export const publishPipelineDraft = async (draft: PipelineEditorDraft): Promise<{
+    ok: boolean;
+    published_at: string;
+    version: PipelineEditorVersion;
+    draft: PipelineEditorDraft;
+    history: PipelineEditorVersion[];
+}> => {
+    const response = await fetch(buildV1Url('pipeline-editor/publish'), {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(draft),
+    });
+    if (!response.ok) {
+        const payload = await response.json().catch(() => ({}));
+        throw new Error(payload?.detail || 'Failed to publish pipeline draft.');
     }
     return await response.json();
 }

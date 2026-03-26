@@ -80,6 +80,10 @@ def _settings_dir() -> Path:
     return Path(user_data_dir("MLLE", "MLLE"))
 
 
+def get_app_data_dir() -> Path:
+    return _settings_dir()
+
+
 def get_settings_path() -> Path:
     return _settings_dir() / "mlle_settings.json"
 

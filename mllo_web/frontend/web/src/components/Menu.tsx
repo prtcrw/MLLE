@@ -32,6 +32,7 @@ const Menu: React.FC<{ isMenuOpen: boolean; toggleMenu: () => void; isMobile: bo
     };
 
     const analyzerSubmenuItems = [
+        { label: 'Chat with MLLO', path: '/chat-with-mllo' },
         { label: 'Find Pipelines', path: '/pipelines' },
         { label: 'Find Models', path: '/datasets' },
         { label: 'Natural Language Query', path: '/datasets/natural-language-query' },

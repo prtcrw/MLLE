@@ -1,25 +1,24 @@
-import React, { useState } from 'react';
+import React from 'react';
 import './styles/pagination.css';
 
 interface PaginationProps {
     currentPage: number;
     totalPages: number;
+    itemsPerPage: number;
     onPageChange: (page: number, itemsPerPage: number) => void;
 }
 
 const Pagination: React.FC<PaginationProps> = ({
-                                                   currentPage,
-                                                   totalPages,
-                                                   onPageChange,
-                                               }) => {
-    const itemsPerPageOptions = [10, 25, 50]; // Options for items per page
-
-    const [itemsPerPage, setItemsPerPage] = useState(itemsPerPageOptions[0]);
+    currentPage,
+    totalPages,
+    itemsPerPage,
+    onPageChange,
+}) => {
+    const itemsPerPageOptions = [10, 25, 50];
 
     const handleItemsPerPageChange = (event: React.ChangeEvent<HTMLSelectElement>) => {
         const value = parseInt(event.target.value, 10);
-        setItemsPerPage(value);
-        onPageChange(1, value); // Reset page to 1 when items per page changes
+        onPageChange(1, value);
     };
 
     // Generate an array of page numbers with logic for showing only MAX_VISIBLE_PAGES
