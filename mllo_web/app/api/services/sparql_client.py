@@ -21,8 +21,28 @@ class TotalRecordsQueryBuilder(QueryBuilder):
 
     def build_query(self) -> str:
         query = self.delegate.build_query()
-        query = re.sub(r"SELECT", "SELECT (COUNT(*) AS ?total_records) WHERE { SELECT ", query, count=1) + " }"
-        return query
+        from_clauses = re.findall(r"(?im)^\s*FROM\s+<[^>]+>\s*$", query)
+        query_without_from = re.sub(r"(?im)^\s*FROM\s+<[^>]+>\s*$\n?", "", query)
+        wrapped_query = re.sub(
+            r"SELECT",
+            "SELECT (COUNT(*) AS ?total_records) ",
+            query_without_from,
+            count=1,
+        )
+        if from_clauses:
+            wrapped_query = re.sub(
+                r"SELECT\s+\(COUNT\(\*\)\s+AS\s+\?total_records\)\s*",
+                "SELECT (COUNT(*) AS ?total_records)\n" + "\n".join(from_clauses) + "\n",
+                wrapped_query,
+                count=1,
+            )
+        wrapped_query = re.sub(
+            r"SELECT\s+\(COUNT\(\*\)\s+AS\s+\?total_records\)\s*(FROM\s+<[^>]+>\s*)*",
+            lambda match: match.group(0) + "WHERE { SELECT ",
+            wrapped_query,
+            count=1,
+        )
+        return wrapped_query + " }"
 
 
 class PaginationQueryBuilder(QueryBuilder):
@@ -66,10 +86,6 @@ class MobiSparqlClient(SparqlClient):
 
     def query(self, statement: str) -> dict:
         headers = {'Accept': 'application/sparql-results+json'}
-    
-        # print(f"\n{'='*60}")
-        print(f"SPARQL Query:\n{statement}")
-        # print(f"{'='*60}\n")
         with contextlib.closing(requests.Session()) as session:
             response = session.get(self.endpoint, params={
                 'query': statement,
@@ -121,7 +137,6 @@ class GraphDBSparqlClient(SparqlClient):
             'Accept': 'application/sparql-results+json',
             'Content-Type': 'application/x-www-form-urlencoded'
         }
-
         # print(f"\n{'='*60}")
         print(f"SPARQL Query:\n{statement}")
         # print(f"{'='*60}\n")

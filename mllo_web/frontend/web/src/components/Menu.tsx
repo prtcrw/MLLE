@@ -1,9 +1,7 @@
 import React, {useEffect, useState} from 'react';
 import './styles/menu.css'
 import Submenu from './Submenu.tsx';
-import {Link, Route} from "react-router-dom";
-import PlotPerformance from "pages/analyzer/PlotPerformance.tsx";
-import AnalyzeModelOutput from "pages/analyzer/AnalyzeModelOutput.tsx";
+import {Link} from "react-router-dom";
 
 const Menu: React.FC<{ isMenuOpen: boolean; toggleMenu: () => void; isMobile: boolean }> = ({
                                                                                                 isMenuOpen,
@@ -74,6 +72,11 @@ const Menu: React.FC<{ isMenuOpen: boolean; toggleMenu: () => void; isMobile: bo
                         <Submenu items={editorSubmenuItems} onItemClick={handleSubmenuClick}/>
                     </li>
                 </ul>
+                <div className="menu-footer">
+                    <Link to="/settings" className="menu-settings-link" onClick={isMobile ? toggleMenu : undefined}>
+                        Settings
+                    </Link>
+                </div>
             </div>
         </div>
     );

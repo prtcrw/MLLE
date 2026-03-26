@@ -7,7 +7,7 @@ from fastapi.staticfiles import StaticFiles
 
 import mllo_web.frontend.web as web_dir
 from mllo_web.app.api.config import get_config
-from mllo_web.app.api.routers import convert_sparql, find_datasets, find_models, find_pipelines
+from mllo_web.app.api.routers import convert_sparql, find_datasets, find_models, find_pipelines, natural_language_query, settings
 from mllo_web.app.api.services.sparql_client import MobiSparqlClient, GraphDBSparqlClient
 from mllo_web.app.util.logging import Logger
 
@@ -36,6 +36,8 @@ app.include_router(convert_sparql.router, prefix="/api")
 app.include_router(find_datasets.router, prefix="/api")
 app.include_router(find_models.router, prefix="/api")
 app.include_router(find_pipelines.router, prefix="/api")
+app.include_router(natural_language_query.router, prefix="/api")
+app.include_router(settings.router, prefix="/api")
 
 web_root_path = Path(list(web_dir.__path__)[0])
 

@@ -12,6 +12,7 @@ from fastapi import APIRouter, Request, Query
 from fastapi.responses import StreamingResponse, Response, JSONResponse
 from sklearn.decomposition import PCA
 
+from mllo_web.app.api.config import get_config
 from mllo_web.app.api.routers.utilities import (
     generate_csv_response,
     to_order_by_string,
@@ -26,7 +27,19 @@ from mllo_web.app.api.services.sparql_client import (
 from .query_iri import execute_iri_query
 
 router = APIRouter(prefix="/v1/datasets", tags=["datasets"])
+config = get_config()
+EXPLICIT_GRAPH = "FROM <http://www.ontotext.com/explicit>"
 
+
+def _inject_explicit_graph(query: str) -> str:
+    if EXPLICIT_GRAPH in query:
+        return query
+    return re.sub(
+        r"(?is)(SELECT\s+DISTINCT\b.*?)(\bWHERE\s*\{)",
+        rf"\1\n{EXPLICIT_GRAPH}\n\2",
+        query,
+        count=1,
+    )
 QUERY = """
 PREFIX ml: <http://www.semanticweb.org/mnd14/ml/>
 PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
@@ -149,6 +162,9 @@ class FindDatasetsQueryBuilder(QueryBuilder):
         if self.sort_string:
             query += self.sort_string
 
+        if config.sparql_backend == "graphdb":
+            query = _inject_explicit_graph(query)
+
         return query
 
 
@@ -258,6 +274,7 @@ async def get_query_iri(request: Request, iri: str):
 
 
 @router.get("/performances")  # Define a GET endpoint for "/datasets/performances"
+@router.get("/performances/")  # Accept trailing slash for frontend compatibility
 async def get_datasets_performances(
     request: Request,
     search_term: str = Query(default=None, description="Search term"),

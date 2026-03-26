@@ -1,6 +1,6 @@
 from typing import Literal
 
-from pydantic import Field
+from pydantic import Field, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 LOG_LEVEL = Literal["debug", "info", "warning", "error", "critical"]
@@ -27,7 +27,7 @@ class AppConfig(BaseSettings):
     log_level: LOG_LEVEL = Field(default="info", description="Emit logging messages at this level or higher.")
 
     # Switch between "mobi" and "graphdb"
-    sparql_backend: SPARQL_BACKEND = Field(default="mobi", description="SPARQL backend to use: 'mobi' or 'graphdb'.")
+    sparql_backend: SPARQL_BACKEND = Field(default="sparql", description="SPARQL backend to use: 'mobi' or 'graphdb'.")
 
     # MOBI settings
     mobi_endpoint: str = Field(default="https://localhost:8443/mobirest/sparql",
@@ -37,8 +37,18 @@ class AppConfig(BaseSettings):
     mobi_auth_password: str = Field(default="admin", description="Password for MOBI.")
 
     # GraphDB settings
-    graphdb_endpoint: str = Field(default="http://localhost:7200/repositories/mllo4",
-                                  description="Endpoint for GraphDB SPARQL client.")
+    graphdb_url: str = Field(
+        default="http://localhost:7200",
+        description="Base URL for GraphDB."
+    )
+    graphdb_default_repo: str = Field(
+        default="mllo4",
+        description="Default GraphDB repository."
+    )
+    graphdb_endpoint: str | None = Field(
+        default=None,
+        description="Optional full GraphDB repository endpoint override."
+    )
     graphdb_auth_type: str = Field(default="none", description="Auth type for GraphDB: 'basic' or 'none'.")
     graphdb_auth_username: str = Field(default="admin", description="Username for GraphDB.")
     graphdb_auth_password: str = Field(default="admin", description="Password for GraphDB.")
@@ -113,6 +123,18 @@ class AppConfig(BaseSettings):
         description="temperature value for azure_foundry payload when llm_azure_send_temperature is true."
     )
 
+    @field_validator("sparql_backend", mode="before")
+    @classmethod
+    def normalize_sparql_backend(cls, value: str | None) -> str | None:
+        if value == "sparql":
+            return "graphdb"
+        return value
+
+    @model_validator(mode="after")
+    def derive_graphdb_endpoint(self) -> "AppConfig":
+        if not self.graphdb_endpoint:
+            self.graphdb_endpoint = f"{self.graphdb_url.rstrip('/')}/repositories/{self.graphdb_default_repo}"
+        return self
 
 def get_config() -> AppConfig:
     config = AppConfig()

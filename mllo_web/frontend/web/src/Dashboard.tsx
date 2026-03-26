@@ -5,10 +5,11 @@ import Menu from './components/Menu';
 import Header from './components/Header.tsx';
 import Home from './pages/Home';
 import PipelineEditor from './pages/editor/PipelineEditor.tsx';
-import FindDatasetUsages from './pages/analyzer/FindDatasetUsages.tsx';
+import FindModelsByDataset from './pages/analyzer/FindModelsByDataset.tsx';
 import FindPipelines from './pages/analyzer/FindPipelines.tsx';
 import FindDatasets from './pages/analyzer/FindDatasets.tsx';
 import NaturalLanguageQuery from './pages/analyzer/NaturalLanguageQuery.tsx';
+import NLQSettings from './pages/analyzer/NLQSettings.tsx';
 import PlotPerformance from './pages/analyzer/PlotPerformance.tsx';
 import AnalyzeModelOutput from './pages/analyzer/AnalyzeModelOutput.tsx';
 import AnalyzeDeployedModels from './pages/analyzer/AnalyzeDeployedModels.tsx';
@@ -31,12 +32,13 @@ const Dashboard: React.FC = () => {
                     <Routes>
                         <Route path="/" element={<Home/>}/>
                         <Route path="/datasets/natural-language-query" element={<NaturalLanguageQuery/>}/>
+                        <Route path="/settings" element={<NLQSettings/>}/>
                         <Route path="/models/analyze-deployed-models" element={<AnalyzeDeployedModels/>}/>
                         <Route path="/pipelines" element={<FindPipelines/>}/>
                         <Route path="/pipelines/compare-pipelines" element={<ComparePipelines/>}/>
                         <Route path="/pipelines/edit-pipeline" element={<PipelineEditor/>}/>
                         <Route path="/datasets" element={<FindDatasets/>}/>
-                        <Route path="/datasets/usages" element={<FindDatasetUsages/>}/>
+                        <Route path="/datasets/usages" element={<FindModelsByDataset/>}/>
                         <Route path="/datasets/plot-performance" element={<PlotPerformance/>}/>
                         <Route path="/datasets/analyze-model-output" element={<AnalyzeModelOutput/>}/>
                     </Routes>

@@ -5,6 +5,7 @@ from typing import Optional, List
 from fastapi import APIRouter, Request, Query
 from fastapi.responses import Response, JSONResponse, StreamingResponse
 
+from mllo_web.app.api.config import get_config
 from mllo_web.app.api.routers.utilities import generate_csv_response, to_order_by_string
 from mllo_web.app.api.services.sparql_client import (
     QueryBuilder,
@@ -13,7 +14,19 @@ from mllo_web.app.api.services.sparql_client import (
 )
 
 router = APIRouter(prefix="/v1/pipelines", tags=["pipelines"])
+config = get_config()
+EXPLICIT_GRAPH = "FROM <http://www.ontotext.com/explicit>"
 
+
+def _inject_explicit_graph(query: str) -> str:
+    if EXPLICIT_GRAPH in query:
+        return query
+    return re.sub(
+        r"(?is)(SELECT\s+DISTINCT\b.*?)(\bWHERE\s*\{)",
+        rf"\1\n{EXPLICIT_GRAPH}\n\2",
+        query,
+        count=1,
+    )
 QUERY = """
 PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
 PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
@@ -26,7 +39,7 @@ SELECT DISTINCT
     ?pipeline_components
     (STRAFTER(STR(?pipeline_data_input_iri), "#") AS ?pipeline_data_input)
     (STRAFTER(STR(?pipeline_data_output_iri), "#") AS ?pipeline_data_output)
-    (STRAFTER(STR(?pipeline_associated_model_iri), "#") AS ?pipeline_associated_model) 
+    (STRAFTER(STR(?pipeline_associated_model_iri), "#") AS ?pipeline_associated_model)
 WHERE { 
     
     {
@@ -148,6 +161,9 @@ class FindPipelinesQueryBuilder(QueryBuilder):
         if self.sort_string:
             query += self.sort_string
 
+        if config.sparql_backend == "graphdb":
+            query = _inject_explicit_graph(query)
+
         return query
 
 
@@ -255,6 +271,8 @@ async def get_pipeline_types(request: Request) -> JSONResponse:
     """
 
     try:
+        if config.sparql_backend == "graphdb":
+            query = _inject_explicit_graph(query)
         result = app.sparql_client.query(query)
         pipeline_types = [row['pipeline_type'] for row in result]
         return JSONResponse(content=pipeline_types)

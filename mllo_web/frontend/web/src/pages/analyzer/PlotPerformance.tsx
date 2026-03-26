@@ -58,7 +58,7 @@ const PlotPerformance: React.FC = () => {
     const [orderBy, setOrderBy] = useState('Ascending');
     const [groupBy, setGroupBy] = useState('default');
     const [isLoading, setIsLoading] = useState(false);
-    const [fetchedData, setFetchedData] = useState<PerformanceMetrics>(null);
+    const [fetchedData, setFetchedData] = useState<PerformanceMetrics | null>(null);
     const [data, setData] = useState<any>(null);
     const [options, setOptions] = useState<any>({});
     const [yAxisMetricOptions, setYAxisMetricOptions] = useState<string[]>([]);
@@ -66,7 +66,7 @@ const PlotPerformance: React.FC = () => {
     const [modelColorMapping, setModelColorMapping] = useState<{ [key: string]: string }>({}); // State for color mapping    
     const [maxCutoff, setMaxCutoff] = useState(100.0);
     const [minCutoff, setMinCutoff] = useState(0.0);
-    const [hiddenModels, setHiddenModels] = useState<string[]>([]); // Track hidden models for onclick chart behavior
+    const [hiddenModels] = useState<string[]>([]); // Track hidden models for onclick chart behavior
 
     useEffect(() => {
         if (yAxisMetric && performanceCutoff && orderBy && groupBy) {
@@ -90,11 +90,13 @@ const PlotPerformance: React.FC = () => {
             setYAxisMetric(initialMetric);
             setYAxisMetricOptions(Object.keys(fetchedData));
             //set color mapping
-            const uniqueModelNames = [...new Set(fetchedData[Object.keys(fetchedData)].map(item => item.modelName))];
+            const uniqueModelNames = Array.from(
+                new Set<string>((fetchedData[initialMetric] ?? []).map((item: PerformanceData) => item.modelName))
+            );
             const colorPalette = generateColorPalette(uniqueModelNames.length);
             setUniqueModelNames(uniqueModelNames)
             // Create a mapping from model name to a color
-            const modelColorMapping: {[key: string]: string} = uniqueModelNames.reduce((acc, modelName, index) => {
+            const modelColorMapping: {[key: string]: string} = uniqueModelNames.reduce<{[key: string]: string}>((acc, modelName, index) => {
                 acc[modelName] = colorPalette[index % colorPalette.length];
                 return acc;
             }, {});
@@ -119,6 +121,9 @@ const PlotPerformance: React.FC = () => {
     };
 
     const drawChart = async () => {
+        if (!fetchedData || !fetchedData[yAxisMetric]) {
+            return;
+        }
         setIsLoading(true);
         try {
             const filteredData = fetchedData[yAxisMetric].filter(
@@ -164,7 +169,7 @@ const PlotPerformance: React.FC = () => {
                     legend: { 
                         display: true,
                         labels: {
-                            generateLabels: (chart) => {
+                            generateLabels: (_chart: any) => {
                                 return uniqueModelNames.map(modelName => {
                                     
                                     // Find the corresponding modelType for the modelName
@@ -277,6 +282,9 @@ const PlotPerformance: React.FC = () => {
     
 
     const updateCutoffValues = () => {
+        if (!fetchedData || !fetchedData[yAxisMetric]) {
+            return;
+        }
         const values = fetchedData[yAxisMetric].map(item => item.modelPerformanceValue);
         const minModelPerformanceValue = Math.min(...values);
         const maxModelPerformanceValue = Math.max(...values);

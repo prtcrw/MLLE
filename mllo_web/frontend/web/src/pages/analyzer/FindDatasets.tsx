@@ -212,19 +212,12 @@ const FindDatasets: React.FC = () => {
         navigate(url);
     };
 
-    const getUniqueIriPart = (iri: string | string[]): string | string[] => {
-        if (Array.isArray(iri)) {
-            return iri.map(singleIri => {
-                const parts = singleIri.split('#');
-                return parts.length > 1 ? parts[1] : singleIri; // Return the fragment if exists, else the full IRI
-            });
-        } else {
-            const parts = iri.split('#');
-            return parts.length > 1 ? parts[1] : iri; // Return the fragment if exists, else the full IRI
-        }
+    const getUniqueIriPart = (iri: string): string => {
+        const parts = iri.split('#');
+        return parts.length > 1 ? parts[1] : iri;
     };
 
-    const mapItemToRow = (header: string, value: any) => {
+    const mapItemToRow = (_header: string, value: any) => {
         if (typeof value === 'string' && value.startsWith('http')) {
             return (
                 <a

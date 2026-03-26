@@ -132,16 +132,9 @@ const AnalyzeDeployedModels: React.FC = () => {
         await fetchData(searchTerm, currentPage, itemsPerPage, newSorts); // Update data with new sorts
     };
 
-    const getUniqueIriPart = (iri: string | string[]): string | string[] => {
-        if (Array.isArray(iri)) {
-            return iri.map(singleIri => {
-                const parts = singleIri.split('#');
-                return parts.length > 1 ? parts[1] : singleIri; // Return the fragment if exists, else the full IRI
-            });
-        } else {
-            const parts = iri.split('#');
-            return parts.length > 1 ? parts[1] : iri; // Return the fragment if exists, else the full IRI
-        }
+    const getUniqueIriPart = (iri: string): string => {
+        const parts = iri.split('#');
+        return parts.length > 1 ? parts[1] : iri;
     };
 
     const mapItemToRow = (_header: string, value: any) => {

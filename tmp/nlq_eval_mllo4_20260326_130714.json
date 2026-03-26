@@ -1,0 +1,280 @@
+[
+  {
+    "question": "Show me models trained on MNIST",
+    "intent": {
+      "tool": "find_models",
+      "params": {
+        "dataset": "MNIST"
+      },
+      "use_inference": false,
+      "reasoning": "User requests specific models trained on the MNIST dataset, which is an exact lookup."
+    },
+    "repo_used": "mllo4",
+    "inference_used": false,
+    "result_count": 36,
+    "answer": "**Models trained on the MNIST dataset (summary for a non\u2011technical audience)**  \n\n| Model | Date evaluated* | Test data used (type & noise) | Classification accuracy |\n|-------|-----------------|------------------------------|--------------------------|\n| **MLModel1** | 2024\u201101\u201115 | Preprocessed or raw MNIST with Gaussian noise \u03c3\u202f=\u202f16 | **97.9\u202f%** |\n|  | 2024\u201102\u201120 | Preprocessed or raw MNIST with Gaussian noise \u03c3\u202f=\u202f48 | **96.7\u202f%** |\n| **MLModel2** | 2024\u201112\u201115 | Preprocessed or raw MNIST with Gaussian noise \u03c3\u202f=\u202f16 | **75.5\u202f%** |\n|  | 2024\u201111\u201123 | Preprocessed or raw MNIST with Gaussian noise \u03c3\u202f=\u202f48 | **65.1\u202f%** |\n|  | 2024\u201109\u201112 | Preprocessed or raw MNIST with Gaussian noise \u03c3\u202f=\u202f96 | **45.1\u202f%** |\n|  | 2024\u201108\u201118 | Clean (no added noise) MNIST | **96.7\u202f%** |\n|  | 2024\u201107\u201122 | MNIST with Poisson noise | **49.6\u202f%** |\n|  | 2024\u201110\u201105 | MNIST with mixed Poisson + Gaussian (\u03c3\u202f=\u202f48) noise | **59.5\u202f%** |\n| **MLModel3** | 2024\u201106\u201115 | Preprocessed or raw MNIST with Gaussian noise \u03c3\u202f=\u202f16 | **86.7\u202f%** |\n|  | 2024\u201107\u201118 | Preprocessed or raw MNIST with Gaussian noise \u03c3\u202f=\u202f48 | **46.9\u202f%** |\n\n\\* *ml_input_timestamp* indicates when the model was evaluated on the test set.\n\n### Key take\u2011aways\n- **Best performance:** MLModel1 reaches ~98\u202f% accuracy on lightly noisy (\u03c3\u202f=\u202f16) data and ~97\u202f% on clean data.\n- **Noise impact:** Accuracy drops noticeably as noise level increases\u2014e.g., MLModel2 falls from 96.7\u202f% (no noise) to 45\u202f% with high Gaussian noise (\u03c3\u202f=\u202f96).\n- **Model variety:** Three distinct models (MLModel1, MLModel2, MLModel3) were evaluated on multiple MNIST variants (raw vs. pre\u2011processed, different noise types).",
+    "sparql_preview": "\nPREFIX ml: <http://www.semanticweb.org/mnd14/ml/>\nPREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>\nPREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>\nPREFIX bfo: <http://purl.obolibrary.org/obo/>\nPREFIX iof-core: <https://spec.industrialontologies.org/ontology/core/Core/>\nPREFIX xsd: <http://www.w3.org/2001/XMLSchema#>\nPREFIX owl: <http://www.w3.org/2002/07/owl#>\n\nSELECT DISTINCT \n    ?dataset\n    ?dataset_used_as \n    ?dataset_used_for\n    ?dataset_characteristics\n    ?ml_input_timestamp\n    ?model_name \n    ?model_performance_metric\n    ?model_performance_value\n\nFROM <http://www.ontotext.com/explicit>\nWHERE {\n    {\n        SELECT \n            ?dataset\n            ?model_name\n            ?ml_process\n            (GROUP_CONCAT(DISTINCT ?characteristic_type; separator=\";\") AS ?characteristic_types)\n            (GROUP_CONCAT(DISTINCT ?property_info; separator=\";\") AS ?property_infos)\n        WHERE {\n            ?ml_process ml:hasDataInput/ml:informationContentEntityDerivedFrom* ?dataset.\n            ?ml_process (bfo:BFO_0000057 | ml:executes) ?model_name.\n            \n            \n            # Get the types of all characteristics\n            OPTIONAL {\n                ?da",
+    "results_preview": [
+      {
+        "dataset": "http://example.com/MNIST#PreprocessedDataset1",
+        "dataset_used_as": "test data set",
+        "dataset_used_for": "model evaluation",
+        "dataset_characteristics": "gaussian noise;gaussian noise, has standard deviation value: 16",
+        "ml_input_timestamp": "2024-01-15T08:00:00-04:00",
+        "model_name": "http://example.com/MNIST#MLModel1",
+        "model_performance_metric": "classification accuracy",
+        "model_performance_value": "0.9789"
+      },
+      {
+        "dataset": "http://example.com/MNIST#MnistG16",
+        "dataset_used_as": "raw data set",
+        "dataset_used_for": "model evaluation",
+        "dataset_characteristics": "gaussian noise;gaussian noise, has standard deviation value: 16",
+        "ml_input_timestamp": "2024-01-15T08:00:00-04:00",
+        "model_name": "http://example.com/MNIST#MLModel1",
+        "model_performance_metric": "classification accuracy",
+        "model_performance_value": "0.9789"
+      },
+      {
+        "dataset": "http://example.com/MNIST#PreprocessedDataset10",
+        "dataset_used_as": "test data set",
+        "dataset_used_for": "model evaluation",
+        "dataset_characteristics": "gaussian noise;gaussian noise, has standard deviation value: 16",
+        "ml_input_timestamp": "2024-12-15T07:30:00-04:00",
+        "model_name": "http://example.com/MNIST#MLModel2",
+        "model_performance_metric": "classification accuracy",
+        "model_performance_value": "0.7550"
+      },
+      {
+        "dataset": "http://example.com/MNIST#MnistG16",
+        "dataset_used_as": "raw data set",
+        "dataset_used_for": "model evaluation",
+        "dataset_characteristics": "gaussian noise;gaussian noise, has standard deviation value: 16",
+        "ml_input_timestamp": "2024-12-15T07:30:00-04:00",
+        "model_name": "http://example.com/MNIST#MLModel2",
+        "model_performance_metric": "classification accuracy",
+        "model_performance_value": "0.7550"
+      },
+      {
+        "dataset": "http://example.com/MNIST#PreprocessedDataset11",
+        "dataset_used_as": "test data set",
+        "dataset_used_for": "model evaluation",
+        "dataset_characteristics": "gaussian noise;gaussian noise, has standard deviation value: 48",
+        "ml_input_timestamp": "2024-11-23T08:45:00-04:00",
+        "model_name": "http://example.com/MNIST#MLModel2",
+        "model_performance_metric": "classification accuracy",
+        "model_performance_value": "0.6508"
+      }
+    ]
+  },
+  {
+    "question": "What kinds of models exist in MLLO?",
+    "intent": {
+      "tool": "explore_category",
+      "params": {
+        "category": "model"
+      },
+      "use_inference": true,
+      "reasoning": "The question asks for the kinds/types of models in the MLLO ontology, which is a conceptual classification request."
+    },
+    "repo_used": "mllo4",
+    "inference_used": true,
+    "result_count": 56,
+    "answer": "**Machine\u2011learning model types in the MLLO ontology**\n\n| Model family | Example classes (as defined in the ontology) |\n|--------------|-----------------------------------------------|\n| **Neural networks** | Artificial Neural Network, Convolutional Neural Network, Multi\u2011Layer Perceptron |\n| **Tree\u2011based models** | Decision Tree Model |\n| **Linear / parametric models** | Linear Model, Polynomial Model, Logistic Regression, Support Vector Machine |\n| **Instance\u2011based models** | Instance\u2011Based Model |\n| **Non\u2011parametric models** | Non\u2011Parametric Model |\n| **Clustering models** | Clustering Model |\n| **Association rule models** | Association Rule Model |\n| **Dimensionality\u2011reduction models** | Dimensionality Reduction Model |\n| **Gaussian process regression** | Gaussian Process Regression |\n\nThese classes represent the main categories of algorithms that can be instantiated as *machine learning models* in the ontology. (The unlabeled \u201cnode\u201d entries are internal placeholders and do not correspond to named model types.)",
+    "sparql_preview": "\nPREFIX ml: <http://www.semanticweb.org/mnd14/ml/>\nPREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>\nPREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>\nSELECT DISTINCT ?entity ?entity_type ?label\nWHERE {\n    {\n        ?entity rdfs:subClassOf+ ml:MachineLearningModel .\n        BIND(\"Class\" AS ?entity_type)\n        OPTIONAL { ?entity rdfs:label ?label }\n        FILTER(?entity != <http://www.w3.org/2002/07/owl#Nothing>)\n    }\n    UNION\n    {\n        ?entity rdf:type/rdfs:subClassOf* ml:MachineLearningModel .\n        OPTIONAL { ?entity rdf:type/rdfs:label ?entity_type }\n        OPTIONAL { ?entity rdfs:label ?label }\n        FILTER(?entity != <http://www.w3.org/2002/07/owl#Nothing>)\n    }\n}\nLIMIT 100\n",
+    "results_preview": [
+      {
+        "entity": "http://www.semanticweb.org/mnd14/ml/ArtificialNeuralNetwork",
+        "entity_type": "Class",
+        "label": "artificial neural network"
+      },
+      {
+        "entity": "http://www.semanticweb.org/mnd14/ml/MachineLearningModel",
+        "entity_type": "Class",
+        "label": "machine learning model"
+      },
+      {
+        "entity": "http://www.semanticweb.org/mnd14/ml/AssociationRuleModel",
+        "entity_type": "Class",
+        "label": "association rule model"
+      },
+      {
+        "entity": "http://www.semanticweb.org/mnd14/ml/ClusteringModel",
+        "entity_type": "Class",
+        "label": "clustering model"
+      },
+      {
+        "entity": "http://www.semanticweb.org/mnd14/ml/ConvolutionalNeuralNetwork",
+        "entity_type": "Class",
+        "label": "convolutional neural network"
+      }
+    ]
+  },
+  {
+    "question": "What is the best performing model?",
+    "intent": {
+      "tool": "custom_sparql",
+      "params": {
+        "query": "SELECT ?model (MAX(?accuracy) AS ?bestAccuracy) WHERE { ?model a ml:Model ; ml:hasMetric ?metric . ?metric ml:accuracy ?accuracy } GROUP BY ?model ORDER BY DESC(?bestAccuracy) LIMIT 1"
+      },
+      "use_inference": false,
+      "reasoning": "The question asks for the best performing model, requiring ranking by performance metric, so a custom SPARQL query is appropriate."
+    },
+    "repo_used": "mllo4",
+    "inference_used": true,
+    "result_count": 1,
+    "answer": "**Best\u2011performing model**\n\n- **Model:** http://example.com/MNIST#MLModel1  \n- **Metric used:** classification accuracy  \n- **Performance value:**\u202f0.9807 (98.07% accurate)  \n\nThis is the top result after sorting by highest classification accuracy.",
+    "sparql_preview": "\nPREFIX ml: <http://www.semanticweb.org/mnd14/ml/>\nPREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>\nPREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>\nPREFIX bfo: <http://purl.obolibrary.org/obo/>\nPREFIX iof-core: <https://spec.industrialontologies.org/ontology/core/Core/>\nPREFIX xsd: <http://www.w3.org/2001/XMLSchema#>\nSELECT DISTINCT ?model_name ?model_performance_metric ?model_performance_value WHERE {\n    ?ml_process (ml:executes|bfo:BFO_0000057) ?model_name .\n    ?model_name rdf:type/rdfs:subClassOf* ml:MachineLearningModel .\n    ?model_performance_assessment ml:hasDataInput ?model_output .\n    ?ml_process ml:hasDataOutput ?model_output .\n    ?model_performance_assessment bfo:BFO_0000059 ?model_performance_metric_iri .\n    ?model_performance_assessment rdf:type/rdfs:subClassOf* ml:ModelPerformanceAssessment .\n    ?model_performance_metric_iri rdf:type ?model_performance_metric_type .\n    ?model_performance_metric_type rdfs:subClassOf* ml:PerformanceMetric .\n    ?model_performance_metric_type rdfs:label ?model_performance_metric .\n    ?model_performance_assessment ml:hasDataOutput/iof-core:hasSimpleExpressionValue ?model_performance_value .\n    FILTER(LCASE(STR(?mode",
+    "results_preview": [
+      {
+        "model_name": "http://example.com/MNIST#MLModel1",
+        "model_performance_metric": "classification accuracy",
+        "model_performance_value": "0.9807"
+      }
+    ]
+  },
+  {
+    "question": "Find models with performance more than 0.9",
+    "intent": {
+      "tool": "custom_sparql",
+      "params": {
+        "query": "SELECT ?model ?performance WHERE { ?model a ml:Model ; ml:hasPerformanceMetric ?perf . ?perf ml:metricValue ?value . FILTER(?value > 0.9) }"
+      },
+      "use_inference": false,
+      "reasoning": "The request asks for models exceeding a performance threshold, requiring a metric-based SPARQL query rather than simple lookup or conceptual exploration."
+    },
+    "repo_used": "mllo4",
+    "inference_used": true,
+    "result_count": 8,
+    "answer": "**Models that exceed a classification\u2011accuracy of\u202f0.90**\n\n| Model (URI) | Highest reported accuracy |\n|-------------|---------------------------|\n| http://example.com/MNIST#MLModel1 | 0.9807 |\n| http://example.com/MNIST#MLModel2 | 0.9671 |\n| http://example.com/MNIST#MLModel3 | 0.9236 |\n\nAll three models achieve well\u2011above the 90\u202f% threshold, with **MLModel1** performing the best (\u224898\u202f%). No other models in the dataset meet this criterion.",
+    "sparql_preview": "\nPREFIX ml: <http://www.semanticweb.org/mnd14/ml/>\nPREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>\nPREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>\nPREFIX bfo: <http://purl.obolibrary.org/obo/>\nPREFIX iof-core: <https://spec.industrialontologies.org/ontology/core/Core/>\nPREFIX xsd: <http://www.w3.org/2001/XMLSchema#>\nSELECT DISTINCT ?model_name ?model_performance_metric ?model_performance_value WHERE {\n    ?ml_process (ml:executes|bfo:BFO_0000057) ?model_name .\n    ?model_name rdf:type/rdfs:subClassOf* ml:MachineLearningModel .\n    ?model_performance_assessment ml:hasDataInput ?model_output .\n    ?ml_process ml:hasDataOutput ?model_output .\n    ?model_performance_assessment bfo:BFO_0000059 ?model_performance_metric_iri .\n    ?model_performance_assessment rdf:type/rdfs:subClassOf* ml:ModelPerformanceAssessment .\n    ?model_performance_metric_iri rdf:type ?model_performance_metric_type .\n    ?model_performance_metric_type rdfs:subClassOf* ml:PerformanceMetric .\n    ?model_performance_metric_type rdfs:label ?model_performance_metric .\n    ?model_performance_assessment ml:hasDataOutput/iof-core:hasSimpleExpressionValue ?model_performance_value .\n    FILTER(LCASE(STR(?mode",
+    "results_preview": [
+      {
+        "model_name": "http://example.com/MNIST#MLModel1",
+        "model_performance_metric": "classification accuracy",
+        "model_performance_value": "0.9807"
+      },
+      {
+        "model_name": "http://example.com/MNIST#MLModel1",
+        "model_performance_metric": "classification accuracy",
+        "model_performance_value": "0.9803"
+      },
+      {
+        "model_name": "http://example.com/MNIST#MLModel1",
+        "model_performance_metric": "classification accuracy",
+        "model_performance_value": "0.9789"
+      },
+      {
+        "model_name": "http://example.com/MNIST#MLModel1",
+        "model_performance_metric": "classification accuracy",
+        "model_performance_value": "0.9675"
+      },
+      {
+        "model_name": "http://example.com/MNIST#MLModel2",
+        "model_performance_metric": "classification accuracy",
+        "model_performance_value": "0.9671"
+      }
+    ]
+  },
+  {
+    "question": "Show me models with performance more than 0.9 and their test dataset",
+    "intent": {
+      "tool": "custom_sparql",
+      "params": {
+        "query": "SELECT ?model ?performance ?testDataset WHERE { ?model a ml:Model ; ml:hasPerformance ?perf . FILTER(?perf > 0.9) OPTIONAL { ?model ml:testDataset ?testDataset . } BIND(?perf AS ?performance) }"
+      },
+      "use_inference": false,
+      "reasoning": "The request asks for models with a performance metric above 0.9 and their test datasets, which requires a custom SPARQL query for filtering and aggregation."
+    },
+    "repo_used": "mllo4",
+    "inference_used": true,
+    "result_count": 3,
+    "answer": "**Models with >\u202f0.90 classification\u2011accuracy and the test data they were evaluated on**\n\n| Model | Accuracy | Test dataset(s) |\n|-------|----------|-----------------|\n| **MLModel1** (`http://example.com/MNIST#MLModel1`) | 0.9807 | PreprocessedDataset1,\u202f2,\u202f3,\u202f4,\u202f5,\u202f6 |\n| **MLModel2** (`http://example.com/MNIST#MLModel2`) | 0.9671 | PreprocessedDataset10,\u202f11,\u202f12,\u202f13,\u202f14,\u202f15 |\n| **MLModel3** (`http://example.com/MNIST#MLModel3`) | 0.9236 | PreprocessedDataset20,\u202f21,\u202f22,\u202f23,\u202f24,\u202f25 |\n\n*All listed datasets are marked as \u201ctest data set\u201d in the ontology.*",
+    "sparql_preview": "-- Step 1: performance filter\n\nPREFIX ml: <http://www.semanticweb.org/mnd14/ml/>\nPREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>\nPREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>\nPREFIX bfo: <http://purl.obolibrary.org/obo/>\nPREFIX iof-core: <https://spec.industrialontologies.org/ontology/core/Core/>\nPREFIX xsd: <http://www.w3.org/2001/XMLSchema#>\nSELECT DISTINCT ?model_name ?model_performance_metric ?model_performance_value WHERE {\n    ?ml_process (ml:executes|bfo:BFO_0000057) ?model_name .\n    ?model_name rdf:type/rdfs:subClassOf* ml:MachineLearningModel .\n    ?model_performance_assessment ml:hasDataInput ?model_output .\n    ?ml_process ml:hasDataOutput ?model_output .\n    ?model_performance_assessment bfo:BFO_0000059 ?model_performance_metric_iri .\n    ?model_performance_assessment rdf:type/rdfs:subClassOf* ml:ModelPerformanceAssessment .\n    ?model_performance_metric_iri rdf:type ?model_performance_metric_type .\n    ?model_performance_metric_type rdfs:subClassOf* ml:PerformanceMetric .\n    ?model_performance_metric_type rdfs:label ?model_performance_metric .\n    ?model_performance_assessment ml:hasDataOutput/iof-core:hasSimpleExpressionValue ?model_performance_valu",
+    "results_preview": [
+      {
+        "model_name": "http://example.com/MNIST#MLModel1",
+        "model_performance_metric": "classification accuracy",
+        "model_performance_value": "0.9807",
+        "test_datasets": [
+          "http://example.com/MNIST#PreprocessedDataset1",
+          "http://example.com/MNIST#PreprocessedDataset2",
+          "http://example.com/MNIST#PreprocessedDataset3",
+          "http://example.com/MNIST#PreprocessedDataset4",
+          "http://example.com/MNIST#PreprocessedDataset5",
+          "http://example.com/MNIST#PreprocessedDataset6"
+        ],
+        "test_dataset_roles": [
+          "test data set",
+          "test data set",
+          "test data set",
+          "test data set",
+          "test data set",
+          "test data set"
+        ]
+      },
+      {
+        "model_name": "http://example.com/MNIST#MLModel2",
+        "model_performance_metric": "classification accuracy",
+        "model_performance_value": "0.9671",
+        "test_datasets": [
+          "http://example.com/MNIST#PreprocessedDataset10",
+          "http://example.com/MNIST#PreprocessedDataset11",
+          "http://example.com/MNIST#PreprocessedDataset12",
+          "http://example.com/MNIST#PreprocessedDataset13",
+          "http://example.com/MNIST#PreprocessedDataset14",
+          "http://example.com/MNIST#PreprocessedDataset15"
+        ],
+        "test_dataset_roles": [
+          "test data set",
+          "test data set",
+          "test data set",
+          "test data set",
+          "test data set",
+          "test data set"
+        ]
+      },
+      {
+        "model_name": "http://example.com/MNIST#MLModel3",
+        "model_performance_metric": "classification accuracy",
+        "model_performance_value": "0.9236",
+        "test_datasets": [
+          "http://example.com/MNIST#PreprocessedDataset20",
+          "http://example.com/MNIST#PreprocessedDataset21",
+          "http://example.com/MNIST#PreprocessedDataset22",
+          "http://example.com/MNIST#PreprocessedDataset23",
+          "http://example.com/MNIST#PreprocessedDataset24",
+          "http://example.com/MNIST#PreprocessedDataset25"
+        ],
+        "test_dataset_roles": [
+          "test data set",
+          "test data set",
+          "test data set",
+          "test data set",
+          "test data set",
+          "test data set"
+        ]
+      }
+    ]
+  },
+  {
+    "question": "Compare pipelines DataPreparationPipeline1 and MachineLearningModelDevelopmentPipeline1",
+    "intent": {
+      "tool": "compare_pipelines",
+      "params": {
+        "pipeline_names": [
+          "DataPreparationPipeline1",
+          "MachineLearningModelDevelopmentPipeline1"
+        ]
+      },
+      "use_inference": false,
+      "reasoning": "User asks to compare two specific pipelines, requiring direct comparison via the compare_pipelines tool."
+    },
+    "repo_used": "mllo4",
+    "inference_used": false,
+    "result_count": 0,
+    "answer": "No matching results were found in the selected repository.",
+    "sparql_preview": "\nPREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>\nPREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>\nPREFIX ml: <http://www.semanticweb.org/mnd14/ml/>\nPREFIX bfo: <http://purl.obolibrary.org/obo/>\nPREFIX iof-core: <https://spec.industrialontologies.org/ontology/core/Core/>\nPREFIX owl: <http://www.w3.org/2002/07/owl#>\nSELECT DISTINCT\n    (STRAFTER(STR(?pipeline), \"#\") AS ?pipeline_name)\n    ?pipeline_type\n    ?pipeline_components\n    (STRAFTER(STR(?pipeline_data_input_iri), \"#\") AS ?pipeline_data_input)\n    (STRAFTER(STR(?pipeline_data_output_iri), \"#\") AS ?pipeline_data_output)\n    (STRAFTER(STR(?pipeline_associated_model_iri), \"#\") AS ?pipeline_associated_model)\nWHERE {\n    {\n        SELECT ?pipeline ?pipeline_type\n            (GROUP_CONCAT(DISTINCT ?pipeline_component_label; separator=\";\") AS ?pipeline_components)\n        WHERE {\n            VALUES ?pipeline_name_filter { \"DataPreparationPipeline1\" \"MachineLearningModelDevelopmentPipeline1\" }\n            ?pipeline rdf:type ?pipeline_type_iri .\n            FILTER(?pipeline_type_iri != owl:NamedIndividual)\n            ?pipeline_type_iri rdfs:label ?pipeline_type .\n            FILTER(STRAFTER(STR(?pipeline), \"#\") = ?pipel",
+    "results_preview": []
+  }
+]

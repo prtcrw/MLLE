@@ -5,10 +5,10 @@ from typing import Optional, List
 from fastapi import APIRouter, Request, Query
 from fastapi.responses import Response, JSONResponse, StreamingResponse
 
+from mllo_web.app.api.config import get_config
 from mllo_web.app.api.routers.utilities import (
     generate_csv_response,
     to_order_by_string,
-    dataset_role_filter,
     parse_option_params,
 )
 from mllo_web.app.api.services.sparql_client import (
@@ -19,6 +19,45 @@ from mllo_web.app.api.services.sparql_client import (
 from .query_iri import execute_iri_query
 
 router = APIRouter(prefix="/v1/models", tags=["models"])
+config = get_config()
+EXPLICIT_GRAPH = "FROM <http://www.ontotext.com/explicit>"
+DATASET_ROLE_CLASS_MAP = {
+    "training_data": "ml:TrainingDataSet",
+    "test_data": "ml:TestDataSet",
+    "validation_data": "ml:ValidationDataSet",
+    "production_data": "ml:ProductionMachineLearningDataSet",
+    "raw_data": "ml:RawDataSet",
+}
+
+
+def _inject_explicit_graph(query: str) -> str:
+    if EXPLICIT_GRAPH in query:
+        return query
+    return re.sub(
+        r"(?is)(SELECT\s+DISTINCT\b.*?)(\bWHERE\s*\{)",
+        rf"\1\n{EXPLICIT_GRAPH}\n\2",
+        query,
+        count=1,
+    )
+
+
+def _build_dataset_role_constraint(dataset_role: dict[str, bool]) -> str:
+    selected_classes = [
+        class_iri
+        for role_name, class_iri in DATASET_ROLE_CLASS_MAP.items()
+        if dataset_role.get(role_name, False)
+    ]
+    if not selected_classes:
+        return ""
+
+    return "\n".join([
+        "FILTER EXISTS {",
+        "  ?dataset rdf:type ?dataset_role_type .",
+        f"  VALUES ?dataset_role_filter {{{' '.join(selected_classes)}}}",
+        "  ?dataset_role_type rdfs:subClassOf* ?dataset_role_filter .",
+        "}",
+    ])
+
 
 FIND_MODELS_QUERY = """
 PREFIX ml: <http://www.semanticweb.org/mnd14/ml/>
@@ -38,7 +77,6 @@ SELECT DISTINCT
     ?model_name 
     ?model_performance_metric
     ?model_performance_value
-
 WHERE {
     {
         SELECT 
@@ -148,20 +186,9 @@ class FindModelsQueryBuilder(QueryBuilder):
         query = FIND_MODELS_QUERY
 
         # Handle dataset role filtering
-        replacement_string = dataset_role_filter(
-            training_data=self.dataset_role.get("training_data", False),
-            test_data=self.dataset_role.get("test_data", False),
-            validation_data=self.dataset_role.get("validation_data", False),
-            production_data=self.dataset_role.get("production_data", False),
-            raw_data=self.dataset_role.get("raw_data", False),
-        )
         query = query.replace(
             "#DATASETTYPE_CONSTRAINT",
-            (
-                f"VALUES ?dataset_type {{{replacement_string}}}"
-                if replacement_string
-                else ""
-            ),
+            _build_dataset_role_constraint(self.dataset_role),
         )
 
         # Handle dataset name or specific IRI filtering
@@ -188,6 +215,9 @@ class FindModelsQueryBuilder(QueryBuilder):
         # Add sorting
         if self.sort_string:
             query += self.sort_string
+
+        if config.sparql_backend == "graphdb":
+            query = _inject_explicit_graph(query)
 
         return query
 
@@ -391,6 +421,9 @@ class DeployedModelsQueryBuilder(QueryBuilder):
         if self.sort_string:
             query += self.sort_string
 
+        if config.sparql_backend == "graphdb":
+            query = _inject_explicit_graph(query)
+
         return query
 
 
@@ -482,7 +515,10 @@ async def get_model_types(request: Request) -> JSONResponse:
     app = request.app
 
     try:
-        result = app.sparql_client.query(MODEL_TYPES_QUERY)
+        query = MODEL_TYPES_QUERY
+        if config.sparql_backend == "graphdb":
+            query = _inject_explicit_graph(query)
+        result = app.sparql_client.query(query)
         model_type = [row["model_type"] for row in result]
         return JSONResponse(content=model_type)
     except Exception as e:

@@ -14,14 +14,14 @@ import DropdownFilter from '../../components/DropdownFilter';
 import DateRangeSlider from '../../components/DateRangeSlider';
 
 interface ModelData {
-    dataSetName:string;
-    datasetUsedAs: string;
-    datasetUsedFor: string;
-    datasetCharacteristics: string;
-    mlInputTimestamp: string;
-    modelName: string;
-    modelPerformanceMetric: string;
-    modelPerformanceValue: number;
+    dataset: string;
+    dataset_used_as: string;
+    dataset_used_for: string;
+    dataset_characteristics: string[] | string;
+    ml_input_timestamp: string;
+    model_name: string;
+    model_performance_metric: string;
+    model_performance_value: number;
 }
 
 interface IRIQueryData {
@@ -38,7 +38,7 @@ const defaultSelectedCheckboxes = {
     "raw_data": true,
 };
 
-const FindDatasetUsages: React.FC = () => {
+const FindModelsByDataset: React.FC = () => {
     const [searchTerm, setSearchTerm] = useState('');
     const [selectedCheckboxes, setSelectedCheckboxes] = useState<{ [key: string]: boolean }>(defaultSelectedCheckboxes);
     const [models, setModels] = useState<ModelData[]>([]);
@@ -173,16 +173,9 @@ const FindDatasetUsages: React.FC = () => {
         navigate('/models/analyze-deployed-models');
     };
 
-    const getUniqueIriPart = (iri: string | string[]): string | string[] => {
-        if (Array.isArray(iri)) {
-            return iri.map(singleIri => {
-                const parts = singleIri.split('#');
-                return parts.length > 1 ? parts[1] : singleIri;  // Return the fragment if exists, else the full IRI
-            });
-        } else {
-            const parts = iri.split('#');
-            return parts.length > 1 ? parts[1] : iri;  // Return the fragment if exists, else the full IRI
-        }
+    const getUniqueIriPart = (iri: string): string => {
+        const parts = iri.split('#');
+        return parts.length > 1 ? parts[1] : iri;
     };
 
     const mapItemToRow = (header: string, value: any) => {
@@ -380,4 +373,4 @@ const FindDatasetUsages: React.FC = () => {
     );
 };
 
-export default FindDatasetUsages;
+export default FindModelsByDataset;

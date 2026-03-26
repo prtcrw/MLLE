@@ -32,7 +32,7 @@ const DateRangeSlider: React.FC<DateRangeSliderProps> = ({
         }
     }, [dates]);
 
-    const handleSliderChange = (event: Event, newValue: number | number[]) => {
+    const handleSliderChange = (_event: Event, newValue: number | number[]) => {
         const [start, end] = newValue as number[];
         onChange([new Date(start), new Date(end)]);
     };
