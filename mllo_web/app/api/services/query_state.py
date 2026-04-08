@@ -15,11 +15,35 @@ class NLQStepRecord(BaseModel):
     reasoning: str | None = None
 
 
+class NLQPlannedStep(BaseModel):
+    step_id: str
+    tool: str
+    params: dict[str, Any] = Field(default_factory=dict)
+    reasoning: str | None = None
+
+
 class NLQQueryState(BaseModel):
     question: str
     repo: str
+    plan: list[NLQPlannedStep] = Field(default_factory=list)
     steps: list[NLQStepRecord] = Field(default_factory=list)
     artifacts: dict[str, Any] = Field(default_factory=dict)
+
+    def add_plan_step(
+        self,
+        *,
+        tool: str,
+        params: dict[str, Any] | None = None,
+        reasoning: str | None = None,
+    ) -> NLQPlannedStep:
+        record = NLQPlannedStep(
+            step_id=f"plan_{len(self.plan) + 1}",
+            tool=tool,
+            params=params or {},
+            reasoning=reasoning,
+        )
+        self.plan.append(record)
+        return record
 
     def add_step(
         self,

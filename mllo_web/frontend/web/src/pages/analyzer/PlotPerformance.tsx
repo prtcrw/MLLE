@@ -1,393 +1,670 @@
-import React, {useEffect, useState} from 'react';
-import {buildV1Url} from '../../services/api';
-import LoadingBar from '../../components/LoadingBar.tsx';
+import React, {useEffect, useMemo, useState} from 'react';
 import {Bar, Line} from 'react-chartjs-2';
 import {
     BarElement,
     CategoryScale,
     Chart as ChartJS,
+    Filler,
     Legend,
     LinearScale,
     LineElement,
-    Filler,
     PointElement,
     Title,
     Tooltip
 } from 'chart.js';
+import ChartDataLabels from 'chartjs-plugin-datalabels';
+import {buildV1Url} from '../../services/api';
+import LoadingBar from '../../components/LoadingBar.tsx';
 import './styles/plot_performance.css';
-import ChartDataLabels from "chartjs-plugin-datalabels";
 
-// Register Chart.js components
-ChartJS.register(CategoryScale, LinearScale, BarElement, LineElement, Filler, PointElement, Title, Tooltip, Legend);
+ChartJS.register(
+    CategoryScale,
+    LinearScale,
+    BarElement,
+    LineElement,
+    Filler,
+    PointElement,
+    Title,
+    Tooltip,
+    Legend,
+    ChartDataLabels
+);
 
-type PerformanceData = {
+type PerformancePoint = {
     datasetName: string;
     modelPerformanceValue: number;
     modelName: string;
     modelType: string;
     rawData: string;
-}
-
-type PerformanceMetrics = {
-    [metric: string]: PerformanceData[];
+    categoryLabel: string;
 };
 
-// Convert snake_case to camelCase
-const convertToCamelCase = (data: any): PerformanceMetrics => {
+type PerformanceMetrics = Record<string, PerformancePoint[]>;
+
+type PlotMode = 'auto' | 'bar' | 'line';
+type SortOrder = 'Ascending' | 'Descending';
+type GroupBy = 'default' | 'rawData' | 'datasetName' | 'modelName' | 'modelType';
+
+const GROUP_LABELS: Record<GroupBy, string> = {
+    default: 'Performance',
+    rawData: 'Raw Data',
+    datasetName: 'Dataset Name',
+    modelName: 'Model Name',
+    modelType: 'Model Type',
+};
+
+const makeCategoryLabel = (datasetName: string, rawData: string) => {
+    const safeDataset = datasetName?.trim() || 'Unknown Dataset';
+    const safeRaw = rawData?.trim();
+    if (!safeRaw || safeRaw === safeDataset) {
+        return safeDataset;
+    }
+    return `${safeDataset} - ${safeRaw}`;
+};
+
+const convertToCamelCase = (data: Record<string, any[]>): PerformanceMetrics => {
     const camelCaseData: PerformanceMetrics = {};
 
     for (const metric in data) {
-        if (data.hasOwnProperty(metric)) {
-            camelCaseData[metric] = data[metric].map((item: any) => ({
-                datasetName: item['dataset_name'],
-                modelName: item['model_name'],
-                modelType: item['model_type'],
-                rawData: item['raw_data'],
-                modelPerformanceValue: parseFloat(item['model_performance_value']),
-            }));
+        if (!Object.prototype.hasOwnProperty.call(data, metric)) {
+            continue;
         }
+
+        camelCaseData[metric] = data[metric].map((item: any) => {
+            const datasetName = item['dataset_name'] ?? '';
+            const rawData = item['raw_data'] ?? '';
+
+            return {
+                datasetName,
+                modelName: item['model_name'] ?? 'Unknown Model',
+                modelType: item['model_type'] ?? 'Unknown Type',
+                rawData,
+                modelPerformanceValue: Number.parseFloat(item['model_performance_value'] ?? '0'),
+                categoryLabel: makeCategoryLabel(datasetName, rawData),
+            };
+        });
     }
 
     return camelCaseData;
 };
 
+const generateColorPalette = (numColors: number): string[] => {
+    if (numColors <= 0) {
+        return [];
+    }
+
+    const colors: string[] = [];
+    for (let i = 0; i < numColors; i += 1) {
+        const hue = (i * 360 / numColors + 18) % 360;
+        colors.push(`hsl(${hue}, 72%, 48%)`);
+    }
+    return colors;
+};
+
+const formatMetricName = (metric: string) =>
+    metric
+        .replace(/[_-]+/g, ' ')
+        .replace(/\b\w/g, (char) => char.toUpperCase());
+
+const formatScore = (value: number | null | undefined) =>
+    typeof value === 'number' && Number.isFinite(value) ? value.toFixed(3) : 'n/a';
+
+const getTickDensityConfig = (labelCount: number, plotMode: 'bar' | 'line') => {
+    if (labelCount <= 8) {
+        return {
+            autoSkip: false,
+            maxTicksLimit: labelCount,
+            maxRotation: 0,
+        };
+    }
+
+    if (labelCount <= 16) {
+        return {
+            autoSkip: false,
+            maxTicksLimit: labelCount,
+            maxRotation: plotMode === 'bar' ? 0 : 30,
+        };
+    }
+
+    if (labelCount <= 28) {
+        return {
+            autoSkip: true,
+            maxTicksLimit: 14,
+            maxRotation: 45,
+        };
+    }
+
+    return {
+        autoSkip: true,
+        maxTicksLimit: 10,
+        maxRotation: 55,
+    };
+};
+
+const wrapAxisLabel = (label: string, maxLineLength = 18) => {
+    const words = label.split(/\s+/).filter(Boolean);
+    if (words.length <= 1 && label.length <= maxLineLength) {
+        return label;
+    }
+
+    const lines: string[] = [];
+    let currentLine = '';
+
+    for (const word of words) {
+        const nextLine = currentLine ? `${currentLine} ${word}` : word;
+        if (nextLine.length > maxLineLength && currentLine) {
+            lines.push(currentLine);
+            currentLine = word;
+        } else {
+            currentLine = nextLine;
+        }
+    }
+
+    if (currentLine) {
+        lines.push(currentLine);
+    }
+
+    return lines;
+};
+
 const PlotPerformance: React.FC = () => {
-    const [plotType, setPlotType] = useState('Bar');
-    const [yAxisMetric, setYAxisMetric] = useState(''); // Initially empty
-    const [performanceCutoff, setPerformanceCutoff] = useState(50);
-    const [orderBy, setOrderBy] = useState('Ascending');
-    const [groupBy, setGroupBy] = useState('default');
+    const [plotMode, setPlotMode] = useState<PlotMode>('auto');
+    const [metric, setMetric] = useState('');
+    const [performanceCutoff, setPerformanceCutoff] = useState(0);
+    const [orderBy, setOrderBy] = useState<SortOrder>('Descending');
+    const [groupBy, setGroupBy] = useState<GroupBy>('default');
+    const [searchTerm, setSearchTerm] = useState('');
+    const [selectedModel, setSelectedModel] = useState('all');
+    const [selectedRawData, setSelectedRawData] = useState('all');
+    const [selectedPoint, setSelectedPoint] = useState<PerformancePoint | null>(null);
     const [isLoading, setIsLoading] = useState(false);
     const [fetchedData, setFetchedData] = useState<PerformanceMetrics | null>(null);
-    const [data, setData] = useState<any>(null);
-    const [options, setOptions] = useState<any>({});
-    const [yAxisMetricOptions, setYAxisMetricOptions] = useState<string[]>([]);
-    const [uniqueModelNames, setUniqueModelNames] = useState<string[]>([]);
-    const [modelColorMapping, setModelColorMapping] = useState<{ [key: string]: string }>({}); // State for color mapping    
-    const [maxCutoff, setMaxCutoff] = useState(100.0);
-    const [minCutoff, setMinCutoff] = useState(0.0);
-    const [hiddenModels] = useState<string[]>([]); // Track hidden models for onclick chart behavior
+    const [metricOptions, setMetricOptions] = useState<string[]>([]);
+    const [colorMapping, setColorMapping] = useState<Record<string, string>>({});
+    const [minCutoff, setMinCutoff] = useState(0);
+    const [maxCutoff, setMaxCutoff] = useState(1);
 
     useEffect(() => {
-        if (yAxisMetric && performanceCutoff && orderBy && groupBy) {
-            updateCutoffValues();
-            drawChart();
-        }
-    }, [yAxisMetric, performanceCutoff, orderBy, groupBy]);
+        const fetchData = async () => {
+            setIsLoading(true);
+            try {
+                const queryParams = new URLSearchParams(window.location.search);
+                const response = await fetch(buildV1Url(`datasets/performances/?${queryParams.toString()}`));
+                const payload = await response.json();
+                const performanceByMetric = convertToCamelCase(payload['model_performance_metric'] ?? {});
+                const nextMetricOptions = Object.keys(performanceByMetric);
+                const initialMetric = nextMetricOptions[0] ?? '';
+                const allModels = Array.from(
+                    new Set(
+                        nextMetricOptions.flatMap((metricKey) =>
+                            (performanceByMetric[metricKey] ?? []).map((point) => point.modelName)
+                        )
+                    )
+                );
+                const palette = generateColorPalette(allModels.length);
+                const nextColorMapping = allModels.reduce<Record<string, string>>((mapping, modelName, index) => {
+                    mapping[modelName] = palette[index % palette.length];
+                    return mapping;
+                }, {});
 
-    const fetchData = async () => {
-        setIsLoading(true); // Set loading to true
-        try {
-            // Fetch data with filters
-            const queryParams = new URLSearchParams(window.location.search)
-            const response = await fetch(buildV1Url(`datasets/performances/?${queryParams.toString()}`));
-            let fetchedData = await response.json();
-            fetchedData = convertToCamelCase(fetchedData['model_performance_metric']);
-            setFetchedData(fetchedData);
-            console.log(fetchedData)
-            // Extract the first metric key as the default yAxisMetric
-            const initialMetric = Object.keys(fetchedData)[0];
-            setYAxisMetric(initialMetric);
-            setYAxisMetricOptions(Object.keys(fetchedData));
-            //set color mapping
-            const uniqueModelNames = Array.from(
-                new Set<string>((fetchedData[initialMetric] ?? []).map((item: PerformanceData) => item.modelName))
-            );
-            const colorPalette = generateColorPalette(uniqueModelNames.length);
-            setUniqueModelNames(uniqueModelNames)
-            // Create a mapping from model name to a color
-            const modelColorMapping: {[key: string]: string} = uniqueModelNames.reduce<{[key: string]: string}>((acc, modelName, index) => {
-                acc[modelName] = colorPalette[index % colorPalette.length];
-                return acc;
-            }, {});
-            setModelColorMapping(modelColorMapping);
-        } finally {
-            setIsLoading(false); // Set loading to false after fetching
-        }
-    };
-    const generateColorPalette = (numColors: number): string[] => {
-        const colors = [];
-        for (let i = 0; i < numColors; i++) {
-            const hue = (i * 360 / numColors) % 360; // Distribute hues evenly
-            colors.push(`hsl(${hue}, 70%, 50%)`); // HSL with 70% saturation and 50% lightness
-        }
-        return colors;
-    };
-
-    const calculateVariance = (values: number[]): number => {
-        const mean = values.reduce((sum, value) => sum + value, 0) / values.length;
-        const variance = values.reduce((sum, value) => sum + Math.pow(value - mean, 2), 0) / values.length;
-        return variance;
-    };
-
-    const drawChart = async () => {
-        if (!fetchedData || !fetchedData[yAxisMetric]) {
-            return;
-        }
-        setIsLoading(true);
-        try {
-            const filteredData = fetchedData[yAxisMetric].filter(
-                item => item.modelPerformanceValue >= performanceCutoff && !hiddenModels.includes(item.modelName)
-            ) as PerformanceData[];
-            const chartData = {
-                labels: filteredData.map(item => item.datasetName),
-                datasets: [{
-                    label: yAxisMetric.charAt(0).toUpperCase() + yAxisMetric.slice(1),
-                    data: filteredData.map(item => item.modelPerformanceValue),
-                    modelNames: filteredData.map(item => item.modelName), 
-                    modelTypes: filteredData.map(item => item.modelType), 
-                    rawDatas: filteredData.map(item => item.rawData), 
-                    backgroundColor: filteredData.map(item => modelColorMapping[item.modelName]), // Use dynamic color
-                    borderColor: filteredData.map(item => modelColorMapping[item.modelName]), // Same color for border
-                    borderWidth: 1,
-                }]
-            };
-    
-
-            // Sort the chart data based on orderBy and groupBy
-            const sortedData = sortChartData(chartData, orderBy, groupBy);
-            setData(sortedData);
-
-            // Update the chart options with dynamic yAxis min and max values
-            const dataValues = fetchedData[yAxisMetric].map(item => item.modelPerformanceValue);
-            const minY = Math.min(...dataValues);
-            const maxY = Math.max(...dataValues);
-
-            // Calculate variance and standard deviation
-            const variance = calculateVariance(dataValues);
-            const standardDeviation = Math.sqrt(variance);
-
-            // Adjust min and max values
-            const adjustmentFactor = 1; // Adjust this factor if needed (e.g., 1.5 for more range)
-            const adjustedMinY = minY - adjustmentFactor * standardDeviation;
-            const adjustedMaxY = maxY + adjustmentFactor * standardDeviation;
-
-
-            const chartOptions = {
-                responsive: true,
-                plugins: {
-                    legend: { 
-                        display: true,
-                        labels: {
-                            generateLabels: (_chart: any) => {
-                                return uniqueModelNames.map(modelName => {
-                                    
-                                    // Find the corresponding modelType for the modelName
-                                    const modelItem = filteredData.find(item => item.modelName === modelName);
-                                    const modelType = modelItem ? modelItem.modelType : '';
-            
-                                    return {
-                                        text: `${modelName}\n(${modelType})`,  // Display modelName with modelType below
-                                        fillStyle: modelColorMapping[modelName], // Use the same color mapping
-                                        hidden: false,
-                                    };
-                                });
-                            }
-                        }
-                    },
-                                  tooltip: {
-                    callbacks: {
-                        // Customize tooltip to show both rawData and modelPerformanceValue
-                        label: (context: any) => {
-                            const rawData = context.dataset.rawDatas[context.dataIndex];
-                            const performance = context.raw;
-                            const performanceType = context.dataset.label;
-                            return [
-                                `${performanceType}: ${performance}`,
-                                `Raw Data: ${rawData}`
-                            ];
-                        }
-                    }
-                },
-                datalabels: {
-                    anchor: 'end',
-                    align: 'end',
-                    clamp: true
-                }
-            },
-            scales: {
-                y: {
-                    min: adjustedMinY,
-                    max: adjustedMaxY,
-                },
-                x: {
-                    barPercentage: 0.5,   // Adjust bar width 
-                    categoryPercentage: 1 // Adjust overall category width
-                }
+                setFetchedData(performanceByMetric);
+                setMetricOptions(nextMetricOptions);
+                setMetric(initialMetric);
+                setColorMapping(nextColorMapping);
+            } finally {
+                setIsLoading(false);
             }
         };
-            setOptions(chartOptions);
-        } finally {
-            setIsLoading(false); // Set loading to false after fetching
-        }
-    };
 
-    const groupDataBy = (data: any[], groupBy: string): { [key: string]: any[] } => {
-        return data.reduce((acc: { [key: string]: any[] }, item: any) => {
-            const groupKey = item[groupBy]; // dynamic group key based on groupBy
+        fetchData();
+    }, []);
+
+    const metricData = useMemo(() => {
+        if (!fetchedData || !metric) {
+            return [];
+        }
+        return fetchedData[metric] ?? [];
+    }, [fetchedData, metric]);
+
+    useEffect(() => {
+        if (metricData.length === 0) {
+            return;
+        }
+
+        const values = metricData
+            .map((item) => item.modelPerformanceValue)
+            .filter((value) => Number.isFinite(value));
+        const nextMin = Math.min(...values);
+        const nextMax = Math.max(...values);
+
+        setMinCutoff(nextMin);
+        setMaxCutoff(nextMax);
+        setPerformanceCutoff((current) => {
+            if (current < nextMin || current > nextMax) {
+                return nextMin;
+            }
+            return current;
+        });
+    }, [metricData]);
+
+    useEffect(() => {
+        if (!selectedPoint) {
+            return;
+        }
+
+        const exists = metricData.some((item) =>
+            item.modelName === selectedPoint.modelName &&
+            item.categoryLabel === selectedPoint.categoryLabel &&
+            item.modelPerformanceValue === selectedPoint.modelPerformanceValue
+        );
+
+        if (!exists) {
+            setSelectedPoint(null);
+        }
+    }, [metricData, selectedPoint]);
+
+    const modelOptions = useMemo(
+        () => ['all', ...Array.from(new Set(metricData.map((item) => item.modelName))).sort((a, b) => a.localeCompare(b))],
+        [metricData]
+    );
+
+    const rawDataOptions = useMemo(
+        () => ['all', ...Array.from(new Set(metricData.map((item) => item.rawData || 'Unknown'))).sort((a, b) => a.localeCompare(b))],
+        [metricData]
+    );
+
+    const filteredEntries = useMemo(() => {
+        return metricData.filter((item) => {
+            const normalizedRawData = item.rawData || 'Unknown';
+            const haystack = `${item.datasetName} ${item.modelName} ${item.modelType} ${normalizedRawData}`.toLowerCase();
+            return item.modelPerformanceValue >= performanceCutoff
+                && (selectedModel === 'all' || item.modelName === selectedModel)
+                && (selectedRawData === 'all' || normalizedRawData === selectedRawData)
+                && (!searchTerm.trim() || haystack.includes(searchTerm.trim().toLowerCase()));
+        });
+    }, [metricData, performanceCutoff, selectedModel, selectedRawData, searchTerm]);
+
+    const rankedEntries = useMemo(() => {
+        const grouped = filteredEntries.reduce<Record<string, PerformancePoint[]>>((acc, item) => {
+            const groupKey = groupBy === 'default' ? 'all' : item[groupBy];
             if (!acc[groupKey]) {
                 acc[groupKey] = [];
             }
             acc[groupKey].push(item);
             return acc;
         }, {});
-    };
-    
-    const sortChartData = (chartData: any, orderBy: string, groupBy: string) => {
-        // Access both data and model names in the dataset
-        const data = chartData.datasets[0].data as number[];
-        const modelNames = chartData.datasets[0].modelNames as string[];
-        const modelTypes = chartData.datasets[0].modelTypes as string[];
-        const rawDatas = chartData.datasets[0].rawDatas as string[];
 
-        // Create a combined array with datasetName, modelPerformanceValue,  modelName and modelType
-        const combinedData = data.map((item, index) => ({
-            datasetName: chartData.labels[index],
-            modelPerformanceValue: item,
-            modelName: modelNames[index],
-            modelType: modelTypes[index],
-            rawData: rawDatas[index],
-        }));
-    
-        // Group data by the selected `groupBy` field 
-        const groupedData = groupDataBy(combinedData, groupBy);
-    
-        // Flatten the grouped data for sorting and further processing
-        let sortedData: any[] = [];
-    
-        for (const groupKey in groupedData) {
-            let group = groupedData[groupKey];
-            // Sort the group by modelPerformanceValue (either ascending or descending)
-            group.sort((a, b) => {
+        const sortedGroupKeys = Object.keys(grouped).sort((a, b) => {
+            if (groupBy === 'default') {
+                return 0;
+            }
+            return a.localeCompare(b);
+        });
+
+        return sortedGroupKeys.flatMap((groupKey) => {
+            const points = [...grouped[groupKey]];
+            points.sort((a, b) => {
                 if (orderBy === 'Ascending') {
                     return a.modelPerformanceValue - b.modelPerformanceValue;
-                } else {
-                    return b.modelPerformanceValue - a.modelPerformanceValue;
                 }
+                return b.modelPerformanceValue - a.modelPerformanceValue;
             });
-            sortedData = sortedData.concat(group);
+            return points;
+        });
+    }, [filteredEntries, groupBy, orderBy]);
+
+    const summary = useMemo(() => {
+        if (rankedEntries.length === 0) {
+            return {
+                visiblePoints: 0,
+                visibleModels: 0,
+                visibleSources: 0,
+                averageScore: null as number | null,
+                bestPoint: null as PerformancePoint | null,
+            };
         }
-    
-        // Update labels, data, and modelNames in the chartData object after sorting
-        chartData.labels = sortedData.map(item => item.datasetName);
-        chartData.datasets[0].data = sortedData.map(item => item.modelPerformanceValue);
-        chartData.datasets[0].rawDatas = sortedData.map(item => item.rawData);
-        chartData.datasets[0].ModelNames = sortedData.map(item => item.modelName);
-        chartData.datasets[0].modelTypes = sortedData.map(item => item.modelType);
-        chartData.datasets[0].backgroundColor = sortedData.map(item => modelColorMapping[item.modelName]);
-        chartData.datasets[0].borderColor = sortedData.map(item => modelColorMapping[item.modelName]);
-    
-        return chartData;
-    };
-    
 
-    const updateCutoffValues = () => {
-        if (!fetchedData || !fetchedData[yAxisMetric]) {
-            return;
+        const total = rankedEntries.reduce((sum, item) => sum + item.modelPerformanceValue, 0);
+        return {
+            visiblePoints: rankedEntries.length,
+            visibleModels: new Set(rankedEntries.map((item) => item.modelName)).size,
+            visibleSources: new Set(rankedEntries.map((item) => item.rawData || 'Unknown')).size,
+            averageScore: total / rankedEntries.length,
+            bestPoint: [...rankedEntries].sort((a, b) => b.modelPerformanceValue - a.modelPerformanceValue)[0] ?? null,
+        };
+    }, [rankedEntries]);
+
+    const activePlotMode = useMemo<'bar' | 'line'>(() => {
+        if (plotMode !== 'auto') {
+            return plotMode;
         }
-        const values = fetchedData[yAxisMetric].map(item => item.modelPerformanceValue);
-        const minModelPerformanceValue = Math.min(...values);
-        const maxModelPerformanceValue = Math.max(...values);
+        return rankedEntries.length > 12 ? 'line' : 'bar';
+    }, [plotMode, rankedEntries.length]);
 
-        setMinCutoff(minModelPerformanceValue);
-        setMaxCutoff(maxModelPerformanceValue);
+    const chartState = useMemo(() => {
+        const labels = Array.from(new Set(rankedEntries.map((item) => item.categoryLabel)));
+        const modelNames = Array.from(new Set(rankedEntries.map((item) => item.modelName)));
+        const pointMap = new Map<string, PerformancePoint>();
 
-        if (performanceCutoff < minModelPerformanceValue || performanceCutoff > maxModelPerformanceValue) {
-            setPerformanceCutoff(minModelPerformanceValue);
-        }
-    };
+        const datasets = modelNames.map((modelName) => {
+            const values = labels.map((label) => {
+                const point = rankedEntries.find((item) => item.modelName === modelName && item.categoryLabel === label) ?? null;
+                if (point) {
+                    pointMap.set(`${modelName}::${label}`, point);
+                }
+                return point ? point.modelPerformanceValue : null;
+            });
 
-    const handleYAxisMetricChange = (metric: string) => {
-        setYAxisMetric(metric);
-        updateCutoffValues();
-    };
+            return {
+                label: modelName,
+                data: values,
+                borderColor: colorMapping[modelName] ?? '#1f5eff',
+                backgroundColor: colorMapping[modelName] ?? '#1f5eff',
+                borderWidth: 2,
+                pointRadius: activePlotMode === 'line' ? 4 : 0,
+                pointHoverRadius: 6,
+                pointBackgroundColor: colorMapping[modelName] ?? '#1f5eff',
+                pointBorderColor: '#ffffff',
+                pointBorderWidth: 2,
+                tension: 0.28,
+                fill: false,
+                spanGaps: true,
+                maxBarThickness: 34,
+                borderRadius: activePlotMode === 'bar' ? 10 : 0,
+            };
+        });
 
-    const handleLoadDataset = async () => {
-        await fetchData();
-    }
+        return {labels, datasets, pointMap};
+    }, [rankedEntries, colorMapping, activePlotMode]);
 
-    useEffect(() => {
-        handleLoadDataset(); // Automatically trigger on page load
-    }, []); 
+    const chartOptions = useMemo(() => {
+        const tickDensity = getTickDensityConfig(chartState.labels.length, activePlotMode);
+
+        return {
+            responsive: true,
+            maintainAspectRatio: false,
+            interaction: {
+                mode: 'nearest' as const,
+                intersect: true,
+            },
+            onClick: (_event: unknown, elements: any[], chart: any) => {
+                if (!elements.length) {
+                    return;
+                }
+
+                const element = elements[0];
+                const datasetLabel = chart.data.datasets[element.datasetIndex]?.label;
+                const categoryLabel = chart.data.labels[element.index];
+                const point = chartState.pointMap.get(`${datasetLabel}::${categoryLabel}`) ?? null;
+                setSelectedPoint(point);
+            },
+            plugins: {
+                legend: {
+                    position: 'bottom' as const,
+                    labels: {
+                        usePointStyle: true,
+                        boxWidth: 10,
+                        padding: 18,
+                    }
+                },
+                tooltip: {
+                    callbacks: {
+                        title: (items: any[]) => {
+                            const item = items[0];
+                            const datasetLabel = item?.dataset?.label;
+                            const categoryLabel = item?.label;
+                            const point = chartState.pointMap.get(`${datasetLabel}::${categoryLabel}`) ?? null;
+                            return point?.datasetName ?? categoryLabel;
+                        },
+                        label: (context: any) => {
+                            const datasetLabel = context.dataset?.label;
+                            const categoryLabel = context.label;
+                            const point = chartState.pointMap.get(`${datasetLabel}::${categoryLabel}`) ?? null;
+                            if (!point) {
+                                return `${datasetLabel}: ${context.raw}`;
+                            }
+                            return [
+                                `${point.modelName}: ${formatScore(point.modelPerformanceValue)}`,
+                                `Type: ${point.modelType}`,
+                                `Source: ${point.rawData || 'Unknown'}`,
+                            ];
+                        }
+                    },
+                    filter: (context: any) => context.raw !== null && context.raw !== undefined,
+                },
+                datalabels: {
+                    display: chartState.labels.length <= 10,
+                    anchor: 'end' as const,
+                    align: 'top' as const,
+                    formatter: (value: number | null) => (value === null ? '' : value.toFixed(2)),
+                    color: '#19304f',
+                    font: {
+                        weight: 'bold' as const,
+                        size: 11,
+                    }
+                }
+            },
+            scales: {
+                x: {
+                    ticks: {
+                        color: '#274567',
+                        autoSkip: tickDensity.autoSkip,
+                        maxTicksLimit: tickDensity.maxTicksLimit,
+                        callback: (_value: string | number, index: number) => {
+                            const label = chartState.labels[index] ?? '';
+                            return tickDensity.autoSkip ? label : wrapAxisLabel(label);
+                        },
+                        maxRotation: tickDensity.maxRotation,
+                        minRotation: 0,
+                    },
+                    grid: {
+                        display: false,
+                    }
+                },
+                y: {
+                    suggestedMin: minCutoff,
+                    suggestedMax: maxCutoff,
+                    ticks: {
+                        color: '#274567',
+                    },
+                    grid: {
+                        color: 'rgba(43, 84, 123, 0.12)',
+                    },
+                    title: {
+                        display: true,
+                        text: formatMetricName(metric),
+                    }
+                }
+            }
+        };
+    }, [chartState, activePlotMode, minCutoff, maxCutoff, metric]);
+
+    const detailPoint = selectedPoint ?? summary.bestPoint;
 
     return (
         <>
             <LoadingBar isLoading={isLoading}/>
-            <div className="plot-performance-container">
-                <div className="filters-section">
-                    <h2>Filters</h2>
-                    <div className="filter-item">
-                        <label>
-                            Plot Type:
-                            <select value={plotType} onChange={(e) => setPlotType(e.target.value)}>
-                                <option value="Bar">Bar</option>
-                                <option value="Line">Line</option>
-                                {/* Add more plot types as needed */}
-                            </select>
-                        </label>
-                    </div>
-                    {(fetchedData) && (
-                        <div className="filter-item">
-                            <label>
-                                Y axis (Performance Metric):
-                                <select value={yAxisMetric} onChange={(e) => handleYAxisMetricChange(e.target.value)}>
-                                    {yAxisMetricOptions.map(metric => (
-                                        <option key={metric}
-                                                value={metric}>{metric.charAt(0).toUpperCase() + metric.slice(1)}</option>
+            <div className="plot-performance-page">
+                <div className="plot-performance-layout">
+                    <aside className="filters-panel">
+                        <div className="panel-header">
+                            <h2>Controls</h2>
+                            <p>{metric ? formatMetricName(metric) : 'Loading metrics...'}</p>
+                        </div>
+
+                        <div className="filter-grid">
+                            <label className="filter-field">
+                                <span>Visualization</span>
+                                <select value={plotMode} onChange={(e) => setPlotMode(e.target.value as PlotMode)}>
+                                    <option value="auto">Auto</option>
+                                    <option value="bar">Bar</option>
+                                    <option value="line">Line</option>
+                                </select>
+                            </label>
+
+                            <label className="filter-field">
+                                <span>Metric</span>
+                                <select value={metric} onChange={(e) => setMetric(e.target.value)}>
+                                    {metricOptions.map((item) => (
+                                        <option key={item} value={item}>{formatMetricName(item)}</option>
+                                    ))}
+                                </select>
+                            </label>
+
+                            <label className="filter-field">
+                                <span>Order</span>
+                                <select value={orderBy} onChange={(e) => setOrderBy(e.target.value as SortOrder)}>
+                                    <option value="Descending">Top First</option>
+                                    <option value="Ascending">Low First</option>
+                                </select>
+                            </label>
+
+                            <label className="filter-field">
+                                <span>Group</span>
+                                <select value={groupBy} onChange={(e) => setGroupBy(e.target.value as GroupBy)}>
+                                    <option value="default">{GROUP_LABELS.default}</option>
+                                    <option value="rawData">{GROUP_LABELS.rawData}</option>
+                                    <option value="datasetName">{GROUP_LABELS.datasetName}</option>
+                                    <option value="modelName">{GROUP_LABELS.modelName}</option>
+                                    <option value="modelType">{GROUP_LABELS.modelType}</option>
+                                </select>
+                            </label>
+
+                            <label className="filter-field filter-field-full">
+                                <span>Search</span>
+                                <input
+                                    type="text"
+                                    value={searchTerm}
+                                    onChange={(e) => setSearchTerm(e.target.value)}
+                                    placeholder="Dataset, model, type, source"
+                                />
+                            </label>
+
+                            <label className="filter-field">
+                                <span>Model</span>
+                                <select value={selectedModel} onChange={(e) => setSelectedModel(e.target.value)}>
+                                    {modelOptions.map((item) => (
+                                        <option key={item} value={item}>{item === 'all' ? 'All Models' : item}</option>
+                                    ))}
+                                </select>
+                            </label>
+
+                            <label className="filter-field">
+                                <span>Raw Data</span>
+                                <select value={selectedRawData} onChange={(e) => setSelectedRawData(e.target.value)}>
+                                    {rawDataOptions.map((item) => (
+                                        <option key={item} value={item}>{item === 'all' ? 'All Sources' : item}</option>
                                     ))}
                                 </select>
                             </label>
                         </div>
-                    )}
-                    {(fetchedData) && (
-                        <div className="filter-item">
-                            <label>
-                                Performance Cutoff:
-                                <input
-                                    type="range"
-                                    min={minCutoff}
-                                    max={maxCutoff}
-                                    value={performanceCutoff}
-                                    step={0.01}
-                                    onChange={(e) => setPerformanceCutoff(Number(e.target.value))}
-                                    className="range-slider"
-                                />
-                                <span className="cutoff-value">{performanceCutoff.toFixed(2)}</span>
-                            </label>
+
+                        <div className="cutoff-panel">
+                            <div className="cutoff-header">
+                                <span>Performance Cutoff</span>
+                                <strong>{performanceCutoff.toFixed(3)}</strong>
+                            </div>
+                            <input
+                                type="range"
+                                min={minCutoff}
+                                max={maxCutoff}
+                                value={performanceCutoff}
+                                step={0.001}
+                                onChange={(e) => setPerformanceCutoff(Number(e.target.value))}
+                            />
+                            <div className="cutoff-scale">
+                                <span>{minCutoff.toFixed(3)}</span>
+                                <span>{maxCutoff.toFixed(3)}</span>
+                            </div>
                         </div>
-                    )}
-                    <div className="filter-item">
-                        <label>
-                            Order By:
-                            <select value={orderBy} onChange={(e) => setOrderBy(e.target.value)}>
-                                <option value="Ascending">Ascending</option>
-                                <option value="Descending">Descending</option>
-                            </select>
-                        </label>
-                    </div>
-                    <div className="filter-item">
-                        <label>
-                            Group By:
-                            <select value={groupBy} onChange={(e) => setGroupBy(e.target.value)}>
-                                <option value="default">Model Performance</option> // sets the default sort to model performance value
-                                <option value="rawData">Raw Data</option>
-                                <option value="datasetName">Dataset Name</option>
-                                <option value="modelName">Model Name</option>
-                                <option value="modelType">Model Type</option>
-                            </select>
-                        </label>
-                    </div>
-                </div>
-                {data && (
-                    <div className="plot-section">
-                        <h2>Plot</h2>
-                        {plotType === 'Bar' ? (
-                            <Bar data={data} plugins={[ChartDataLabels]} options={options}/>
+
+                        <div className="detail-panel">
+                            <div className="panel-header">
+                                <h2>Selection</h2>
+                                <p>{selectedPoint ? 'Clicked point' : 'Current best visible result'}</p>
+                            </div>
+                            {detailPoint ? (
+                                <div className="detail-card">
+                                    <strong>{detailPoint.modelName}</strong>
+                                    <span>{detailPoint.modelType}</span>
+                                    <dl>
+                                        <div>
+                                            <dt>Dataset</dt>
+                                            <dd>{detailPoint.datasetName}</dd>
+                                        </div>
+                                        <div>
+                                            <dt>Source</dt>
+                                            <dd>{detailPoint.rawData || 'Unknown'}</dd>
+                                        </div>
+                                        <div>
+                                            <dt>Metric</dt>
+                                            <dd>{formatMetricName(metric)}</dd>
+                                        </div>
+                                        <div>
+                                            <dt>Score</dt>
+                                            <dd>{formatScore(detailPoint.modelPerformanceValue)}</dd>
+                                        </div>
+                                    </dl>
+                                </div>
+                            ) : (
+                                <p className="empty-state">No visible data after the current filters.</p>
+                            )}
+                        </div>
+                    </aside>
+
+                    <section className="visualization-panel">
+                        <div className="panel-header">
+                            <h2>Interactive Plot</h2>
+                            <p>{plotMode === 'auto' ? `Auto selected ${activePlotMode} view` : `${activePlotMode} view`}</p>
+                        </div>
+
+                        {chartState.labels.length > 0 ? (
+                            <div className="chart-shell">
+                                {activePlotMode === 'bar' ? (
+                                    <Bar data={{labels: chartState.labels, datasets: chartState.datasets}} options={chartOptions}/>
+                                ) : (
+                                    <Line data={{labels: chartState.labels, datasets: chartState.datasets}} options={chartOptions}/>
+                                )}
+                            </div>
                         ) : (
-                            <Line data={data} plugins={[ChartDataLabels]} options={options}/>
+                            <div className="empty-state empty-state-large">No results match the current filters.</div>
                         )}
-                    </div>
-                )}
+
+                        <div className="results-panel">
+                            <div className="panel-header">
+                                <h2>Ranked Results</h2>
+                                <p>Top visible runs update as you filter the plot.</p>
+                            </div>
+
+                            <div className="results-table">
+                                <div className="results-table-head">
+                                    <span>Rank</span>
+                                    <span>Model</span>
+                                    <span>Dataset</span>
+                                    <span>Source</span>
+                                    <span>Score</span>
+                                </div>
+                                {rankedEntries.slice(0, 12).map((item, index) => (
+                                    <button
+                                        key={`${item.modelName}-${item.categoryLabel}-${index}`}
+                                        type="button"
+                                        className={`results-row${selectedPoint === item ? ' is-active' : ''}`}
+                                        onClick={() => setSelectedPoint(item)}
+                                    >
+                                        <span>{index + 1}</span>
+                                        <span>{item.modelName}</span>
+                                        <span>{item.datasetName}</span>
+                                        <span>{item.rawData || 'Unknown'}</span>
+                                        <strong>{formatScore(item.modelPerformanceValue)}</strong>
+                                    </button>
+                                ))}
+                                {rankedEntries.length === 0 && (
+                                    <div className="empty-state">No ranked rows available.</div>
+                                )}
+                            </div>
+                        </div>
+                    </section>
+                </div>
             </div>
         </>
     );

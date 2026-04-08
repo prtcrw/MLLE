@@ -29,6 +29,184 @@ The NLQ pipeline is multi-stage:
 
 This design was chosen because it is more reliable than direct end-to-end question answering. It separates interpretation, symbolic execution, and verbalization.
 
+## NLQ tools, prompts, and loops
+
+Every NLQ request starts with an LLM intent-selection prompt. That prompt asks the model to choose one tool, produce JSON parameters, decide whether inference should be enabled, and give brief reasoning. The selectable tools are:
+
+- `find_datasets`
+- `find_models`
+- `find_pipelines`
+- `analyze_deployed_models`
+- `compare_pipelines`
+- `get_artifact_details`
+- `explore_category`
+- `custom_sparql`
+
+If the classifier fails, the backend falls back to rule-based keyword routing.
+
+### Literal prompt text used by the backend
+
+#### Intent-selection system prompt (`INTENT_SYSTEM_PROMPT`)
+
+```text
+You classify ML lifecycle questions for the MLLE ontology explorer.
+
+Available tools:
+- find_datasets: dataset lookup by name, role, timeframe, or related model
+- find_models: model lookup by dataset, model type, or search term
+- find_pipelines: pipeline lookup by name, pipeline type, associated model, or dataset
+- analyze_deployed_models: deployed model inventory and runtime analysis
+- compare_pipelines: explicit comparison between multiple named pipelines
+- get_artifact_details: direct IRI lookup or questions about a specific full IRI
+- explore_category: conceptual or hierarchical exploration of a class/category/type
+- custom_sparql: fallback for anything too custom for the structured tools
+
+Set use_inference=true for conceptual or hierarchical questions, especially when the question includes:
+"type of", "kind of", "category", "all supervised", "is it a", "related to", "what are", "classify"
+
+Set use_inference=false for exact lookup questions, especially when the question includes:
+specific names, dates, owners, counts, "show me X", "find X named Y"
+
+Use custom_sparql with use_inference=false for ranking, aggregation, or metric-based questions, especially when the question includes:
+"best", "top", "highest", "lowest", "maximum", "minimum", "max", "min", "most accurate", "least accurate", "performance", "accuracy", "score", "metric"
+
+Do not use explore_category for ranking, performance, or superlative questions.
+
+Return JSON only with:
+{
+  "tool": "...",
+  "params": {},
+  "use_inference": true|false,
+  "reasoning": "brief explanation"
+}
+```
+
+#### SPARQL-generation system prompt (`SYSTEM_MESSAGE`)
+
+```text
+You are an expert Semantic Web engineer specialising in the MLLO (Machine Learning Lifecycle Ontology).
+Generate ONLY valid SPARQL that strictly follows the provided ontology schema and example queries.
+
+ENTITY DEFINITIONS in MLLO:
+- DATASET: an entity used as input to an ML process via ml:hasDataInput.
+- MODEL: a MachineLearningModel linked from an ML process via ml:executes | bfo:BFO_0000057.
+- PIPELINE: a DataProcessingPipeline or MachineLearningModelDevelopmentPipeline with components via bfo:BFO_0000117.
+- ML PROCESS: the central node linking models, datasets, inputs, and outputs.
+
+KEY PATTERNS:
+- ML processes link to models via: ml:executes | bfo:BFO_0000057
+- ML processes link to datasets via: ml:hasDataInput / ml:hasDataOutput
+- Individuals are linked to classes via: ?individual rdf:type ?class
+- Include subclass hierarchy with rdf:type/rdfs:subClassOf* or rdfs:subClassOf*
+- Use property paths as shown in the examples
+
+IMPORTANT RULES:
+- Do not invent classes, properties, or IRIs.
+- Use only the listed prefixes and vocabulary.
+- Always include LIMIT 100 unless the user explicitly asks for all results.
+- Prefer OPTIONAL blocks for fields that may not exist.
+- If the question cannot be answered with the ontology, return exactly: CANNOT_ANSWER_WITH_ONTOLOGY
+- Return ONLY the SPARQL query, with no markdown fences.
+```
+
+#### Repair prompt (`REPAIR_MESSAGE`)
+
+```text
+The previous SPARQL was invalid for this ontology or could not be parsed. Fix it strictly using the provided ontology vocabulary and return ONLY corrected SPARQL.
+```
+
+#### Answer-summarization system prompt
+
+```text
+Summarize ML ontology query results for a non-technical practitioner. Be concise and factual. If the results already include joined fields such as test_datasets or pipelines, use them directly and do not replace them with generic guesses.
+```
+
+### `find_datasets`
+
+Uses a deterministic SPARQL template for dataset-centered lifecycle lookup. It does not use LLM SPARQL generation. Inference is usually off unless the question is conceptual.
+System prompts used:
+
+- routing: `INTENT_SYSTEM_PROMPT`
+- summarization: answer-summarization system prompt
+
+### `find_models`
+
+Uses a deterministic SPARQL template for dataset-to-model lookup, including dataset roles, characteristics, timestamps, and performance values. No SPARQL generation loop is used.
+System prompts used:
+
+- routing: `INTENT_SYSTEM_PROMPT`
+- summarization: answer-summarization system prompt
+
+### `find_pipelines`
+
+Uses a deterministic SPARQL template for pipeline retrieval, pipeline components, and associated models or datasets. No SPARQL repair loop is needed because the query is template-built.
+System prompts used:
+
+- routing: `INTENT_SYSTEM_PROMPT`
+- summarization: answer-summarization system prompt
+
+### `analyze_deployed_models`
+
+Uses a deterministic query over deployment state, execution, training time, IOF Core engineered systems, and optional performance metrics. This path depends on both MLLO and imported ontologies such as BFO and IOF Core.
+System prompts used:
+
+- routing: `INTENT_SYSTEM_PROMPT`
+- summarization: answer-summarization system prompt
+
+### `compare_pipelines`
+
+Uses a deterministic comparison query for explicitly named pipelines. It is exact and normally runs without inference.
+System prompts used:
+
+- routing: `INTENT_SYSTEM_PROMPT`
+- summarization: answer-summarization system prompt
+
+### `get_artifact_details`
+
+Uses a deterministic IRI-based query that fetches datatype properties, annotation properties, and type labels for one entity.
+System prompts used:
+
+- routing: `INTENT_SYSTEM_PROMPT`
+- summarization: answer-summarization system prompt
+
+### `explore_category`
+
+Uses a deterministic class/instance exploration query and usually enables inference, because it is intended for conceptual or hierarchical questions.
+System prompts used:
+
+- routing: `INTENT_SYSTEM_PROMPT`
+- summarization: answer-summarization system prompt
+
+### Performance-analysis path
+
+Questions about best model, top accuracy, threshold performance, and similar patterns are intercepted by handcrafted logic before normal tool execution. The backend builds deterministic ranking/filter queries and may run follow-up queries to attach test-dataset or pipeline context.
+System prompts used:
+
+- routing: `INTENT_SYSTEM_PROMPT`
+- summarization: answer-summarization system prompt
+
+### `custom_sparql`
+
+This is the main LLM query-synthesis path. It uses:
+
+- an intent-selection prompt;
+- a SPARQL-generation prompt that includes ontology context and MLLO-specific example queries;
+- a repair prompt if validation fails;
+- a second repair prompt if GraphDB execution fails;
+- a final answer-summarization prompt.
+
+System prompts used:
+
+- routing: `INTENT_SYSTEM_PROMPT`
+- SPARQL generation: `SYSTEM_MESSAGE`
+- repair: `REPAIR_MESSAGE`
+- summarization: answer-summarization system prompt
+
+So `custom_sparql` includes two possible loops:
+
+1. validation-repair loop
+2. execution-repair loop
+
 ## What techniques are used, and why
 
 The main techniques are:

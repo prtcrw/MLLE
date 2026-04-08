@@ -132,7 +132,8 @@ WHERE {
 }
 """
 
-EXAMPLE_QUERIES = """
+EXAMPLE_QUERIES = """"""
+"""
 === EXAMPLE QUERIES ===
 
 -- Example 1: Find all ML models with their type, objective, dataset, and performance --
@@ -935,6 +936,11 @@ def _question_requests_pipeline_context(question: str) -> bool:
     return "pipeline" in lowered or "pipelines" in lowered
 
 
+def _question_requests_model_context(question: str) -> bool:
+    lowered = question.lower()
+    return "model" in lowered or "models" in lowered
+
+
 def _build_model_dataset_query(model_iris: list[str], *, dataset_kind: str = "test") -> str:
     escaped_models = " ".join(f"<{model}>" for model in model_iris if model)
     dataset_class = "ml:TestDataSet" if dataset_kind == "test" else "ml:MachineLearningDataSet"
@@ -1065,6 +1071,120 @@ def _merge_model_pipeline_rows(
     ]
 
 
+def _plan_performance_enrichment_steps(question: str) -> list[dict[str, Any]]:
+    steps: list[dict[str, Any]] = []
+    if _question_requests_dataset_context(question):
+        steps.append(
+            {
+                "tool": "find_test_datasets_for_models",
+                "params": {"dataset_kind": "test"},
+                "reasoning": "The question asks for related test-dataset context.",
+            }
+        )
+    if _question_requests_pipeline_context(question):
+        steps.append(
+            {
+                "tool": "find_pipelines_for_models",
+                "params": {},
+                "reasoning": "The question asks for related pipeline context.",
+            }
+        )
+    return steps
+
+
+async def _execute_performance_orchestration(
+    *,
+    question: str,
+    resolved_repo: str,
+    state: NLQQueryState,
+    graphdb_client: GraphDBClient,
+) -> NLQExecutionPayload:
+    performance_spec = _performance_query_spec(question)
+    if not performance_spec:
+        raise ValueError("Performance orchestration requires a performance query spec.")
+
+    performance_sparql = _build_performance_query_from_spec(performance_spec)
+    performance_rows = await graphdb_client.query(
+        performance_sparql,
+        repo=resolved_repo,
+        use_inference=False,
+    )
+    performance_rows = _dedupe_model_performance_rows(performance_rows)
+    state.add_step(
+        tool="performance_filter",
+        params=performance_spec,
+        sparql=performance_sparql,
+        results=performance_rows,
+        inference_used=False,
+        reasoning="Deterministic performance filter query.",
+    )
+
+    model_iris = sorted({row.get("model_name") for row in performance_rows if row.get("model_name")})
+    state.set_artifact("matching_models", model_iris)
+    enrichment_plan = _plan_performance_enrichment_steps(question)
+    for plan_step in enrichment_plan:
+        state.add_plan_step(
+            tool=plan_step["tool"],
+            params=plan_step.get("params"),
+            reasoning=plan_step.get("reasoning"),
+        )
+
+    should_enrich_per_model = bool(enrichment_plan) and bool(model_iris)
+    combined_results = _aggregate_best_performance_by_model(performance_rows) if should_enrich_per_model else performance_rows
+    sparql_parts = [f"-- Step 1: performance filter\n{performance_sparql}"]
+
+    for index, plan_step in enumerate(enrichment_plan, start=2):
+        tool = plan_step["tool"]
+        if not model_iris:
+            break
+
+        if tool == "find_test_datasets_for_models":
+            dataset_kind = plan_step.get("params", {}).get("dataset_kind", "test")
+            step_sparql = _build_model_dataset_query(model_iris, dataset_kind=dataset_kind)
+            step_rows = await graphdb_client.query(
+                step_sparql,
+                repo=resolved_repo,
+                use_inference=False,
+            )
+            state.add_step(
+                tool=tool,
+                params={"model_iris": model_iris, "dataset_kind": dataset_kind},
+                sparql=step_sparql,
+                results=step_rows,
+                inference_used=False,
+                reasoning=plan_step.get("reasoning"),
+            )
+            combined_results = _merge_model_dataset_rows(combined_results, step_rows)
+            sparql_parts.append(f"-- Step {index}: model {dataset_kind} datasets\n{step_sparql}")
+            continue
+
+        if tool == "find_pipelines_for_models":
+            step_sparql = _build_model_pipeline_query(model_iris)
+            step_rows = await graphdb_client.query(
+                step_sparql,
+                repo=resolved_repo,
+                use_inference=False,
+            )
+            state.add_step(
+                tool=tool,
+                params={"model_iris": model_iris},
+                sparql=step_sparql,
+                results=step_rows,
+                inference_used=False,
+                reasoning=plan_step.get("reasoning"),
+            )
+            combined_results = _merge_model_pipeline_rows(combined_results, step_rows)
+            sparql_parts.append(f"-- Step {index}: model pipelines\n{step_sparql}")
+
+    state.set_artifact("merged_rows", combined_results)
+    return NLQExecutionPayload(
+        sparql="\n\n".join(sparql_parts),
+        results=combined_results,
+        inference_used=False,
+        state=state,
+    )
+
+
 async def _execute_structured_tool(
     intent: QueryIntent,
     repo: str,
@@ -1138,72 +1258,11 @@ async def _execute_with_state(
 
     performance_spec = _performance_query_spec(question)
     if performance_spec:
-        performance_sparql = _build_performance_query_from_spec(performance_spec)
-        performance_rows = await graphdb_client.query(
-            performance_sparql,
-            repo=resolved_repo,
-            use_inference=True,
-        )
-        performance_rows = _dedupe_model_performance_rows(performance_rows)
-        state.add_step(
-            tool="performance_filter",
-            params=performance_spec,
-            sparql=performance_sparql,
-            results=performance_rows,
-            inference_used=True,
-            reasoning="Deterministic performance filter query.",
-        )
-        model_iris = sorted({row.get("model_name") for row in performance_rows if row.get("model_name")})
-        state.set_artifact("matching_models", model_iris)
-
-        combined_sparql = performance_sparql
-        combined_results = performance_rows
-        combined_inference = True
-
-        if model_iris and _question_requests_dataset_context(question):
-            best_rows = _aggregate_best_performance_by_model(performance_rows)
-            dataset_sparql = _build_model_dataset_query(model_iris, dataset_kind="test")
-            dataset_rows = await graphdb_client.query(
-                dataset_sparql,
-                repo=resolved_repo,
-                use_inference=False,
-            )
-            state.add_step(
-                tool="find_test_datasets_for_models",
-                params={"model_iris": model_iris},
-                sparql=dataset_sparql,
-                results=dataset_rows,
-                inference_used=False,
-                reasoning="Fetch test datasets for the matched models.",
-            )
-            combined_results = _merge_model_dataset_rows(best_rows, dataset_rows)
-            state.set_artifact("merged_rows", combined_results)
-            combined_sparql = f"-- Step 1: performance filter\n{performance_sparql}\n\n-- Step 2: model test datasets\n{dataset_sparql}"
-        elif model_iris and _question_requests_pipeline_context(question):
-            best_rows = _aggregate_best_performance_by_model(performance_rows)
-            pipeline_sparql = _build_model_pipeline_query(model_iris)
-            pipeline_rows = await graphdb_client.query(
-                pipeline_sparql,
-                repo=resolved_repo,
-                use_inference=False,
-            )
-            state.add_step(
-                tool="find_pipelines_for_models",
-                params={"model_iris": model_iris},
-                sparql=pipeline_sparql,
-                results=pipeline_rows,
-                inference_used=False,
-                reasoning="Fetch pipelines related to the matched models.",
-            )
-            combined_results = _merge_model_pipeline_rows(best_rows, pipeline_rows)
-            state.set_artifact("merged_rows", combined_results)
-            combined_sparql = f"-- Step 1: performance filter\n{performance_sparql}\n\n-- Step 2: model pipelines\n{pipeline_sparql}"
-
-        return NLQExecutionPayload(
-            sparql=combined_sparql,
-            results=combined_results,
-            inference_used=combined_inference,
+        return await _execute_performance_orchestration(
+            question=question,
+            resolved_repo=resolved_repo,
             state=state,
+            graphdb_client=graphdb_client,
         )
 
     if intent.tool in {
@@ -1293,7 +1352,15 @@ async def _generate_answer(
         return "No matching results were found in the selected repository."
     preview = json.dumps(results[:20], indent=2)
     steps_text = ""
-    if state and state.steps:
+    if state and (state.plan or state.steps):
+        plan_summaries = [
+            {
+                "tool": step.tool,
+                "params": step.params,
+                "reasoning": step.reasoning,
+            }
+            for step in state.plan
+        ]
         step_summaries = [
             {
                 "tool": step.tool,
@@ -1302,7 +1369,10 @@ async def _generate_answer(
             }
             for step in state.steps
         ]
-        steps_text = f"\n\nExecution steps:\n{json.dumps(step_summaries, indent=2)}"
+        steps_text = (
+            f"\n\nPlanned steps:\n{json.dumps(plan_summaries, indent=2)}"
+            f"\n\nExecution steps:\n{json.dumps(step_summaries, indent=2)}"
+        )
     try:
         return await gateway.chat_completion(
             [

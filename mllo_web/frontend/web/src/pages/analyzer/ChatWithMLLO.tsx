@@ -209,10 +209,19 @@ const buildContextualQuestion = (messages: ChatMessage[], currentQuestion: strin
     ].join('\n');
 };
 
-const starterPrompts = [
+const examplePrompts = [
     'What kinds of models exist in MLLO?',
+    'Is MLModel1 a supervised model?',
+    'Show me models trained on MNIST.',
+    'Show me models with performance more than 0.9.',
     'Show me models with performance more than 0.9 and their test dataset.',
+    'Show me models with performance more than 0.9, their test dataset, and their pipeline.',
+    'What is the best performing model?',
+    'Show me the best performing model and its pipeline.',
     'Which pipeline is associated with the best performing model?',
+    'Compare pipelines PreprocessingPipeline1 and PreprocessingPipeline10.',
+    'Trace the lineage of PreprocessedDataset1 upstream.',
+    'What namespaces are present in the graph?',
 ];
 
 const ChatWithMLLO: React.FC = () => {
@@ -223,6 +232,7 @@ const ChatWithMLLO: React.FC = () => {
     const [repos, setRepos] = useState<string[]>([]);
     const [selectedRepo, setSelectedRepo] = useState('');
     const [answerMode, setAnswerMode] = useState<AnswerMode>('auto');
+    const [selectedExample, setSelectedExample] = useState('');
 
     useEffect(() => {
         const load = async () => {
@@ -348,12 +358,37 @@ const ChatWithMLLO: React.FC = () => {
                 </label>
             </div>
 
-            <div style={{display: 'flex', gap: '0.4rem', flexWrap: 'wrap', marginBottom: '1rem'}}>
-                {starterPrompts.map((prompt) => (
-                    <button key={prompt} type="button" onClick={() => setInput(prompt)} disabled={loading} style={{fontSize: '0.84rem'}}>
-                        {prompt}
-                    </button>
-                ))}
+            <div style={{display: 'flex', gap: '0.75rem', flexWrap: 'wrap', marginBottom: '1rem', alignItems: 'flex-end'}}>
+                <label style={{display: 'flex', flexDirection: 'column', minWidth: '320px', flex: '1 1 420px'}}>
+                    Chat example
+                    <select
+                        value={selectedExample}
+                        onChange={(event) => {
+                            const next = event.target.value;
+                            setSelectedExample(next);
+                            if (next) {
+                                setInput(next);
+                            }
+                        }}
+                        disabled={loading}
+                    >
+                        <option value="">Select an example question</option>
+                        {examplePrompts.map((prompt) => (
+                            <option key={prompt} value={prompt}>{prompt}</option>
+                        ))}
+                    </select>
+                </label>
+                <button
+                    type="button"
+                    className="button"
+                    onClick={() => {
+                        setInput(selectedExample);
+                    }}
+                    disabled={loading || !selectedExample}
+                    style={{fontSize: '0.84rem'}}
+                >
+                    Use Example
+                </button>
             </div>
 
             <div style={{display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0}}>

@@ -49,37 +49,65 @@ PREFIX iof-core: <https://spec.industrialontologies.org/ontology/core/Core/>
 SELECT DISTINCT 
     #variables
 WHERE {
-    ?ml_process ml:executes | bfo:BFO_0000057 ?model.
-    #ml_input_constraint
-    ?model rdf:type/rdfs:label ?model_type.
-    #MODEL_TYPE_FILTER
-    ?model bfo:BFO_0000178 ?model_objective.
-    ?model_objective rdf:type/rdfs:label ?objective_type.
-    #OBJECTIVE_TYPE_FILTER
-    ?ml_process ml:hasDataInput ?dataset.
-    #DATASETTYPE_CONSTRAINT
-    ?dataset rdf:type ?dataset_type.
-    OPTIONAL {
-        ?ml_process bfo:BFO_0000222/iof-core:hasValueExpressionAtAllTimes/iof-core:hasDateTimeValue ?ml_input_timestamp
-    }
-    OPTIONAL {
-        ?dataset ml:informationContentEntityDerivedFrom ?dataset_source
-    }
-    OPTIONAL {
-        ?ml_process ml:hasDataOutput ?model_output
+    {
+        ?ml_process ml:executes | bfo:BFO_0000057 ?model.
+        OPTIONAL { ?dataset rdfs:label ?dataset_label }
+        #DATASET_SEARCH_FILTER
+        ?model rdf:type ?model_type_iri.
+        ?model_type_iri rdfs:subClassOf+ ml:MachineLearningModel.
+        ?model_type_iri rdfs:label ?model_type.
+        #MODEL_TYPE_FILTER
+        ?model bfo:BFO_0000178 ?model_objective.
+        ?model_objective rdf:type/rdfs:label ?objective_type.
+        #OBJECTIVE_TYPE_FILTER
+        ?ml_process ml:hasDataInput ?dataset.
+        #DATASETTYPE_CONSTRAINT
+        ?dataset rdf:type ?dataset_type.
         OPTIONAL {
-            ?utilization_process ml:hasDataInput ?model_output.
-            ?utilization_process rdf:type/rdfs:label ?model_output_utilization
+            ?ml_process bfo:BFO_0000222/iof-core:hasValueExpressionAtAllTimes/iof-core:hasDateTimeValue ?ml_input_timestamp
+        }
+        OPTIONAL {
+            ?dataset ml:informationContentEntityDerivedFrom ?dataset_source
+        }
+        OPTIONAL {
+            ?ml_process ml:hasDataOutput ?model_output
+            OPTIONAL {
+                ?utilization_process ml:hasDataInput ?model_output.
+                ?utilization_process rdf:type/rdfs:label ?model_output_utilization
+            }
+        }
+        OPTIONAL {
+            ?ml_process (ml:hasDataOutput/^ml:hasDataInput)+ ?model_performance_assessment.
+            ?model_performance_assessment bfo:BFO_0000059 ?model_performance_metric_iri.
+            ?model_performance_assessment rdf:type/rdfs:subClassOf+ ml:ModelPerformanceAssessment.
+            ?model_performance_metric_iri rdf:type ?model_performance_metric_type.
+            ?model_performance_metric_type rdfs:subClassOf+ ml:PerformanceMetric.
+            ?model_performance_metric_type rdfs:label ?model_performance_metric.
+            ?model_performance_assessment ml:hasDataOutput/iof-core:hasSimpleExpressionValue ?model_performance_value
         }
     }
-    OPTIONAL {
-        ?ml_process (ml:hasDataOutput/^ml:hasDataInput)+ ?model_performance_assessment.
-        ?model_performance_assessment bfo:BFO_0000059 ?model_performance_metric_iri.
-        ?model_performance_assessment rdf:type/rdfs:subClassOf+ ml:ModelPerformanceAssessment.
-        ?model_performance_metric_iri rdf:type ?model_performance_metric_type.
-        ?model_performance_metric_type rdfs:subClassOf+ ml:PerformanceMetric.
-        ?model_performance_metric_type rdfs:label ?model_performance_metric.
-        ?model_performance_assessment ml:hasDataOutput/iof-core:hasSimpleExpressionValue ?model_performance_value
+    UNION
+    {
+        ?dataset rdf:type ?dataset_type.
+        #UNLINKED_DATASETTYPE_CONSTRAINT
+        ?dataset_type rdfs:subClassOf* ml:MachineLearningDataSet.
+        FILTER NOT EXISTS { ?ml_process ml:hasDataInput ?dataset. }
+
+        OPTIONAL {
+            ?dataset ml:informationContentEntityDerivedFrom ?dataset_source
+        }
+
+        OPTIONAL { ?dataset rdfs:label ?dataset_label }
+
+        #UNLINKED_DATASET_FILTER
+        #UNLINKED_MODEL_TYPE_FILTER
+
+        BIND("Unlinked dataset" AS ?model)
+        BIND("Unlinked dataset" AS ?model_type)
+        BIND("Not linked to an ML workflow" AS ?model_objective)
+        BIND("" AS ?ml_input_timestamp)
+        BIND("" AS ?model_output)
+        BIND("Standalone dataset" AS ?model_output_utilization)
     }
 }
 """
@@ -140,6 +168,17 @@ class FindDatasetsQueryBuilder(QueryBuilder):
                     else ""
                 ),
             )
+            query = query.replace(
+                "#UNLINKED_DATASETTYPE_CONSTRAINT",
+                (
+                    f"VALUES ?dataset_type {{{replacement_string}}}"
+                    if replacement_string
+                    else ""
+                ),
+            )
+        else:
+            query = query.replace("#DATASETTYPE_CONSTRAINT", "")
+            query = query.replace("#UNLINKED_DATASETTYPE_CONSTRAINT", "")
 
         if self.model_input:
             if self.type_query:
@@ -147,16 +186,46 @@ class FindDatasetsQueryBuilder(QueryBuilder):
                     "#OBJECTIVE_TYPE_FILTER",
                     'FILTER(CONTAINS(STR(?objective_type),'+ '"'+ self.model_input + '"))'
                 )
+                query = query.replace(
+                    "#UNLINKED_DATASET_FILTER",
+                    (
+                        'FILTER('
+                        f'CONTAINS(LCASE(COALESCE(?dataset_label, "")), LCASE("{self.model_input}")) '
+                        f'|| CONTAINS(LCASE(STR(?dataset)), LCASE("{self.model_input}"))'
+                        ')'
+                    )
+                )
             else:
                 query = query.replace(
-                    "#ml_input_constraint",
-                    'FILTER(CONTAINS(STRAFTER(STR(?model),"#"),'+ '"'+ self.model_input + '"))'
+                    "#DATASET_SEARCH_FILTER",
+                    (
+                        'FILTER('
+                        f'CONTAINS(LCASE(COALESCE(?dataset_label, "")), LCASE("{self.model_input}")) '
+                        f'|| CONTAINS(LCASE(STR(?dataset)), LCASE("{self.model_input}"))'
+                        ')'
+                    )
+                )
+                query = query.replace(
+                    "#UNLINKED_DATASET_FILTER",
+                    (
+                        'FILTER('
+                        f'CONTAINS(LCASE(COALESCE(?dataset_label, "")), LCASE("{self.model_input}")) '
+                        f'|| CONTAINS(LCASE(STR(?dataset)), LCASE("{self.model_input}"))'
+                        ')'
+                    )
                 )
         if self.model_types:
             model_types_str = ",".join([f'"{mtype}"' for mtype in self.model_types])
             query = query.replace(
                 "#MODEL_TYPE_FILTER", f" FILTER(?model_type IN ({model_types_str}))"
             )
+            query = query.replace("#UNLINKED_MODEL_TYPE_FILTER", "FILTER(false)")
+
+        query = query.replace("#DATASET_SEARCH_FILTER", "")
+        query = query.replace("#OBJECTIVE_TYPE_FILTER", "")
+        query = query.replace("#MODEL_TYPE_FILTER", "")
+        query = query.replace("#UNLINKED_DATASET_FILTER", "")
+        query = query.replace("#UNLINKED_MODEL_TYPE_FILTER", "")
 
         # Apply sort based on the mapping
         if self.sort_string:

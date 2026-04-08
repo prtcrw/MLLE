@@ -124,14 +124,24 @@ const FindModelsByDataset: React.FC = () => {
     const queryState = useMemo(() => {
         const params = new URLSearchParams(location.search);
         const selectedRoles = params.getAll('dataset_role');
+        const filtersApplied = params.get('filters_applied') === 'true';
         const selectedCheckboxes = {
             ...defaultSelectedCheckboxes,
         };
 
-        for (const role of selectedRoles) {
-            if (role in selectedCheckboxes) {
-                selectedCheckboxes[role as keyof typeof selectedCheckboxes] = true;
+        if (selectedRoles.length > 0) {
+            Object.keys(selectedCheckboxes).forEach((key) => {
+                selectedCheckboxes[key as keyof typeof selectedCheckboxes] = false;
+            });
+            for (const role of selectedRoles) {
+                if (role in selectedCheckboxes) {
+                    selectedCheckboxes[role as keyof typeof selectedCheckboxes] = true;
+                }
             }
+        } else if (filtersApplied) {
+            Object.keys(selectedCheckboxes).forEach((key) => {
+                selectedCheckboxes[key as keyof typeof selectedCheckboxes] = false;
+            });
         }
 
         const parsedSorts = params.getAll('sort')
@@ -217,6 +227,7 @@ const FindModelsByDataset: React.FC = () => {
         params.set('include_blank_date', String(updates.includeBlank ?? queryState.includeBlank));
 
         const selectedCheckboxes = updates.selectedCheckboxes ?? queryState.selectedCheckboxes;
+        params.set('filters_applied', 'true');
         params.delete('dataset_role');
         Object.entries(selectedCheckboxes)
             .filter(([, value]) => value)

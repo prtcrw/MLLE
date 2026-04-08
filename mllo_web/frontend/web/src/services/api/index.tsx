@@ -63,9 +63,10 @@ export interface PipelineEditorNode {
     iri: string;
     title: string;
     kind: 'input' | 'operation' | 'output' | 'model';
-    status: 'stable' | 'draft' | 'warning';
     position: number;
     note: string;
+    x?: number;
+    y?: number;
 }
 
 export interface PipelineEditorEdge {
@@ -91,8 +92,19 @@ export interface PipelineEditorVersion {
     savedAt: string;
 }
 
+export interface PipelineEditorNodeMetadata {
+    summary: string;
+    rules: string[];
+    observed_structure: string[];
+    ontology_classes: string[];
+    ontology_relations: string[];
+    impact: string;
+}
+
 export interface PipelineEditorState {
     draft: PipelineEditorDraft | null;
+    source_draft?: PipelineEditorDraft | null;
+    source_metadata?: Record<string, PipelineEditorNodeMetadata>;
     history: PipelineEditorVersion[];
 }
 
@@ -101,6 +113,22 @@ export interface PipelineEditorValidationResponse {
     validation_status: 'passed' | 'failed';
     validation_message: string;
     violations: string[];
+}
+
+export interface ComparedPipeline {
+    pipeline_name: string;
+    pipeline_type: string;
+    pipeline_components: string[];
+    pipeline_data_input: string;
+    pipeline_data_output: string;
+    pipeline_associated_model: string;
+}
+
+export interface DashboardSummary {
+    models: number;
+    datasets: number;
+    pipelines: number;
+    deployed_models: number;
 }
 
 export const convertEnglishToSparql = async (input: string, endpoint?: string): Promise<ConvertResult> => {
@@ -142,6 +170,14 @@ export const getSettings = async (): Promise<MLLESettings> => {
     const response = await fetch(buildV1Url('settings'));
     if (!response.ok) {
         throw new Error('Failed to load settings.');
+    }
+    return await response.json();
+}
+
+export const getDashboardSummary = async (): Promise<DashboardSummary> => {
+    const response = await fetch(buildV1Url('dashboard/summary'));
+    if (!response.ok) {
+        throw new Error('Failed to load dashboard summary.');
     }
     return await response.json();
 }
@@ -217,6 +253,31 @@ export const getPipelineEditorState = async (pipelineName: string): Promise<Pipe
         throw new Error(payload?.detail || 'Failed to load pipeline editor state.');
     }
     return await response.json();
+}
+
+export const getExistingPipelines = async (searchTerm = ''): Promise<string[]> => {
+    const suffix = searchTerm
+        ? `?search_term=${encodeURIComponent(searchTerm)}`
+        : '';
+    const response = await fetch(`${buildV1Url('pipeline-editor/existing')}${suffix}`);
+    if (!response.ok) {
+        const payload = await response.json().catch(() => ({}));
+        throw new Error(payload?.detail || 'Failed to load existing pipelines.');
+    }
+    const payload = await response.json();
+    return payload?.pipelines ?? [];
+}
+
+export const comparePipelines = async (pipelineNames: string[]): Promise<ComparedPipeline[]> => {
+    const params = new URLSearchParams();
+    pipelineNames.forEach((name) => params.append('pipeline_name', name));
+    const response = await fetch(`${buildV1Url('pipelines/compare')}?${params.toString()}`);
+    if (!response.ok) {
+        const payload = await response.json().catch(() => ({}));
+        throw new Error(payload?.detail || 'Failed to compare pipelines.');
+    }
+    const payload = await response.json();
+    return payload?.data ?? [];
 }
 
 export const savePipelineDraft = async (draft: PipelineEditorDraft): Promise<PipelineEditorState> => {

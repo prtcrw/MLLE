@@ -89,6 +89,58 @@ WHERE {
 }
 """
 
+COMPARE_QUERY = """
+PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+PREFIX ml: <http://www.semanticweb.org/mnd14/ml/>
+PREFIX bfo: <http://purl.obolibrary.org/obo/>
+PREFIX iof-core: <https://spec.industrialontologies.org/ontology/core/Core/>
+PREFIX owl: <http://www.w3.org/2002/07/owl#>
+SELECT DISTINCT
+    (STRAFTER(STR(?pipeline), "#") AS ?pipeline_name)
+    ?pipeline_type
+    ?pipeline_components
+    (STRAFTER(STR(?pipeline_data_input_iri), "#") AS ?pipeline_data_input)
+    (STRAFTER(STR(?pipeline_data_output_iri), "#") AS ?pipeline_data_output)
+    (STRAFTER(STR(?pipeline_associated_model_iri), "#") AS ?pipeline_associated_model)
+WHERE {
+    {
+        SELECT ?pipeline ?pipeline_type
+            (GROUP_CONCAT(DISTINCT ?pipeline_component_label; separator=";") AS ?pipeline_components)
+        WHERE {
+            VALUES ?pipeline_name_filter { #pipeline_name_values }
+            ?pipeline rdf:type ?pipeline_type_iri .
+            FILTER(?pipeline_type_iri != owl:NamedIndividual)
+            ?pipeline_type_iri rdfs:label ?pipeline_type .
+            FILTER(STRAFTER(STR(?pipeline), "#") = ?pipeline_name_filter)
+            ?pipeline bfo:BFO_0000117 ?pipeline_component .
+            ?pipeline_component rdf:type ?pipeline_component_type .
+            FILTER(?pipeline_component_type != owl:NamedIndividual)
+            ?pipeline_component_type rdfs:label ?pipeline_component_label
+        }
+        GROUP BY ?pipeline ?pipeline_type
+    }
+    OPTIONAL { ?pipeline ml:hasDataInput ?pipeline_data_input_iri }
+    OPTIONAL { ?pipeline ml:hasDataOutput ?pipeline_data_output_iri }
+    OPTIONAL {
+        {
+            ?pipeline bfo:BFO_0000117*/(bfo:BFO_0000057 | ml:executes) ?pipeline_associated_model_iri
+        } UNION {
+            ?pipeline bfo:BFO_0000063+/(bfo:BFO_0000057 | ml:executes) ?pipeline_associated_model_iri
+        }
+    }
+}
+ORDER BY ?pipeline_name
+"""
+
+
+def _build_compare_query(pipeline_names: List[str]) -> str:
+    escaped = " ".join(f'"{item}"' for item in pipeline_names if item)
+    query = COMPARE_QUERY.replace("#pipeline_name_values", escaped)
+    if config.sparql_backend == "graphdb":
+        query = _inject_explicit_graph(query)
+    return query
+
 
 class FindPipelinesQueryBuilder(QueryBuilder):
     SORT_KEY_MAPPING = {
@@ -278,3 +330,27 @@ async def get_pipeline_types(request: Request) -> JSONResponse:
         return JSONResponse(content=pipeline_types)
     except Exception as e:
         return JSONResponse(content={"error": str(e)}, status_code=500)
+
+
+@router.get("/compare")
+async def compare_pipelines(
+    request: Request,
+    pipeline_name: Optional[List[str]] = Query(default=None, description="Pipeline names to compare"),
+) -> JSONResponse:
+    app = request.app
+    names = [name.strip() for name in (pipeline_name or []) if name and name.strip()]
+    if len(names) < 2:
+        return JSONResponse(content={"detail": "Provide at least two pipeline_name values."}, status_code=400)
+
+    try:
+        rows = app.sparql_client.query(_build_compare_query(names[:2]))
+        for pipeline in rows:
+            if len(pipeline.get("pipeline_components", "")) > 0:
+                pipeline["pipeline_components"] = [
+                    component.strip()
+                    for component in pipeline["pipeline_components"].split(";")
+                    if component.strip()
+                ]
+        return JSONResponse(content={"data": rows})
+    except Exception as e:
+        return JSONResponse(content={"detail": str(e)}, status_code=500)

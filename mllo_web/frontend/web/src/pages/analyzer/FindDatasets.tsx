@@ -150,7 +150,7 @@ const FindDatasets: React.FC = () => {
             searchTerm: params.get('search_term') ?? '',
             toggleConstraint: parseBoolean(params.get('type_query')),
             selectedCheckboxes,
-            modelTypes: params.getAll('model_type'),
+            modelTypes: params.getAll('model_types'),
             currentPage: parsePositiveInt(params.get('page'), 1),
             itemsPerPage: parsePositiveInt(params.get('items_per_page'), DEFAULT_ITEMS_PER_PAGE),
             currentSorts: parsedSorts.length > 0 ? parsedSorts : defaultSorts,
@@ -228,8 +228,8 @@ const FindDatasets: React.FC = () => {
             .forEach(([key]) => params.append('dataset_role', key));
 
         const modelTypes = updates.modelTypes ?? queryState.modelTypes;
-        params.delete('model_type');
-        modelTypes.forEach((type) => params.append('model_type', type));
+        params.delete('model_types');
+        modelTypes.forEach((type) => params.append('model_types', type));
 
         const currentSorts = updates.currentSorts ?? queryState.currentSorts;
         params.delete('sort');
@@ -280,7 +280,7 @@ const FindDatasets: React.FC = () => {
     useEffect(() => {
         if (!hasHydratedState || !location.search) {
             setDatasets([]);
-            setMessage('Enter a search to load models.');
+            setMessage('Enter a search to load datasets.');
             return;
         }
 
@@ -486,8 +486,8 @@ const FindDatasets: React.FC = () => {
             <LoadingBar isLoading={isLoading}/>
             <div className="discovery-hero">
                 <div>
-                    <h1>Find Models</h1>
-                    <p>Search models, refine by data role and time, and keep your current view when you navigate away.</p>
+                    <h1>Find Datasets</h1>
+                    <p>Search datasets, including standalone records, then refine by data role and time while keeping your current view.</p>
                 </div>
             </div>
 
@@ -495,7 +495,7 @@ const FindDatasets: React.FC = () => {
                 <div className="discovery-toolbar">
                     <Search
                         onSearch={handleSearch}
-                        placeholder={!queryState.toggleConstraint ? 'Model Name' : 'Objective Type'}
+                        placeholder={!queryState.toggleConstraint ? 'Dataset Name or IRI' : 'Objective Type'}
                         value={queryState.searchTerm}
                     />
                     <FindDatasetsFilter
@@ -506,10 +506,10 @@ const FindDatasets: React.FC = () => {
                         endpoint={buildV1Url('models/types')}
                         selectedValues={queryState.modelTypes}
                         onChange={(modelTypes) => updateQueryState({modelTypes, currentPage: 1})}
-                        label="Model Type"
+                        label="Linked Model Type"
                     />
                     <div className="discovery-toggle-card">
-                        <span className="toggle-label">Model Name</span>
+                        <span className="toggle-label">Dataset Search</span>
                         <ToggleSwitch isChecked={queryState.toggleConstraint} onToggle={handleToggleConstraint}/>
                         <span className="toggle-label">Objective Type</span>
                     </div>

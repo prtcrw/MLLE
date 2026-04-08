@@ -179,6 +179,60 @@
     box-shadow: var(--editor-shadow);
 }
 
+.pipeline-editor-launcher {
+    display: flex;
+    justify-content: space-between;
+    gap: 0.85rem;
+    align-items: center;
+    padding: 0.85rem 1rem;
+    border-radius: 18px;
+    background: var(--editor-panel);
+    border: 1px solid var(--editor-border);
+    box-shadow: var(--editor-shadow);
+}
+
+.pipeline-editor-launcher-merged {
+    align-items: flex-start;
+}
+
+.pipeline-editor-launcher-copy {
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+    flex: 1;
+}
+
+.pipeline-editor-launcher-copy span {
+    color: var(--editor-muted);
+    font-size: 0.86rem;
+}
+
+.pipeline-editor-launcher-actions {
+    display: flex;
+    gap: 0.55rem;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: flex-end;
+}
+
+.pipeline-editor-launcher-actions select {
+    min-width: 240px;
+    border: 1px solid var(--editor-border);
+    border-radius: 999px;
+    padding: 0.62rem 0.9rem;
+    font: inherit;
+    background: #fff;
+}
+
+.pipeline-editor-launcher-actions input {
+    min-width: 220px;
+    border: 1px solid var(--editor-border);
+    border-radius: 999px;
+    padding: 0.62rem 0.9rem;
+    font: inherit;
+    background: #fff;
+}
+
 .pipeline-editor-status-copy {
     display: flex;
     flex-direction: column;
@@ -218,6 +272,11 @@
 .pipeline-editor-validation-pill-failed {
     background: var(--editor-warning-soft);
     color: #9a6700;
+}
+
+.pipeline-editor-empty-history {
+    margin: 0;
+    color: var(--editor-muted);
 }
 
 .pipeline-editor-layout {
@@ -275,29 +334,127 @@
     font-size: 0.92rem;
 }
 
-.pipeline-editor-canvas {
+.pipeline-editor-canvas-shell {
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
+}
+
+.pipeline-editor-canvas-toolbar {
     display: flex;
     align-items: center;
-    gap: 0.55rem;
-    overflow-x: auto;
-    padding-bottom: 0.25rem;
-    min-height: 160px;
+    gap: 0.45rem;
+    flex-wrap: wrap;
+}
+
+.pipeline-editor-canvas-toolbar button,
+.pipeline-editor-canvas-toolbar span {
+    border-radius: 999px;
+    padding: 0.45rem 0.75rem;
+    font-size: 0.82rem;
+}
+
+.pipeline-editor-canvas-toolbar button {
+    border: 1px solid var(--editor-border);
+    background: #fff;
+    color: var(--editor-ink);
+    cursor: pointer;
+}
+
+.pipeline-editor-canvas-toolbar button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.pipeline-editor-canvas-toolbar span {
+    background: #edf1f5;
+    color: var(--editor-muted);
+    font-weight: 700;
+}
+
+.pipeline-editor-canvas {
+    position: relative;
+    overflow: hidden;
+    min-height: 520px;
+    border-radius: 22px;
+    border: 1px solid var(--editor-border);
+    background:
+        linear-gradient(180deg, rgba(255, 255, 255, 0.94), rgba(249, 250, 251, 0.98)),
+        linear-gradient(rgba(17, 32, 49, 0.04) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(17, 32, 49, 0.04) 1px, transparent 1px);
+    background-size: auto, 24px 24px, 24px 24px;
+    cursor: grab;
+}
+
+.pipeline-editor-canvas.panning {
+    cursor: grabbing;
+}
+
+.pipeline-editor-empty-canvas {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+    min-width: min(420px, 100%);
+    padding: 1rem 1.1rem;
+    border: 1px dashed var(--editor-border);
+    border-radius: 16px;
+    color: var(--editor-muted);
+    background: linear-gradient(180deg, #fbf7ee 0%, #f8fbff 100%);
+}
+
+.pipeline-editor-empty-canvas strong {
+    color: var(--editor-ink);
+}
+
+.pipeline-editor-canvas-surface {
+    position: relative;
+    min-width: 100%;
+    min-height: 100%;
+}
+
+.pipeline-editor-canvas-viewport {
+    position: absolute;
+    inset: 0;
+    transform-origin: top left;
+    will-change: transform;
+}
+
+.pipeline-editor-canvas-svg {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    overflow: visible;
+    pointer-events: auto;
+}
+
+.pipeline-editor-edge {
+    fill: none;
+    stroke: #27445d;
+    stroke-width: 2.5;
+    opacity: 0.82;
+    cursor: pointer;
+}
+
+.pipeline-editor-edge.selected {
+    stroke: #2563eb;
+    stroke-width: 4;
+    opacity: 1;
 }
 
 .pipeline-node {
+    position: absolute;
     display: flex;
-    flex-direction: column;
-    gap: 0.3rem;
-    min-height: 104px;
-    text-align: left;
-    padding: 0.72rem 0.8rem;
+    align-items: stretch;
+    width: 210px;
+    min-height: 122px;
     border-radius: 14px;
     border: 1px solid var(--editor-border);
     background: linear-gradient(180deg, #ffffff 0%, #fbfcff 100%);
     cursor: pointer;
     font-size: 0.88rem;
-    min-width: 172px;
-    flex: 0 0 172px;
+    user-select: none;
+    box-shadow: 0 14px 34px rgba(17, 32, 49, 0.12);
 }
 
 .pipeline-node.selected {
@@ -305,18 +462,78 @@
     box-shadow: 0 0 0 3px rgba(20, 83, 45, 0.12);
 }
 
+.pipeline-node.connecting {
+    border-color: var(--editor-draft);
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.16);
+}
+
 .pipeline-node.dragging {
     opacity: 0.55;
-    transform: rotate(-1.2deg);
+    z-index: 3;
+}
+
+.pipeline-node-body {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    gap: 0.38rem;
+    padding: 0.82rem 1rem;
+    overflow: hidden;
+}
+
+.pipeline-node-topline {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
 }
 
 .pipeline-node-kind {
     display: inline-flex;
-    align-self: flex-start;
     font-size: 0.66rem;
     letter-spacing: 0.08em;
     text-transform: uppercase;
     color: var(--editor-muted);
+}
+
+.pipeline-node-drag-badge {
+    font-size: 0.72rem;
+    color: var(--editor-muted);
+}
+
+.pipeline-node strong {
+    line-height: 1.35;
+}
+
+.pipeline-node p {
+    margin: 0;
+    color: var(--editor-muted);
+    line-height: 1.45;
+    font-size: 0.81rem;
+    overflow: hidden;
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+}
+
+.pipeline-node-handle {
+    align-self: center;
+    width: 18px;
+    height: 18px;
+    border-radius: 999px;
+    border: 2px solid #fff;
+    background: #27445d;
+    box-shadow: 0 0 0 2px rgba(39, 68, 93, 0.16);
+    cursor: crosshair;
+    flex: 0 0 18px;
+}
+
+.pipeline-node-handle-in {
+    margin-left: -9px;
+}
+
+.pipeline-node-handle-out {
+    margin-right: -9px;
 }
 
 .pipeline-node-status {
@@ -357,25 +574,6 @@
 
 .pipeline-node-model {
     border-top: 5px solid #b45309;
-}
-
-.pipeline-node-connector {
-    position: relative;
-    min-width: 18px;
-    height: 2px;
-    background: linear-gradient(90deg, rgba(84, 96, 111, 0.2), rgba(17, 32, 49, 0.75));
-    flex: 0 0 24px;
-}
-
-.pipeline-node-connector span {
-    position: absolute;
-    right: -1px;
-    top: -4px;
-    width: 0;
-    height: 0;
-    border-top: 5px solid transparent;
-    border-bottom: 5px solid transparent;
-    border-left: 7px solid rgba(17, 32, 49, 0.75);
 }
 
 .pipeline-editor-actions-row {
@@ -574,6 +772,15 @@
     margin: 0 0 0.45rem;
 }
 
+.pipeline-editor-mapping-block + .pipeline-editor-mapping-block {
+    margin-top: 0.7rem;
+}
+
+.pipeline-editor-mapping-block strong {
+    display: block;
+    margin-bottom: 0.35rem;
+}
+
 .pipeline-editor-sidebar-section p {
     margin: 0;
     line-height: 1.55;
@@ -594,7 +801,8 @@
 }
 
 .pipeline-editor-form input,
-.pipeline-editor-form textarea {
+.pipeline-editor-form textarea,
+.pipeline-editor-form select {
     border: 1px solid var(--editor-border);
     border-radius: 10px;
     padding: 0.65rem 0.75rem;
@@ -662,6 +870,20 @@
 }
 
 @media (max-width: 900px) {
+    .pipeline-editor-launcher {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .pipeline-editor-launcher-actions {
+        width: 100%;
+    }
+
+    .pipeline-editor-launcher-actions select {
+        width: 100%;
+        min-width: 0;
+    }
+
     .pipeline-editor-statusbar {
         flex-direction: column;
         align-items: flex-start;
@@ -671,32 +893,12 @@
         grid-template-columns: 1fr;
     }
 
-    .pipeline-editor-canvas {
-        flex-direction: column;
-        align-items: stretch;
-    }
-
     .pipeline-node {
-        width: 100%;
-        min-width: 0;
-        flex: 1 1 auto;
+        width: 210px;
     }
 
-    .pipeline-node-connector {
-        width: 2px;
-        height: 28px;
-        align-self: center;
-        background: linear-gradient(180deg, rgba(84, 96, 111, 0.2), rgba(17, 32, 49, 0.75));
-    }
-
-    .pipeline-node-connector span {
-        top: auto;
-        bottom: -1px;
-        right: -4px;
-        border-left: 5px solid transparent;
-        border-right: 5px solid transparent;
-        border-top: 7px solid rgba(17, 32, 49, 0.75);
-        border-bottom: none;
+    .pipeline-editor-canvas-toolbar {
+        gap: 0.35rem;
     }
 
     .pipeline-editor-check-grid {
