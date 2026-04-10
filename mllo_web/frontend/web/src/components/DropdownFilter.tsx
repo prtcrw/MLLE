@@ -2,20 +2,52 @@ import React, { useState, useEffect, useRef } from 'react';
 
 
 interface DropdownFilterProps {
-    endpoint: string;  // API endpoint to fetch the options
+    endpoint?: string;  // API endpoint to fetch the options
+    staticOptions?: string[]; // Optional in-memory options
     selectedValues: string[];  // Selected values in the dropdown
     onChange: (selected: string[]) => void;  // Callback function to pass selected values to the parent component
     label: string;  // Label for the dropdown
 }
 
-const DropdownFilter: React.FC<DropdownFilterProps> = ({ endpoint, selectedValues, onChange, label }) => {
+const DropdownFilter: React.FC<DropdownFilterProps> = ({ endpoint, staticOptions, selectedValues, onChange, label }) => {
     const [options, setOptions] = useState<string[]>([]);
     const [error, setError] = useState<string | null>(null);
     const [isOpen, setIsOpen] = useState(false); // State to manage dropdown open/close
     const dropdownRef = useRef<HTMLDivElement>(null); // Ref to manage click outside
 
     useEffect(() => {
-        // Fetch options from the given endpoint
+        if (staticOptions && staticOptions.length > 0) {
+            setOptions(staticOptions);
+            setError(null);
+            return;
+        }
+
+        if (!endpoint) {
+            setOptions([]);
+            return;
+        }
+
+        const normalizeOptions = (data: unknown): string[] => {
+            if (!Array.isArray(data)) {
+                return [];
+            }
+
+            const normalized = data.flatMap((item) => {
+                if (typeof item === 'string') {
+                    return [item];
+                }
+
+                if (item && typeof item === 'object') {
+                    return Object.values(item)
+                        .filter((value): value is string => typeof value === 'string' && value.trim().length > 0);
+                }
+
+                return [];
+            });
+
+            return Array.from(new Set(normalized));
+        };
+
         const fetchOptions = async () => {
             try {
                 const response = await fetch(endpoint);
@@ -23,7 +55,7 @@ const DropdownFilter: React.FC<DropdownFilterProps> = ({ endpoint, selectedValue
                     throw new Error(`Failed to fetch options: ${response.statusText}`);
                 }
                 const data = await response.json();
-                setOptions(data);
+                setOptions(normalizeOptions(data));
             } catch (error) {
                 console.error('Error fetching options:', error);
                 setError((error as Error).message);
@@ -31,7 +63,7 @@ const DropdownFilter: React.FC<DropdownFilterProps> = ({ endpoint, selectedValue
         };
 
         fetchOptions();
-    }, [endpoint]);
+    }, [endpoint, staticOptions]);
 
     useEffect(() => {
         // Handle click outside dropdown

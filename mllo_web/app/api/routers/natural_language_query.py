@@ -14,6 +14,12 @@ from mllo_web.app.api.routers.find_pipelines import FindPipelinesQueryBuilder
 from mllo_web.app.api.routers.query_iri import IriQueryBuilder
 from mllo_web.app.api.services.graphdb_client import GraphDBClient
 from mllo_web.app.api.services.intent_classifier import QueryIntent, classify_intent
+from mllo_web.app.api.services.interaction_logging import (
+    finalize_nlq_trace,
+    reset_nlq_trace,
+    start_nlq_trace,
+    update_nlq_trace,
+)
 from mllo_web.app.api.services.llm_gateway import LLMGateway, LLMServiceError
 from mllo_web.app.api.services.query_state import NLQQueryState
 from mllo_web.app.api.services.settings_model import MLLESettings, load_settings
@@ -675,7 +681,7 @@ async def _generate_sparql(
     ]
     provider_config = _active_provider_config(settings)
     try:
-        raw_sparql = await gateway.chat_completion(messages, provider_config)
+        raw_sparql = await gateway.chat_completion(messages, provider_config, purpose="sparql_generation")
     except LLMServiceError as exc:
         raise HTTPException(status_code=502, detail=str(exc)) from exc
 
@@ -692,7 +698,7 @@ async def _generate_sparql(
             {"role": "user", "content": f"{REPAIR_MESSAGE}\n\nValidation errors:\n- " + "\n- ".join(errors)},
         ]
         try:
-            repaired = await gateway.chat_completion(repair_messages, provider_config)
+            repaired = await gateway.chat_completion(repair_messages, provider_config, purpose="sparql_repair_validation")
             if _contains_cannot_answer(repaired):
                 raise HTTPException(status_code=422, detail="The question cannot be answered using the available ontology.")
             sparql = _extract_sparql(repaired)
@@ -875,6 +881,68 @@ def _performance_query_spec(question: str) -> dict[str, Any] | None:
     return spec
 
 
+def _current_question_text(question: str) -> str:
+    marker = "Current user question:"
+    if marker not in question:
+        return question
+    tail = question.rsplit(marker, 1)[-1].strip()
+    lines = [line.strip() for line in tail.splitlines() if line.strip()]
+    return lines[0] if lines else question
+
+
+def _lineage_query_spec(question: str) -> dict[str, Any] | None:
+    focused = _current_question_text(question)
+    lowered = focused.lower()
+    lineage_tokens = (
+        "used to make",
+        "used to create",
+        "create ",
+        "made from",
+        "derived from",
+        "source of",
+        "raw dataset",
+        "raw data set",
+        "upstream",
+        "downstream",
+        "lineage",
+        "provenance",
+        "trace",
+    )
+    if not any(token in lowered for token in lineage_tokens):
+        return None
+
+    artifact_iri_match = re.search(r"https?://\S+", focused)
+    artifact_name = artifact_iri_match.group(0).rstrip(".,)") if artifact_iri_match else ""
+
+    if not artifact_name:
+        anchored_patterns = [
+            r"(?:used to make|used to create|made from|source of|upstream of|downstream of|lineage of|provenance of)\s+([A-Za-z][A-Za-z0-9_:-]+)",
+            r"(?:for|from)\s+([A-Za-z][A-Za-z0-9_:-]+)$",
+        ]
+        for pattern in anchored_patterns:
+            match = re.search(pattern, focused, re.IGNORECASE)
+            if match:
+                artifact_name = match.group(1)
+                break
+
+    if not artifact_name:
+        candidates = re.findall(r"\b[A-Z][A-Za-z0-9_:-]*\d+\b|\b[A-Z][A-Za-z0-9_:-]{3,}\b", focused)
+        if candidates:
+            artifact_name = candidates[-1]
+
+    if not artifact_name:
+        return None
+
+    direction = "downstream" if any(token in lowered for token in ("downstream", "produced from", "generated from")) else "upstream"
+    target_kind = "raw_dataset" if "raw dataset" in lowered or "raw data set" in lowered else None
+    return {
+        "artifact_name": artifact_name,
+        "direction": direction,
+        "target_kind": target_kind,
+        "max_hops": 4,
+    }
+
+
 def _build_performance_query_from_spec(
     spec: dict[str, Any],
     *,
@@ -974,6 +1042,177 @@ SELECT DISTINCT ?model_name ?pipeline WHERE {{
 }}
 LIMIT 200
 """
+
+
+def _build_artifact_resolution_query(artifact_name: str) -> str:
+    safe = artifact_name.replace('"', '\\"')
+    return f"""
+PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+PREFIX skos: <http://www.w3.org/2004/02/skos/core#>
+SELECT DISTINCT ?node ?label ?type ?type_label WHERE {{
+  {{
+    ?node rdfs:label|skos:prefLabel|skos:altLabel ?label .
+    FILTER(LCASE(STR(?label)) = LCASE("{safe}"))
+  }} UNION {{
+    ?node ?p ?o .
+    FILTER(LCASE(STRAFTER(STR(?node), "#")) = LCASE("{safe}"))
+    BIND(STRAFTER(STR(?node), "#") AS ?label)
+  }}
+  OPTIONAL {{
+    ?node rdf:type ?type .
+    FILTER(!isBlank(?type))
+    OPTIONAL {{ ?type rdfs:label ?type_label }}
+  }}
+  FILTER(!isBlank(?node))
+}}
+LIMIT 50
+"""
+
+
+def _choose_resolved_artifact(rows: list[dict[str, Any]], artifact_name: str) -> dict[str, Any] | None:
+    if not rows:
+        return None
+    grouped: dict[str, dict[str, Any]] = {}
+    for row in rows:
+        node = row.get("node")
+        if not node:
+            continue
+        entry = grouped.setdefault(
+            node,
+            {
+                "node": node,
+                "label": row.get("label") or artifact_name,
+                "types": set(),
+                "type_labels": set(),
+            },
+        )
+        if row.get("type"):
+            entry["types"].add(row["type"])
+        if row.get("type_label"):
+            entry["type_labels"].add(row["type_label"])
+
+    if not grouped:
+        return None
+
+    ranked = sorted(
+        grouped.values(),
+        key=lambda item: (
+            0 if any("dataset" in label.lower() or "data set" in label.lower() for label in item["type_labels"]) else 1,
+            0 if any("http://www.semanticweb.org/mnd14/ml/" in type_iri for type_iri in item["types"]) else 1,
+            item["label"],
+        ),
+    )
+    winner = ranked[0]
+    return {
+        "node": winner["node"],
+        "label": winner["label"],
+        "types": sorted(winner["types"]),
+        "type_labels": sorted(winner["type_labels"]),
+    }
+
+
+def _build_lineage_step_query(dataset_iris: list[str], *, direction: str) -> str:
+    escaped = " ".join(f"<{iri}>" for iri in dataset_iris if iri)
+    if direction == "downstream":
+        return f"""
+PREFIX ml: <http://www.semanticweb.org/mnd14/ml/>
+PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+SELECT DISTINCT ?current_dataset ?process ?process_type_label ?neighbor_dataset ?neighbor_dataset_type_label WHERE {{
+  VALUES ?current_dataset {{ {escaped} }}
+  ?process ml:hasDataInput ?current_dataset .
+  ?process ml:hasDataOutput ?neighbor_dataset .
+  OPTIONAL {{
+    ?process rdf:type ?process_type .
+    OPTIONAL {{ ?process_type rdfs:label ?process_type_label }}
+  }}
+  OPTIONAL {{
+    ?neighbor_dataset rdf:type ?neighbor_dataset_type .
+    OPTIONAL {{ ?neighbor_dataset_type rdfs:label ?neighbor_dataset_type_label }}
+  }}
+}}
+LIMIT 500
+"""
+    return f"""
+PREFIX ml: <http://www.semanticweb.org/mnd14/ml/>
+PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+SELECT DISTINCT ?current_dataset ?process ?process_type_label ?neighbor_dataset ?neighbor_dataset_type_label WHERE {{
+  VALUES ?current_dataset {{ {escaped} }}
+  ?process ml:hasDataOutput ?current_dataset .
+  ?process ml:hasDataInput ?neighbor_dataset .
+  OPTIONAL {{
+    ?process rdf:type ?process_type .
+    OPTIONAL {{ ?process_type rdfs:label ?process_type_label }}
+  }}
+  OPTIONAL {{
+    ?neighbor_dataset rdf:type ?neighbor_dataset_type .
+    OPTIONAL {{ ?neighbor_dataset_type rdfs:label ?neighbor_dataset_type_label }}
+  }}
+}}
+LIMIT 500
+"""
+
+
+def _dedupe_lineage_rows(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    seen: set[tuple[Any, ...]] = set()
+    deduped: list[dict[str, Any]] = []
+    for row in rows:
+        key = (
+            row.get("current_dataset"),
+            row.get("process"),
+            row.get("neighbor_dataset"),
+            row.get("neighbor_dataset_type_label"),
+        )
+        if key in seen:
+            continue
+        seen.add(key)
+        deduped.append(row)
+    return deduped
+
+
+def _merge_lineage_results(
+    *,
+    current_rows: list[dict[str, Any]],
+    step_rows: list[dict[str, Any]],
+    direction: str,
+) -> list[dict[str, Any]]:
+    neighbors_by_current: dict[str, list[dict[str, Any]]] = {}
+    for row in step_rows:
+        current_dataset = row.get("current_dataset")
+        if not current_dataset:
+            continue
+        bucket = neighbors_by_current.setdefault(current_dataset, [])
+        candidate = {
+            "process": row.get("process"),
+            "process_type": row.get("process_type_label"),
+            "neighbor_dataset": row.get("neighbor_dataset"),
+            "neighbor_dataset_type": row.get("neighbor_dataset_type_label"),
+        }
+        if candidate not in bucket:
+            bucket.append(candidate)
+
+    merged: list[dict[str, Any]] = []
+    for row in current_rows:
+        current_dataset = row.get("dataset") or row.get("neighbor_dataset")
+        if not current_dataset:
+            current_dataset = row.get("artifact")
+        candidates = neighbors_by_current.get(current_dataset, [])
+        if not candidates:
+            merged.append(row)
+            continue
+        for candidate in candidates:
+            merged.append(
+                {
+                    **row,
+                    ("upstream_process" if direction == "upstream" else "downstream_process"): candidate["process"],
+                    ("upstream_process_type" if direction == "upstream" else "downstream_process_type"): candidate["process_type"],
+                    ("upstream_dataset" if direction == "upstream" else "downstream_dataset"): candidate["neighbor_dataset"],
+                    ("upstream_dataset_type" if direction == "upstream" else "downstream_dataset_type"): candidate["neighbor_dataset_type"],
+                }
+            )
+    return merged
 
 
 def _dedupe_model_performance_rows(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
@@ -1185,6 +1424,119 @@ async def _execute_performance_orchestration(
     )
 
 
+async def _execute_lineage_orchestration(
+    *,
+    question: str,
+    resolved_repo: str,
+    state: NLQQueryState,
+    graphdb_client: GraphDBClient,
+) -> NLQExecutionPayload:
+    spec = _lineage_query_spec(question)
+    if not spec:
+        raise ValueError("Lineage orchestration requires a lineage query spec.")
+
+    resolution_sparql = _build_artifact_resolution_query(spec["artifact_name"])
+    resolution_rows = await graphdb_client.query(
+        resolution_sparql,
+        repo=resolved_repo,
+        use_inference=False,
+    )
+    state.add_plan_step(
+        tool="resolve_artifact",
+        params={"artifact_name": spec["artifact_name"]},
+        reasoning="Resolve the named artifact to a graph node before tracing lineage.",
+    )
+    state.add_step(
+        tool="resolve_artifact",
+        params={"artifact_name": spec["artifact_name"]},
+        sparql=resolution_sparql,
+        results=resolution_rows,
+        inference_used=False,
+        reasoning="Resolve the named artifact to a graph node before tracing lineage.",
+    )
+    resolved_artifact = _choose_resolved_artifact(resolution_rows, spec["artifact_name"])
+    if not resolved_artifact:
+        return NLQExecutionPayload(
+            sparql=resolution_sparql,
+            results=[],
+            inference_used=False,
+            state=state,
+        )
+
+    state.set_artifact("resolved_artifact", resolved_artifact)
+    direction = spec["direction"]
+    max_hops = int(spec.get("max_hops", 4))
+    target_kind = spec.get("target_kind")
+
+    current_frontier = [resolved_artifact["node"]]
+    lineage_rows: list[dict[str, Any]] = [
+        {
+            "artifact": resolved_artifact["node"],
+            "artifact_label": resolved_artifact["label"],
+            "artifact_types": resolved_artifact.get("type_labels", []),
+        }
+    ]
+    sparql_parts = [f"-- Step 1: resolve artifact\n{resolution_sparql}"]
+
+    for hop in range(1, max_hops + 1):
+        if not current_frontier:
+            break
+        step_reasoning = (
+            f"Trace {direction} one hop through MLLO data-input/data-output process links."
+        )
+        state.add_plan_step(
+            tool="trace_lineage_step",
+            params={"direction": direction, "hop": hop, "frontier": current_frontier},
+            reasoning=step_reasoning,
+        )
+        step_sparql = _build_lineage_step_query(current_frontier, direction=direction)
+        step_rows = _dedupe_lineage_rows(
+            await graphdb_client.query(
+                step_sparql,
+                repo=resolved_repo,
+                use_inference=False,
+            )
+        )
+        state.add_step(
+            tool="trace_lineage_step",
+            params={"direction": direction, "hop": hop, "frontier": current_frontier},
+            sparql=step_sparql,
+            results=step_rows,
+            inference_used=False,
+            reasoning=step_reasoning,
+        )
+        sparql_parts.append(f"-- Step {hop + 1}: lineage hop {hop}\n{step_sparql}")
+        lineage_rows = _merge_lineage_results(
+            current_rows=lineage_rows,
+            step_rows=step_rows,
+            direction=direction,
+        )
+
+        next_frontier = [
+            row.get("neighbor_dataset")
+            for row in step_rows
+            if row.get("neighbor_dataset")
+        ]
+        if target_kind == "raw_dataset":
+            matching = [
+                row for row in lineage_rows
+                if "raw data set" in str(row.get("upstream_dataset_type", "")).lower()
+                or "raw data set" in str(row.get("downstream_dataset_type", "")).lower()
+            ]
+            if matching:
+                lineage_rows = matching
+                break
+        current_frontier = sorted(set(next_frontier))
+
+    state.set_artifact("merged_rows", lineage_rows)
+    return NLQExecutionPayload(
+        sparql="\n\n".join(sparql_parts),
+        results=lineage_rows,
+        inference_used=False,
+        state=state,
+    )
+
+
 async def _execute_structured_tool(
     intent: QueryIntent,
     repo: str,
@@ -1213,8 +1565,8 @@ async def _execute_structured_tool(
     elif intent.tool == "find_models":
         query_builder = FindModelsQueryBuilder(
             search_term=params.get("search_term") or params.get("dataset_name") or "",
-            dataset_role=_dataset_role_params_to_query_args(params.get("dataset_roles")),
             model_types=_normalize_list(params.get("model_types")),
+            deployment_status=_normalize_list(params.get("deployment_status")),
             sort=None,
         )
         sparql = query_builder.build_query()
@@ -1255,6 +1607,15 @@ async def _execute_with_state(
 ) -> NLQExecutionPayload:
     state = NLQQueryState(question=question, repo=resolved_repo)
     state.set_artifact("intent", intent.model_dump())
+
+    lineage_spec = _lineage_query_spec(question)
+    if lineage_spec:
+        return await _execute_lineage_orchestration(
+            question=question,
+            resolved_repo=resolved_repo,
+            state=state,
+            graphdb_client=graphdb_client,
+        )
 
     performance_spec = _performance_query_spec(question)
     if performance_spec:
@@ -1312,7 +1673,7 @@ async def _execute_with_state(
             {"role": "user", "content": f"{REPAIR_MESSAGE}\n\nExecution error:\n{exc}"},
         ]
         try:
-            repaired = await gateway.chat_completion(repair_prompt, _active_provider_config(settings))
+            repaired = await gateway.chat_completion(repair_prompt, _active_provider_config(settings), purpose="sparql_repair_execution")
             if _contains_cannot_answer(repaired):
                 raise HTTPException(status_code=422, detail="The question cannot be answered using the available ontology.")
             sparql = _inject_prefixes(_extract_sparql(repaired), await _load_ontology_context(graphdb_client, resolved_repo))
@@ -1381,7 +1742,8 @@ async def _generate_answer(
                     "content": (
                         "Summarize ML ontology query results for a non-technical practitioner. "
                         "Be concise and factual. If the results already include joined fields such as "
-                        "test_datasets or pipelines, use them directly and do not replace them with generic guesses."
+                        "test_datasets, pipelines, upstream_dataset, upstream_process, downstream_dataset, "
+                        "or downstream_process, use them directly and do not replace them with generic guesses."
                     ),
                 },
                 {
@@ -1390,6 +1752,7 @@ async def _generate_answer(
                 },
             ],
             _active_provider_config(settings),
+            purpose="answer_generation",
         )
     except LLMServiceError:
         return f"Found {len(results)} result(s) for the question."
@@ -1401,6 +1764,15 @@ async def execute_nlq(
     answer_mode: str | None = None,
 ) -> NLQResponse:
     settings = load_settings()
+    trace_token = start_nlq_trace(
+        enabled=settings.enable_nlq_logging,
+        metadata={
+            "question": question,
+            "repo_requested": repo,
+            "answer_mode_requested": answer_mode,
+            "active_llm_provider": settings.active_llm_provider,
+        },
+    )
     resolved_answer_mode = answer_mode or settings.answer_mode
     graphdb_client = GraphDBClient(
         base_url=settings.graphdb_url,
@@ -1408,40 +1780,60 @@ async def execute_nlq(
         repo_allowlist=settings.graphdb_repo_allowlist,
     )
     gateway = LLMGateway()
-
     try:
-        resolved_repo = await graphdb_client.validate_repo(repo or settings.graphdb_default_repo)
+        try:
+            resolved_repo = await graphdb_client.validate_repo(repo or settings.graphdb_default_repo)
+        except Exception as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+        intent = await classify_intent(question, gateway, _active_provider_config(settings))
+        if resolved_answer_mode == "exact":
+            use_inference = False
+        elif resolved_answer_mode == "conceptual":
+            use_inference = True
+        else:
+            use_inference = intent.use_inference
+
+        execution = await _execute_with_state(
+            question=question,
+            intent=intent,
+            resolved_repo=resolved_repo,
+            use_inference=use_inference,
+            settings=settings,
+            graphdb_client=graphdb_client,
+            gateway=gateway,
+        )
+
+        answer = await _generate_answer(question, execution.results, settings, gateway, state=execution.state)
+        response = NLQResponse(
+            question=question,
+            intent=intent,
+            sparql=execution.sparql,
+            results=execution.results,
+            answer=answer,
+            repo_used=resolved_repo,
+            inference_used=execution.inference_used,
+        )
+        update_nlq_trace(
+            resolved_repo=resolved_repo,
+            resolved_answer_mode=resolved_answer_mode,
+            intent=intent.model_dump(),
+        )
+        finalize_nlq_trace(
+            success=True,
+            payload={
+                "response": response.model_dump(mode="json"),
+                "plan": [step.model_dump(mode="json") for step in execution.state.plan],
+                "steps": [step.model_dump(mode="json") for step in execution.state.steps],
+                "artifacts": execution.state.artifacts,
+            },
+        )
+        return response
     except Exception as exc:
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
-
-    intent = await classify_intent(question, gateway, _active_provider_config(settings))
-    if resolved_answer_mode == "exact":
-        use_inference = False
-    elif resolved_answer_mode == "conceptual":
-        use_inference = True
-    else:
-        use_inference = intent.use_inference
-
-    execution = await _execute_with_state(
-        question=question,
-        intent=intent,
-        resolved_repo=resolved_repo,
-        use_inference=use_inference,
-        settings=settings,
-        graphdb_client=graphdb_client,
-        gateway=gateway,
-    )
-
-    answer = await _generate_answer(question, execution.results, settings, gateway, state=execution.state)
-    return NLQResponse(
-        question=question,
-        intent=intent,
-        sparql=execution.sparql,
-        results=execution.results,
-        answer=answer,
-        repo_used=resolved_repo,
-        inference_used=execution.inference_used,
-    )
+        finalize_nlq_trace(success=False, error=str(exc))
+        raise
+    finally:
+        reset_nlq_trace(trace_token)
 
 
 @router.post("/query")

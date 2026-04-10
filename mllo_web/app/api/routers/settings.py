@@ -3,6 +3,7 @@ from __future__ import annotations
 from fastapi import APIRouter, HTTPException
 
 from mllo_web.app.api.services.graphdb_client import GraphDBClient
+from mllo_web.app.api.services.interaction_logging import get_recent_nlq_logs
 from mllo_web.app.api.services.llm_gateway import LLMGateway, LLMServiceError
 from mllo_web.app.api.services.settings_model import MLLESettings, load_settings, save_settings
 
@@ -51,7 +52,14 @@ async def test_llm(settings: MLLESettings | None = None) -> dict:
                 {"role": "user", "content": "Ping"},
             ],
             provider.model_dump(),
+            purpose="settings_test_connection",
         )
     except LLMServiceError as exc:
         raise HTTPException(status_code=502, detail=str(exc)) from exc
     return {"ok": True, "response": text}
+
+
+@router.get("/nlq-logs")
+async def get_nlq_logs(limit: int = 20) -> dict:
+    capped_limit = max(1, min(limit, 100))
+    return {"logs": get_recent_nlq_logs(capped_limit)}

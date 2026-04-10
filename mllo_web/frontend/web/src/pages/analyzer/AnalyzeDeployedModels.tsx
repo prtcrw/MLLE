@@ -1,4 +1,5 @@
-import React, {useState} from 'react';
+import React, {useEffect, useState} from 'react';
+import {useLocation} from 'react-router-dom';
 import {buildV1Url, downloadFromResponse} from '../../services/api';
 import LoadingBar from '../../components/LoadingBar.tsx';
 import ErrorMessage from '../../components/ErrorMessage.tsx';
@@ -28,6 +29,7 @@ interface IRIQueryData {
 }
 
 const AnalyzeDeployedModels: React.FC = () => {
+    const location = useLocation();
     const [searchTerm, setSearchTerm] = useState('');
     const [models, setModels] = useState<DeployedModelData[]>([]);
     const [currentPage, setCurrentPage] = useState(1);
@@ -189,12 +191,23 @@ const AnalyzeDeployedModels: React.FC = () => {
         setQueryResult(null);
     };
 
+    useEffect(() => {
+        const params = new URLSearchParams(location.search);
+        const seededSearchTerm = params.get('search_term') ?? '';
+        if (!seededSearchTerm) {
+            return;
+        }
+
+        setSearchTerm(seededSearchTerm);
+        void fetchData(seededSearchTerm, 1, itemsPerPage, currentSorts);
+    }, [location.search]);
+
     return (
         <div>
             <LoadingBar isLoading={isLoading}/>
-            <h1>Analyze Deployed Models</h1>
+            <h1>Analyze Models</h1>
             <div style={{margin: '8px 0'}}>
-                <Search onSearch={handleSearch} placeholder={'Value'}/>
+                <Search onSearch={handleSearch} placeholder={'Model Name or IRI'} value={searchTerm}/>
             </div>
             <div>
                 {models.length > 0 &&

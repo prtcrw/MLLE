@@ -4,6 +4,7 @@ import logging
 from typing import Any
 
 import httpx
+from mllo_web.app.api.services.interaction_logging import record_llm_call
 
 logger = logging.getLogger(__name__)
 
@@ -13,24 +14,55 @@ class LLMServiceError(RuntimeError):
 
 
 class LLMGateway:
-    async def chat_completion(self, messages: list[dict], provider_config: dict) -> str:
+    async def chat_completion(self, messages: list[dict], provider_config: dict, purpose: str | None = None) -> str:
         provider = provider_config.get("provider")
+        model = provider_config.get("model")
+        base_url = provider_config.get("base_url")
         prompt_size = sum(len(str(message.get("content", ""))) for message in messages)
         logger.info("LLM call provider=%s prompt_chars~=%d", provider, prompt_size)
 
         try:
             if provider in {"lm_studio", "openai"}:
-                return await self._openai_compatible_completion(messages, provider_config)
-            if provider == "anthropic":
-                return await self._anthropic_completion(messages, provider_config)
-            if provider == "gemini":
-                return await self._gemini_completion(messages, provider_config)
+                text = await self._openai_compatible_completion(messages, provider_config)
+            elif provider == "anthropic":
+                text = await self._anthropic_completion(messages, provider_config)
+            elif provider == "gemini":
+                text = await self._gemini_completion(messages, provider_config)
+            else:
+                raise LLMServiceError(f"Unsupported LLM provider: {provider}")
+
+            record_llm_call(
+                purpose=purpose,
+                provider=provider,
+                model=model,
+                base_url=base_url,
+                messages=messages,
+                prompt_chars=prompt_size,
+                response_text=text,
+            )
+            return text
         except LLMServiceError:
+            record_llm_call(
+                purpose=purpose,
+                provider=provider,
+                model=model,
+                base_url=base_url,
+                messages=messages,
+                prompt_chars=prompt_size,
+                error="LLMServiceError",
+            )
             raise
         except Exception as exc:
+            record_llm_call(
+                purpose=purpose,
+                provider=provider,
+                model=model,
+                base_url=base_url,
+                messages=messages,
+                prompt_chars=prompt_size,
+                error=str(exc),
+            )
             raise LLMServiceError(str(exc)) from exc
-
-        raise LLMServiceError(f"Unsupported LLM provider: {provider}")
 
     async def _openai_compatible_completion(self, messages: list[dict], provider_config: dict) -> str:
         base_url = (provider_config.get("base_url") or "https://api.openai.com/v1").rstrip("/")

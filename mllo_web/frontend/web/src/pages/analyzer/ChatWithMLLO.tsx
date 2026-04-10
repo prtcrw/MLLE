@@ -1,6 +1,14 @@
 import React, {ReactNode, useEffect, useMemo, useState} from 'react';
 import {DownloadIcon} from '../../components/Icons';
-import {getSettings, listSettingsRepos, NLQResponse, queryNaturalLanguage} from '../../services/api';
+import {
+    clearChatMemory,
+    getChatMemory,
+    getSettings,
+    listSettingsRepos,
+    NLQResponse,
+    queryNaturalLanguage,
+    saveChatMemory
+} from '../../services/api';
 import './styles/plot_performance.css';
 
 type AnswerMode = 'exact' | 'conceptual' | 'auto';
@@ -26,7 +34,7 @@ interface ChatMessage {
     payload?: ChatAssistantPayload;
 }
 
-const STORAGE_KEY = 'mllo_chat_with_mllo_v1';
+const CHAT_SESSION_ID = 'chat-with-mllo-main';
 
 const inlineCodeStyle: React.CSSProperties = {
     fontFamily: 'monospace',
@@ -211,8 +219,9 @@ const buildContextualQuestion = (messages: ChatMessage[], currentQuestion: strin
 
 const examplePrompts = [
     'What kinds of models exist in MLLO?',
-    'Is MLModel1 a supervised model?',
     'Show me models trained on MNIST.',
+    'Which datasets are used as test data sets?',
+    'Show me deployed models and the systems they run on.',
     'Show me models with performance more than 0.9.',
     'Show me models with performance more than 0.9 and their test dataset.',
     'Show me models with performance more than 0.9, their test dataset, and their pipeline.',
@@ -220,8 +229,14 @@ const examplePrompts = [
     'Show me the best performing model and its pipeline.',
     'Which pipeline is associated with the best performing model?',
     'Compare pipelines PreprocessingPipeline1 and PreprocessingPipeline10.',
+    'Show me datasets related to MLModel1.',
+    'Show me pipelines associated with MLModel1.',
+    'What raw dataset is used to make PreprocessedDataset1?',
+    'What was used to create PreprocessedDataset1?',
     'Trace the lineage of PreprocessedDataset1 upstream.',
-    'What namespaces are present in the graph?',
+    'Which pipeline produced PreprocessedDataset1?',
+    'What downstream artifacts use MnistG16?',
+    'Trace the lineage of MnistG16 downstream.',
 ];
 
 const ChatWithMLLO: React.FC = () => {
@@ -233,6 +248,7 @@ const ChatWithMLLO: React.FC = () => {
     const [selectedRepo, setSelectedRepo] = useState('');
     const [answerMode, setAnswerMode] = useState<AnswerMode>('auto');
     const [selectedExample, setSelectedExample] = useState('');
+    const [chatReady, setChatReady] = useState(false);
 
     useEffect(() => {
         const load = async () => {
@@ -252,28 +268,48 @@ const ChatWithMLLO: React.FC = () => {
     }, []);
 
     useEffect(() => {
-        const raw = window.localStorage.getItem(STORAGE_KEY);
-        if (!raw) return;
-        try {
-            const parsed = JSON.parse(raw) as ChatMessage[];
-            if (Array.isArray(parsed)) {
-                setMessages(parsed);
+        const loadHistory = async () => {
+            try {
+                const history = await getChatMemory(CHAT_SESSION_ID);
+                if (Array.isArray(history)) {
+                    setMessages(history as ChatMessage[]);
+                }
+            } catch {
+                // ignore
+            } finally {
+                setChatReady(true);
             }
-        } catch {
-            // ignore
-        }
+        };
+        void loadHistory();
     }, []);
 
     useEffect(() => {
-        window.localStorage.setItem(STORAGE_KEY, JSON.stringify(messages));
-    }, [messages]);
+        if (!chatReady) {
+            return;
+        }
+        const persist = async () => {
+            try {
+                await saveChatMemory(CHAT_SESSION_ID, messages);
+            } catch {
+                // ignore persistence errors in UI state
+            }
+        };
+        void persist();
+    }, [chatReady, messages]);
 
     const canSend = input.trim().length > 0 && !loading;
 
     const handleClear = () => {
-        setMessages([]);
-        setError(null);
-        window.localStorage.removeItem(STORAGE_KEY);
+        const clear = async () => {
+            setMessages([]);
+            setError(null);
+            try {
+                await clearChatMemory(CHAT_SESSION_ID);
+            } catch {
+                // ignore
+            }
+        };
+        void clear();
     };
 
     const handleSend = async () => {

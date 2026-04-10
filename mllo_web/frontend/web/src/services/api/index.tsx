@@ -39,6 +39,7 @@ export interface MLLESettings {
     graphdb_default_repo: string;
     graphdb_repo_allowlist?: string[] | null;
     answer_mode: 'exact' | 'conceptual' | 'auto';
+    enable_nlq_logging: boolean;
 }
 
 export interface QueryIntent {
@@ -131,6 +132,34 @@ export interface DashboardSummary {
     deployed_models: number;
 }
 
+export interface ChatHistoryMessage {
+    id: string;
+    role: 'user' | 'assistant';
+    text: string;
+    payload?: unknown;
+}
+
+export interface NlqLogEntry {
+    request_id: string;
+    started_at: string;
+    finished_at?: string;
+    success: boolean;
+    error?: string | null;
+    metadata: Record<string, unknown>;
+    llm_calls: Array<{
+        timestamp: string;
+        purpose: string;
+        provider?: string | null;
+        model?: string | null;
+        base_url?: string | null;
+        prompt_chars: number;
+        messages: Array<Record<string, unknown>>;
+        response_text?: string | null;
+        error?: string | null;
+    }>;
+    payload?: Record<string, unknown>;
+}
+
 export const convertEnglishToSparql = async (input: string, endpoint?: string): Promise<ConvertResult> => {
     // Default to backend dev server where FastAPI serves the convert endpoint
     const base = endpoint ?? (import.meta.env.VITE_LM_ENDPOINT as string) ?? 'http://localhost:5252/api/convert-sparql';
@@ -182,6 +211,45 @@ export const getDashboardSummary = async (): Promise<DashboardSummary> => {
     return await response.json();
 }
 
+export const getChatMemory = async (sessionId: string): Promise<ChatHistoryMessage[]> => {
+    const response = await fetch(`${buildV1Url('chat-memory')}?session_id=${encodeURIComponent(sessionId)}`);
+    if (!response.ok) {
+        const payload = await response.json().catch(() => ({}));
+        throw new Error(payload?.detail || 'Failed to load chat history.');
+    }
+    const payload = await response.json();
+    return payload?.messages ?? [];
+}
+
+export const saveChatMemory = async (sessionId: string, messages: ChatHistoryMessage[]): Promise<ChatHistoryMessage[]> => {
+    const response = await fetch(buildV1Url('chat-memory'), {
+        method: 'PUT',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            session_id: sessionId,
+            messages,
+        }),
+    });
+    if (!response.ok) {
+        const payload = await response.json().catch(() => ({}));
+        throw new Error(payload?.detail || 'Failed to save chat history.');
+    }
+    const payload = await response.json();
+    return payload?.messages ?? [];
+}
+
+export const clearChatMemory = async (sessionId: string): Promise<void> => {
+    const response = await fetch(`${buildV1Url('chat-memory')}?session_id=${encodeURIComponent(sessionId)}`, {
+        method: 'DELETE',
+    });
+    if (!response.ok) {
+        const payload = await response.json().catch(() => ({}));
+        throw new Error(payload?.detail || 'Failed to clear chat history.');
+    }
+}
+
 export const saveSettings = async (settings: MLLESettings): Promise<MLLESettings> => {
     const response = await fetch(buildV1Url('settings'), {
         method: 'PUT',
@@ -221,6 +289,16 @@ export const testLlmConnection = async (settings?: MLLESettings): Promise<string
     }
     const payload = await response.json();
     return payload?.response ?? 'OK';
+}
+
+export const getNlqLogs = async (limit = 20): Promise<NlqLogEntry[]> => {
+    const response = await fetch(`${buildV1Url('settings/nlq-logs')}?limit=${limit}`);
+    if (!response.ok) {
+        const payload = await response.json().catch(() => ({}));
+        throw new Error(payload?.detail || 'Failed to load NLQ logs.');
+    }
+    const payload = await response.json();
+    return payload?.logs ?? [];
 }
 
 export const queryNaturalLanguage = async (

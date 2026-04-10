@@ -68,6 +68,7 @@ class MLLESettings(BaseModel):
     graphdb_default_repo: str = Field(default_factory=lambda: os.getenv("GRAPHDB_DEFAULT_REPO", "mllo3"))
     graphdb_repo_allowlist: list[str] | None = Field(default_factory=_env_allowlist)
     answer_mode: Literal["exact", "conceptual", "auto"] = "auto"
+    enable_nlq_logging: bool = False
 
     @model_validator(mode="after")
     def validate_settings(self) -> "MLLESettings":

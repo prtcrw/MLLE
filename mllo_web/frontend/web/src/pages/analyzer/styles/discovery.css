@@ -101,6 +101,200 @@
     gap: 8px;
 }
 
+.model-explorer-layout {
+    display: grid;
+    grid-template-columns: minmax(260px, 340px) minmax(0, 1fr);
+    gap: 16px;
+}
+
+.model-explorer-sidebar {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    max-height: 72vh;
+    overflow-y: auto;
+    padding-right: 4px;
+}
+
+.model-explorer-card {
+    text-align: left;
+    border: 1px solid rgba(148, 163, 184, 0.26);
+    background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
+    border-radius: 16px;
+    padding: 14px;
+    box-shadow: 0 10px 22px rgba(15, 23, 42, 0.05);
+}
+
+.model-explorer-card.is-selected {
+    border-color: rgba(14, 165, 233, 0.5);
+    box-shadow: 0 14px 30px rgba(14, 165, 233, 0.16);
+}
+
+.model-explorer-card-top {
+    display: flex;
+    justify-content: space-between;
+    gap: 8px;
+    align-items: flex-start;
+}
+
+.model-explorer-card-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 10px;
+    color: #475569;
+    font-size: 0.85rem;
+}
+
+.model-explorer-status,
+.model-explorer-status-badge {
+    border-radius: 999px;
+    padding: 4px 10px;
+    font-size: 0.75rem;
+    font-weight: 700;
+}
+
+.model-explorer-status.deployed,
+.model-explorer-status-badge.deployed {
+    background: rgba(16, 185, 129, 0.14);
+    color: #047857;
+}
+
+.model-explorer-status.undeployed,
+.model-explorer-status-badge.undeployed {
+    background: rgba(148, 163, 184, 0.18);
+    color: #475569;
+}
+
+.model-explorer-detail {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    padding: 20px;
+    border-radius: 20px;
+    border: 1px solid rgba(148, 163, 184, 0.22);
+    background:
+        radial-gradient(circle at top right, rgba(14, 165, 233, 0.1), transparent 28%),
+        linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
+}
+
+.model-explorer-detail-header {
+    display: flex;
+    justify-content: space-between;
+    gap: 16px;
+    align-items: center;
+}
+
+.model-explorer-detail-header h2 {
+    margin: 4px 0 0;
+}
+
+.model-explorer-kicker {
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: #64748b;
+}
+
+.model-explorer-stat-grid {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 12px;
+}
+
+.model-explorer-stat {
+    padding: 12px;
+    border-radius: 14px;
+    background: rgba(255, 255, 255, 0.82);
+    border: 1px solid rgba(148, 163, 184, 0.18);
+}
+
+.model-explorer-stat span {
+    display: block;
+    color: #64748b;
+    font-size: 0.8rem;
+}
+
+.model-explorer-stat strong {
+    display: block;
+    margin-top: 6px;
+    font-size: 1.35rem;
+}
+
+.model-explorer-actions,
+.model-explorer-chip-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+.model-explorer-section {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.model-explorer-section h3 {
+    margin: 0;
+    font-size: 1rem;
+}
+
+.model-explorer-class-groups {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.model-explorer-group {
+    border: 1px solid rgba(148, 163, 184, 0.2);
+    border-radius: 14px;
+    background: rgba(255, 255, 255, 0.82);
+    padding: 10px 12px;
+}
+
+.model-explorer-group summary {
+    cursor: pointer;
+    font-weight: 600;
+    color: #334155;
+}
+
+.model-explorer-group summary code {
+    font-size: 0.85rem;
+}
+
+.model-explorer-group-count {
+    margin-left: 6px;
+    color: #64748b;
+    font-weight: 500;
+}
+
+.model-explorer-chip {
+    border-radius: 999px;
+    border: 1px solid rgba(14, 165, 233, 0.3);
+    background: rgba(14, 165, 233, 0.08);
+    color: #0f172a;
+    padding: 8px 12px;
+}
+
+.model-explorer-list {
+    margin: 0;
+    padding-left: 18px;
+    color: #334155;
+}
+
+.model-explorer-inline-link {
+    background: none;
+    border: none;
+    padding: 0;
+    color: #2563eb;
+    text-decoration: underline;
+}
+
+.model-explorer-empty {
+    color: #64748b;
+}
+
 @media (max-width: 768px) {
     .discovery-hero,
     .discovery-panel {
@@ -110,5 +304,13 @@
 
     .discovery-hero h1 {
         font-size: 1.45rem;
+    }
+
+    .model-explorer-layout {
+        grid-template-columns: 1fr;
+    }
+
+    .model-explorer-stat-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
     }
 }

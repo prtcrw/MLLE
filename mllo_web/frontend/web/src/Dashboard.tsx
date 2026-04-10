@@ -5,9 +5,10 @@ import Menu from './components/Menu';
 import Header from './components/Header.tsx';
 import Home from './pages/Home';
 import PipelineEditor from './pages/editor/PipelineEditor.tsx';
-import FindModelsByDataset from './pages/analyzer/FindModelsByDataset.tsx';
+import FindDatasetUsages from './pages/analyzer/FindDatasetUsages.tsx';
 import FindPipelines from './pages/analyzer/FindPipelines.tsx';
 import FindDatasets from './pages/analyzer/FindDatasets.tsx';
+import FindModels from './pages/analyzer/FindModels.tsx';
 import NaturalLanguageQuery from './pages/analyzer/NaturalLanguageQuery.tsx';
 import ChatWithMLLO from './pages/analyzer/ChatWithMLLO.tsx';
 import NLQSettings from './pages/analyzer/NLQSettings.tsx';
@@ -35,12 +36,14 @@ const Dashboard: React.FC = () => {
                         <Route path="/chat-with-mllo" element={<ChatWithMLLO/>}/>
                         <Route path="/datasets/natural-language-query" element={<NaturalLanguageQuery/>}/>
                         <Route path="/settings" element={<NLQSettings/>}/>
+                        <Route path="/models/analyze-models" element={<AnalyzeDeployedModels/>}/>
                         <Route path="/models/analyze-deployed-models" element={<AnalyzeDeployedModels/>}/>
+                        <Route path="/models" element={<FindModels/>}/>
                         <Route path="/pipelines" element={<FindPipelines/>}/>
                         <Route path="/pipelines/compare-pipelines" element={<ComparePipelines/>}/>
                         <Route path="/pipelines/edit-pipeline" element={<PipelineEditor/>}/>
                         <Route path="/datasets" element={<FindDatasets/>}/>
-                        <Route path="/datasets/usages" element={<FindModelsByDataset/>}/>
+                        <Route path="/datasets/usages" element={<FindDatasetUsages/>}/>
                         <Route path="/datasets/plot-performance" element={<PlotPerformance/>}/>
                         <Route path="/datasets/analyze-model-output" element={<AnalyzeModelOutput/>}/>
                     </Routes>

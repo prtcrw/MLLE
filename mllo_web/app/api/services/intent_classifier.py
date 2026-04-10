@@ -44,6 +44,9 @@ Set use_inference=true for conceptual or hierarchical questions, especially when
 Set use_inference=false for exact lookup questions, especially when the question includes:
 specific names, dates, owners, counts, "show me X", "find X named Y"
 
+Use custom_sparql with use_inference=false for provenance, lineage, and chain-tracing questions, especially when the question includes:
+"used to make", "used to create", "made from", "derived from", "source of", "upstream", "downstream", "lineage", "provenance", "trace"
+
 Use custom_sparql with use_inference=false for ranking, aggregation, or metric-based questions, especially when the question includes:
 "best", "top", "highest", "lowest", "maximum", "minimum", "max", "min", "most accurate", "least accurate", "performance", "accuracy", "score", "metric"
 
@@ -97,6 +100,21 @@ def _fallback_intent(question: str) -> QueryIntent:
             "metric",
         ]
     )
+    is_lineage_or_provenance = any(
+        phrase in lowered
+        for phrase in [
+            "used to make",
+            "used to create",
+            "made from",
+            "derived from",
+            "source of",
+            "upstream",
+            "downstream",
+            "lineage",
+            "provenance",
+            "trace",
+        ]
+    )
     if "http://" in question or "https://" in question:
         iri = re.search(r"https?://\S+", question)
         return QueryIntent(
@@ -125,6 +143,13 @@ def _fallback_intent(question: str) -> QueryIntent:
             params={"question": question},
             use_inference=False,
             reasoning="Fallback selected custom SPARQL for ranking or metric-based analysis.",
+        )
+    if is_lineage_or_provenance:
+        return QueryIntent(
+            tool="custom_sparql",
+            params={"question": question},
+            use_inference=False,
+            reasoning="Fallback selected custom SPARQL for provenance or lineage tracing.",
         )
     if "pipeline" in lowered:
         return QueryIntent(
@@ -174,6 +199,7 @@ async def classify_intent(
                 {"role": "user", "content": question},
             ],
             provider_config,
+            purpose="intent_classification",
         )
         return QueryIntent.model_validate(_extract_json(raw))
     except Exception:

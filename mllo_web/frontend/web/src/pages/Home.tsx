@@ -17,10 +17,16 @@ const quickActions = [
         tone: 'teal',
     },
     {
+        title: 'Find Models',
+        description: 'Inspect deployed and undeployed models together with their linked datasets, pipelines, and runtime status.',
+        path: '/models',
+        tone: 'amber',
+    },
+    {
         title: 'Find Pipelines',
         description: 'Trace pipelines by associated models or datasets.',
         path: '/pipelines',
-        tone: 'amber',
+        tone: 'slate',
     },
     {
         title: 'Dataset Usages',
@@ -73,8 +79,8 @@ const Home: React.FC = () => {
                     <div className="home-kicker">MLLO Workbench</div>
                     <h1>Explore datasets, models, pipelines, and dataset usage from one place.</h1>
                     <div className="home-hero-actions">
-                        <Link className="home-primary-cta" to="/datasets">
-                            Open Dataset Search
+                        <Link className="home-primary-cta" to="/models">
+                            Open Model Search
                         </Link>
                         <Link className="home-secondary-cta" to="/chat-with-mllo">
                             Chat with MLLO

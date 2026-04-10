@@ -16,9 +16,10 @@ const navGroups = [
         eyebrow: 'Search and Compare',
         items: [
             {label: 'Find Datasets', path: '/datasets'},
+            {label: 'Find Models', path: '/models'},
             {label: 'Find Pipelines', path: '/pipelines'},
             {label: 'Find Dataset Usages', path: '/datasets/usages'},
-            {label: 'Analyze Deployed Models', path: '/models/analyze-deployed-models'},
+            {label: 'Analyze Models', path: '/models/analyze-models'},
         ],
     },
     {

@@ -1,0 +1,161 @@
+{
+  "question": "Which datasets are consumed by processes that execute a machine learning model?",
+  "repo": "mllo4",
+  "provider": {
+    "provider": "lm_studio",
+    "base_url": "http://localhost:1234/v1",
+    "api_key": "lm-studio",
+    "model": "openai/gpt-oss-120b"
+  },
+  "schema_fetch": {
+    "schema_row_count": 679,
+    "prefix_row_count": 5,
+    "sample_row_count": 30,
+    "individual_row_count": 195,
+    "schema_rows_preview": [
+      {
+        "type": "AnnotationProperty",
+        "entity": "http://purl.org/dc/terms/abstract",
+        "label": "abstract",
+        "domain": null,
+        "range": null
+      },
+      {
+        "type": "AnnotationProperty",
+        "entity": "http://purl.org/dc/terms/contributor",
+        "label": "contributor",
+        "domain": null,
+        "range": null
+      },
+      {
+        "type": "AnnotationProperty",
+        "entity": "http://purl.org/dc/terms/creator",
+        "label": "creator",
+        "domain": null,
+        "range": null
+      },
+      {
+        "type": "AnnotationProperty",
+        "entity": "http://purl.org/dc/terms/description",
+        "label": "description",
+        "domain": null,
+        "range": null
+      },
+      {
+        "type": "AnnotationProperty",
+        "entity": "http://purl.org/dc/terms/issued",
+        "label": "issued",
+        "domain": null,
+        "range": null
+      }
+    ],
+    "prefix_rows_preview": [
+      {
+        "prefix": "",
+        "namespace": "https://spec.industrialontologies.org/ontology/core/Core/"
+      },
+      {
+        "prefix": "",
+        "namespace": "http://www.semanticweb.org/mnd14/ml/"
+      },
+      {
+        "prefix": "",
+        "namespace": "http://purl.obolibrary.org/obo/"
+      },
+      {
+        "prefix": "",
+        "namespace": "https://spec.industrialontologies.org/ontology/core/meta/AnnotationVocabulary/"
+      },
+      {
+        "prefix": "",
+        "namespace": null
+      }
+    ],
+    "sample_rows_preview": [
+      {
+        "s": "http://purl.org/dc/terms/abstract",
+        "p": "http://www.w3.org/2000/01/rdf-schema#subPropertyOf",
+        "o": "http://purl.org/dc/terms/description"
+      },
+      {
+        "s": "http://purl.org/dc/terms/creator",
+        "p": "http://www.w3.org/2000/01/rdf-schema#subPropertyOf",
+        "o": "http://purl.org/dc/terms/contributor"
+      },
+      {
+        "s": "https://spec.industrialontologies.org/ontology/core/meta/AnnotationVocabulary/copyright",
+        "p": "http://www.w3.org/2000/01/rdf-schema#subPropertyOf",
+        "o": "http://purl.org/dc/terms/rights"
+      },
+      {
+        "s": "http://www.w3.org/2004/02/skos/core#example",
+        "p": "http://www.w3.org/2000/01/rdf-schema#subPropertyOf",
+        "o": "http://www.w3.org/2004/02/skos/core#note"
+      },
+      {
+        "s": "https://spec.industrialontologies.org/ontology/core/meta/AnnotationVocabulary/explanatoryNote",
+        "p": "http://www.w3.org/2000/01/rdf-schema#subPropertyOf",
+        "o": "http://www.w3.org/2004/02/skos/core#note"
+      }
+    ],
+    "individual_rows_preview": [
+      {
+        "individual": "https://spec.industrialontologies.org/ontology/core/meta/AnnotationVocabulary/Released",
+        "label": "released",
+        "type": "https://spec.industrialontologies.org/ontology/core/meta/AnnotationVocabulary/MaturityLevel"
+      },
+      {
+        "label": "component part of at all times",
+        "type": "http://www.w3.org/2002/07/owl#TransitiveProperty"
+      },
+      {
+        "label": "has component part at all times",
+        "type": "http://www.w3.org/2002/07/owl#TransitiveProperty"
+      },
+      {
+        "label": "designates",
+        "type": "http://www.w3.org/2002/07/owl#FunctionalProperty"
+      },
+      {
+        "individual": "https://spec.industrialontologies.org/ontology/core/meta/AnnotationVocabulary/Provisional",
+        "label": "provisional",
+        "type": "https://spec.industrialontologies.org/ontology/core/meta/AnnotationVocabulary/MaturityLevel"
+      }
+    ]
+  },
+  "ontology_context_summary": {
+    "prefix_count": 7,
+    "class_count": 285,
+    "object_property_count": 29,
+    "datatype_property_count": 11,
+    "annotation_property_count": 46,
+    "individual_count": 181,
+    "sample_triple_count": 30
+  },
+  "relevant_subgraph_summary": {
+    "prefix_count": 7,
+    "class_count": 80,
+    "object_property_count": 0,
+    "datatype_property_count": 0,
+    "annotation_property_count": 46,
+    "individual_count": 95
+  },
+  "ontology_text": "=== PREFIXES ===\nPREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>\nPREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>\nPREFIX owl: <http://www.w3.org/2002/07/owl#>\nPREFIX xsd: <http://www.w3.org/2001/XMLSchema#>\nPREFIX ml: <http://www.semanticweb.org/mnd14/ml/>\nPREFIX bfo: <http://purl.obolibrary.org/obo/>\nPREFIX iof-core: <https://spec.industrialontologies.org/ontology/core/Core/>\n\n=== CLASSES ===\n  bfo:IAO_0000027  # data item\n  bfo:IAO_0000100  # data set\n  ml:AssociationRuleLearningAlgorithm  # association rule learning algorithm\n  ml:AssociationRuleLearningAlgorithm  # association rule learning algorithm\n  ml:AssociationRuleModel  # association rule model\n  ml:ClusteringModel  # clustering model\n  ml:ConfigurationSetting  # configuration variable setting\n  ml:ConfigurationVariableSet  # configuration variable set\n  ml:ConfigurationVariableSet  # configuration variable set\n  ml:DataProcessingOperation  # data processing operation\n  ml:DataProcessingOperation  # data processing operation\n  ml:DataProcessingOperation  # data processing operation\n  ml:DataProcessingOperation  # data processing operation\n  ml:DataProcessingPipeline  # data processing pipeline\n  ml:DataProcessingPipeline  # data processing pipeline\n  ml:DataProcessingPipeline  # data processing pipeline\n  ml:DataProcessingPipeline  # data processing pipeline\n  ml:DecisionTreeModel  # decision tree model\n  ml:DecisionTreeModel  # decision tree model\n  ml:DeployedMachineLearningModelState  # deployed machine learning model state\n  ml:DeployedMachineLearningModelState  # deployed machine learning model state\n  ml:DeployedMachineLearningModelState  # deployed machine learning model state\n  ml:DeployedMachineLearningModelState  # deployed machine learning model state\n  ml:DeployedMachineLearningModelState  # deployed machine learning model state\n  ml:DimensionalityReductionModel  # dimensionality reduction model\n  ml:DimensionalityReductionModel  # dimensionality reduction model\n  ml:EncodedAlgorithmCharacteristic  # encoded algorithm characteristic\n  ml:EncodedMachineLearningTrainingAlgorithm  # encoded machine learning training algorithm\n  ml:GroupOfMachineLearningModels  # group of machine learning models\n  ml:GroupOfMachineLearningModels  # group of machine learning models\n  ml:InitialMachineLearningParameterSetting  # initial machine learning parameter setting\n  ml:InitialMachineLearningParameterSettingSet  # initial machine learning parameter setting set\n  ml:InstanceBasedModel  # instance-based model\n  ml:InstanceBasedModel  # instance-based model\n  ml:LinearModel  # linear model\n  ml:MachineLearningDataPreparationPipeline  # machine learning data preparation pipeline\n  ml:MachineLearningDataSet  # machine learning data set\n  ml:MachineLearningDataSet  # machine learning data set\n  ml:MachineLearningDataSet  # machine learning data set\n  ml:MachineLearningDataSetPartitioning  # machine learning data set partitioning\n  ml:MachineLearningFramework  # machine learning framework\n  ml:MachineLearningFramework  # machine learning framework\n  ml:MachineLearningModel  # machine learning model\n  ml:MachineLearningModel  # machine learning model\n  ml:MachineLearningModelAlgorithm  # machine learning model algorithm\n  ml:MachineLearningModelComponent  # machine learning model component\n  ml:MachineLearningModelDeploymentProcess  # machine learning model deployment process\n  ml:MachineLearningModelDeploymentProcess  # machine learning model deployment process\n  ml:MachineLearningModelDeploymentProcess  # machine learning model deployment process\n  ml:MachineLearningModelDeploymentProcess  # machine learning model deployment process\n  ml:MachineLearningModelDevelopmentPipeline  # machine learning model development pipeline\n  ml:MachineLearningModelUpdate  # machine learning model update\n  ml:MachineLearningParameter  # machine learning parameter\n  ml:MachineLearningParameter  # machine learning parameter\n  ml:MachineLearningParameterInitialization  # machine learning parameter initialization\n  ml:MachineLearningParameterSet  # machine learning parameter set\n  ml:MachineLearningParameterSetting  # machine learning parameter setting\n  ml:MachineLearningParameterSettingSet  # machine learning parameter setting set\n  ml:MachineLearningSampleIdentifier  # feature vector identifier\n  ml:MachineLearningTraining  # machine learning training\n  ml:MachineLearningTrainingAlgorithm  # machine learning training algorithm\n  ml:MachineLearningTrainingAlgorithm  # machine learning training algorithm\n  ml:ModelAssumptions  # model assumptions\n  ml:ModelCharacteristic  # model characteristic\n  ml:ModelEvaluation  # model evaluation\n  ml:ModelExecution  # model execution\n  ml:ModelExecutionObjective  # model execution objective\n  ml:ModelExecutionObjective  # model execution objective\n  ml:ModelInputRequirementSpecification  # model input requirements\n  ml:ModelOutput  # model output\n  ml:ModelOutputDataSet  # model output data set\n  ml:ModelOutputTransformationAlgorithm  # model output transformation algorithm\n  ml:ModelOutputTransformationOperation  # model output transformation operation\n  ml:ModelPerformanceAssessment  # model performance assessment\n  ml:ModelPerformanceMonitoring  # model performance monitoring\n  ml:ModelPerformanceMonitoring  # model performance monitoring\n  ml:ModelPerformanceMonitoring  # model performance monitoring\n  ml:ModelPerformanceResult  # model performance result\n  ml:ModelSelection  # model selection\n  ml:ModelValidation  # model validation\n\n=== OBJECT PROPERTIES ===\n\n=== DATATYPE PROPERTIES ===\n",
+  "initial_messages": [
+    {
+      "role": "system",
+      "content": "You are an expert Semantic Web engineer specialising in the MLLO (Machine Learning Lifecycle Ontology).\nGenerate ONLY valid SPARQL that strictly follows the provided ontology schema and example queries.\n\nENTITY DEFINITIONS in MLLO:\n- DATASET: an entity used as input to an ML process via ml:hasDataInput.\n- MODEL: a MachineLearningModel linked from an ML process via ml:executes | bfo:BFO_0000057.\n- PIPELINE: a DataProcessingPipeline or MachineLearningModelDevelopmentPipeline with components via bfo:BFO_0000117.\n- ML PROCESS: the central node linking models, datasets, inputs, and outputs.\n\nKEY PATTERNS:\n- ML processes link to models via: ml:executes | bfo:BFO_0000057\n- ML processes link to datasets via: ml:hasDataInput / ml:hasDataOutput\n- Individuals are linked to classes via: ?individual rdf:type ?class\n- Include subclass hierarchy with rdf:type/rdfs:subClassOf* or rdfs:subClassOf*\n- Use property paths as shown in the examples\n\nIMPORTANT RULES:\n- Do not invent classes, properties, or IRIs.\n- Use only the listed prefixes and vocabulary.\n- Always include LIMIT 100 unless the user explicitly asks for all results.\n- Prefer OPTIONAL blocks for fields that may not exist.\n- If the question cannot be answered with the ontology, return exactly: CANNOT_ANSWER_WITH_ONTOLOGY\n- Return ONLY the SPARQL query, with no markdown fences."
+    },
+    {
+      "role": "user",
+      "content": "User question: Which datasets are consumed by processes that execute a machine learning model?\n\nOntology schema:\n=== PREFIXES ===\nPREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>\nPREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>\nPREFIX owl: <http://www.w3.org/2002/07/owl#>\nPREFIX xsd: <http://www.w3.org/2001/XMLSchema#>\nPREFIX ml: <http://www.semanticweb.org/mnd14/ml/>\nPREFIX bfo: <http://purl.obolibrary.org/obo/>\nPREFIX iof-core: <https://spec.industrialontologies.org/ontology/core/Core/>\n\n=== CLASSES ===\n  bfo:IAO_0000027  # data item\n  bfo:IAO_0000100  # data set\n  ml:AssociationRuleLearningAlgorithm  # association rule learning algorithm\n  ml:AssociationRuleLearningAlgorithm  # association rule learning algorithm\n  ml:AssociationRuleModel  # association rule model\n  ml:ClusteringModel  # clustering model\n  ml:ConfigurationSetting  # configuration variable setting\n  ml:ConfigurationVariableSet  # configuration variable set\n  ml:ConfigurationVariableSet  # configuration variable set\n  ml:DataProcessingOperation  # data processing operation\n  ml:DataProcessingOperation  # data processing operation\n  ml:DataProcessingOperation  # data processing operation\n  ml:DataProcessingOperation  # data processing operation\n  ml:DataProcessingPipeline  # data processing pipeline\n  ml:DataProcessingPipeline  # data processing pipeline\n  ml:DataProcessingPipeline  # data processing pipeline\n  ml:DataProcessingPipeline  # data processing pipeline\n  ml:DecisionTreeModel  # decision tree model\n  ml:DecisionTreeModel  # decision tree model\n  ml:DeployedMachineLearningModelState  # deployed machine learning model state\n  ml:DeployedMachineLearningModelState  # deployed machine learning model state\n  ml:DeployedMachineLearningModelState  # deployed machine learning model state\n  ml:DeployedMachineLearningModelState  # deployed machine learning model state\n  ml:DeployedMachineLearningModelState  # deployed machine learning model state\n  ml:DimensionalityReductionModel  # dimensionality reduction model\n  ml:DimensionalityReductionModel  # dimensionality reduction model\n  ml:EncodedAlgorithmCharacteristic  # encoded algorithm characteristic\n  ml:EncodedMachineLearningTrainingAlgorithm  # encoded machine learning training algorithm\n  ml:GroupOfMachineLearningModels  # group of machine learning models\n  ml:GroupOfMachineLearningModels  # group of machine learning models\n  ml:InitialMachineLearningParameterSetting  # initial machine learning parameter setting\n  ml:InitialMachineLearningParameterSettingSet  # initial machine learning parameter setting set\n  ml:InstanceBasedModel  # instance-based model\n  ml:InstanceBasedModel  # instance-based model\n  ml:LinearModel  # linear model\n  ml:MachineLearningDataPreparationPipeline  # machine learning data preparation pipeline\n  ml:MachineLearningDataSet  # machine learning data set\n  ml:MachineLearningDataSet  # machine learning data set\n  ml:MachineLearningDataSet  # machine learning data set\n  ml:MachineLearningDataSetPartitioning  # machine learning data set partitioning\n  ml:MachineLearningFramework  # machine learning framework\n  ml:MachineLearningFramework  # machine learning framework\n  ml:MachineLearningModel  # machine learning model\n  ml:MachineLearningModel  # machine learning model\n  ml:MachineLearningModelAlgorithm  # machine learning model algorithm\n  ml:MachineLearningModelComponent  # machine learning model component\n  ml:MachineLearningModelDeploymentProcess  # machine learning model deployment process\n  ml:MachineLearningModelDeploymentProcess  # machine learning model deployment process\n  ml:MachineLearningModelDeploymentProcess  # machine learning model deployment process\n  ml:MachineLearningModelDeploymentProcess  # machine learning model deployment process\n  ml:MachineLearningModelDevelopmentPipeline  # machine learning model development pipeline\n  ml:MachineLearningModelUpdate  # machine learning model update\n  ml:MachineLearningParameter  # machine learning parameter\n  ml:MachineLearningParameter  # machine learning parameter\n  ml:MachineLearningParameterInitialization  # machine learning parameter initialization\n  ml:MachineLearningParameterSet  # machine learning parameter set\n  ml:MachineLearningParameterSetting  # machine learning parameter setting\n  ml:MachineLearningParameterSettingSet  # machine learning parameter setting set\n  ml:MachineLearningSampleIdentifier  # feature vector identifier\n  ml:MachineLearningTraining  # machine learning training\n  ml:MachineLearningTrainingAlgorithm  # machine learning training algorithm\n  ml:MachineLearningTrainingAlgorithm  # machine learning training algorithm\n  ml:ModelAssumptions  # model assumptions\n  ml:ModelCharacteristic  # model characteristic\n  ml:ModelEvaluation  # model evaluation\n  ml:ModelExecution  # model execution\n  ml:ModelExecutionObjective  # model execution objective\n  ml:ModelExecutionObjective  # model execution objective\n  ml:ModelInputRequirementSpecification  # model input requirements\n  ml:ModelOutput  # model output\n  ml:ModelOutputDataSet  # model output data set\n  ml:ModelOutputTransformationAlgorithm  # model output transformation algorithm\n  ml:ModelOutputTransformationOperation  # model output transformation operation\n  ml:ModelPerformanceAssessment  # model performance assessment\n  ml:ModelPerformanceMonitoring  # model performance monitoring\n  ml:ModelPerformanceMonitoring  # model performance monitoring\n  ml:ModelPerformanceMonitoring  # model performance monitoring\n  ml:ModelPerformanceResult  # model performance result\n  ml:ModelSelection  # model selection\n  ml:ModelValidation  # model validation\n\n=== OBJECT PROPERTIES ===\n\n=== DATATYPE PROPERTIES ===\n\n\n\n=== EXAMPLE QUERIES ===\n\n-- Example 1: Find all ML models with their type, objective, dataset, and performance --\nPREFIX ml: <http://www.semanticweb.org/mnd14/ml/>\nPREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>\nPREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>\nPREFIX bfo: <http://purl.obolibrary.org/obo/>\nPREFIX iof-core: <https://spec.industrialontologies.org/ontology/core/Core/>\nSELECT DISTINCT ?model ?model_type ?model_objective ?dataset ?ml_input_timestamp\n       ?model_output ?model_output_utilization\n       ?model_performance_metric ?model_performance_value\nWHERE {\n    ?ml_process ml:executes | bfo:BFO_0000057 ?model .\n    ?model rdf:type/rdfs:label ?model_type .\n    ?model bfo:BFO_0000178 ?model_objective .\n    ?model_objective rdf:type/rdfs:label ?objective_type .\n    ?ml_process ml:hasDataInput ?dataset .\n    ?dataset rdf:type ?dataset_type .\n    OPTIONAL {\n        ?ml_process bfo:BFO_0000222/iof-core:hasValueExpressionAtAllTimes/iof-core:hasDateTimeValue ?ml_input_timestamp\n    }\n    OPTIONAL {\n        ?ml_process ml:hasDataOutput ?model_output .\n        OPTIONAL {\n            ?utilization_process ml:hasDataInput ?model_output .\n            ?utilization_process rdf:type/rdfs:label ?model_output_utilization\n        }\n    }\n    OPTIONAL {\n        ?ml_process (ml:hasDataOutput/^ml:hasDataInput)+ ?model_performance_assessment .\n        ?model_performance_assessment bfo:BFO_0000059 ?model_performance_metric_iri .\n        ?model_performance_assessment rdf:type/rdfs:subClassOf+ ml:ModelPerformanceAssessment .\n        ?model_performance_metric_iri rdf:type ?model_performance_metric_type .\n        ?model_performance_metric_type rdfs:subClassOf+ ml:PerformanceMetric .\n        ?model_performance_metric_type rdfs:label ?model_performance_metric .\n        ?model_performance_assessment ml:hasDataOutput/iof-core:hasSimpleExpressionValue ?model_performance_value\n    }\n}\nORDER BY ?model\nLIMIT 100\n\n-- Example 2: Find all pipelines with components and associated models --\nPREFIX ml: <http://www.semanticweb.org/mnd14/ml/>\nPREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>\nPREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>\nPREFIX bfo: <http://purl.obolibrary.org/obo/>\nPREFIX iof-core: <https://spec.industrialontologies.org/ontology/core/Core/>\nSELECT DISTINCT\n    (STRAFTER(STR(?pipeline), \"#\") AS ?pipeline_name)\n    ?pipeline_type\n    ?pipeline_components\n    (STRAFTER(STR(?pipeline_data_input_iri), \"#\") AS ?pipeline_data_input)\n    (STRAFTER(STR(?pipeline_data_output_iri), \"#\") AS ?pipeline_data_output)\n    (STRAFTER(STR(?pipeline_associated_model_iri), \"#\") AS ?pipeline_associated_model)\nWHERE {\n    {\n        SELECT ?pipeline ?pipeline_type\n            (GROUP_CONCAT(DISTINCT ?pipeline_component_label; separator=\";\") AS ?pipeline_components)\n        WHERE {\n            ?pipeline rdf:type ?pipeline_type_iri .\n            ?pipeline_type_iri rdfs:label ?pipeline_type .\n            {\n                ?pipeline_type_iri rdfs:subClassOf+ ml:DataProcessingPipeline .\n            } UNION {\n                VALUES ?pipeline_type_iri { ml:MachineLearningModelDevelopmentPipeline }\n                ?pipeline rdf:type ?pipeline_type_iri .\n            }\n            ?pipeline bfo:BFO_0000117 ?pipeline_component .\n            ?pipeline_component rdf:type ?pipeline_component_type .\n            ?pipeline_component_type rdfs:subClassOf+ iof-core:PlannedProcess .\n            ?pipeline_component_type rdfs:label ?pipeline_component_label\n        }\n        GROUP BY ?pipeline ?pipeline_type\n    }\n    OPTIONAL { ?pipeline ml:hasDataInput ?pipeline_data_input_iri }\n    OPTIONAL { ?pipeline ml:hasDataOutput ?pipeline_data_output_iri }\n    OPTIONAL {\n        {\n            ?pipeline bfo:BFO_0000117*/(bfo:BFO_0000057 | ml:executes) ?pipeline_associated_model_iri\n        } UNION {\n            ?pipeline bfo:BFO_0000063+/(bfo:BFO_0000057 | ml:executes) ?pipeline_associated_model_iri\n        }\n        ?pipeline_associated_model_iri rdf:type/rdfs:subClassOf* ml:MachineLearningModel\n    }\n}\n\n-- Example 3: Find deployed models with execution details --\nPREFIX ml: <http://www.semanticweb.org/mnd14/ml/>\nPREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>\nPREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>\nPREFIX bfo: <http://purl.obolibrary.org/obo/>\nPREFIX iof-core: <https://spec.industrialontologies.org/ontology/core/Core/>\nSELECT DISTINCT ?model_name ?model_deployed_on_system\n    (MAX(?model_training_timestamp) AS ?last_model_update)\n    ?model_execution_timestamp ?model_input ?model_output\nWHERE {\n    ?deployed_state bfo:BFO_0000167 ?model_name .\n    ?deployed_state bfo:BFO_0000167 ?model_deployed_on_system .\n    ?model_deployed_on_system rdf:type/rdfs:subClassOf* iof-core:EngineeredSystem .\n    ?model_name rdf:type/rdfs:subClassOf+ ml:MachineLearningModel .\n    ?deployed_state bfo:BFO_0000117 ?model_execution .\n    ?model_execution rdf:type/rdfs:subClassOf* ml:ModelExecution .\n    ?model_execution ml:hasDataInput ?model_input .\n    ?model_execution ml:hasDataOutput ?model_output .\n    ?ml_training ^bfo:BFO_0000117*/bfo:BFO_0000063 ?model_execution .\n    ?ml_training rdf:type/rdfs:subClassOf* ml:MachineLearningTraining .\n    ?model_execution bfo:BFO_0000224/iof-core:hasValueExpressionAtAllTimes/iof-core:hasDateTimeValue ?model_execution_timestamp .\n    ?ml_training bfo:BFO_0000224/iof-core:hasValueExpressionAtAllTimes/iof-core:hasDateTimeValue ?model_training_timestamp .\n}\nGROUP BY ?model_name ?model_deployed_on_system ?model_execution_timestamp ?model_input ?model_output\n\n-- Example 4: Find all datasets used in ML processes with their role and model --\nPREFIX ml: <http://www.semanticweb.org/mnd14/ml/>\nPREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>\nPREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>\nPREFIX bfo: <http://purl.obolibrary.org/obo/>\nPREFIX iof-core: <https://spec.industrialontologies.org/ontology/core/Core/>\nSELECT DISTINCT\n    (STRAFTER(STR(?dataset), \"#\") AS ?dataset_name)\n    ?dataset_used_as\n    ?dataset_used_for\n    (STRAFTER(STR(?model), \"#\") AS ?model_name)\n    ?ml_input_timestamp\nWHERE {\n    ?ml_process ml:executes | bfo:BFO_0000057 ?model .\n    ?ml_process ml:hasDataInput ?dataset .\n    ?dataset rdf:type ?dataset_type .\n    ?dataset_type rdfs:label ?dataset_used_as .\n    {\n        ?ml_process ml:hasDataOutput ?model_output .\n        ?utilization_process ml:hasDataInput ?model_output .\n        ?utilization_process rdf:type/rdfs:label ?dataset_used_for .\n    } UNION {\n        ?ml_process rdf:type/rdfs:subClassOf* ml:MachineLearningTraining .\n        ?ml_process rdfs:label ?dataset_used_for .\n    }\n    OPTIONAL {\n        ?ml_process bfo:BFO_0000222/iof-core:hasValueExpressionAtAllTimes/iof-core:hasDateTimeValue ?ml_input_timestamp\n    }\n}\nORDER BY ?dataset_name\nLIMIT 100\n\n\nGenerate a SPARQL SELECT query to answer the question. Use ONLY the listed classes, properties, individuals, and prefixes."
+    }
+  ],
+  "raw_llm_output": "PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>\nPREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>\nPREFIX ml: <http://www.semanticweb.org/mnd14/ml/>\nPREFIX bfo: <http://purl.obolibrary.org/obo/>\n\nSELECT DISTINCT ?dataset\nWHERE {\n  ?ml_process (ml:executes|bfo:BFO_0000057) ?model .\n  ?ml_process ml:hasDataInput ?dataset .\n}\nLIMIT 100",
+  "raw_contains_cannot_answer": false,
+  "extracted_sparql": "SELECT DISTINCT ?dataset\nWHERE {\n  ?ml_process (ml:executes|bfo:BFO_0000057) ?model .\n  ?ml_process ml:hasDataInput ?dataset .\n}\nLIMIT 100",
+  "validation_errors": [],
+  "repair_trace": null,
+  "final_validation_errors": [],
+  "final_sparql_with_injected_prefixes": "PREFIX bfo: <http://purl.obolibrary.org/obo/>\nPREFIX ml: <http://www.semanticweb.org/mnd14/ml/>\nSELECT DISTINCT ?dataset\nWHERE {\n  ?ml_process (ml:executes|bfo:BFO_0000057) ?model .\n  ?ml_process ml:hasDataInput ?dataset .\n}\nLIMIT 100"
+}
