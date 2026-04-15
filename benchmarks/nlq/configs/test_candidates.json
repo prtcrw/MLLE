@@ -1,0 +1,24 @@
+{
+  "repo": "mllo4",
+  "answer_mode": "auto",
+  "candidates": [
+    {
+      "name": "current-gemma4-e4b",
+      "provider": "lm_studio",
+      "base_url": "http://localhost:1234/v1",
+      "model": "gemma4:e4b"
+    },
+    {
+      "name": "candidate-1",
+      "provider": "lm_studio",
+      "base_url": "http://localhost:1234/v1",
+      "model": "replace-with-lm-studio-model-1"
+    },
+    {
+      "name": "candidate-2",
+      "provider": "lm_studio",
+      "base_url": "http://localhost:1234/v1",
+      "model": "replace-with-lm-studio-model-2"
+    }
+  ]
+}

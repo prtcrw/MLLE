@@ -125,6 +125,110 @@ async def _run_candidate(
     }
 
 
+def _build_markdown_report(
+    *,
+    timestamp: str,
+    repo: str,
+    answer_mode: str,
+    prompt_manifest: str,
+    candidate_config: str,
+    scoreboard: list[dict[str, Any]],
+    reports: list[dict[str, Any]],
+) -> str:
+    lines: list[str] = []
+
+    lines.append(f"# NLQ Benchmark Report — {timestamp}")
+    lines.append("")
+    lines.append("## Run Metadata")
+    lines.append("")
+    lines.append("| Field | Value |")
+    lines.append("|---|---|")
+    lines.append(f"| Timestamp | `{timestamp}` |")
+    lines.append(f"| Repo | `{repo}` |")
+    lines.append(f"| Answer mode | `{answer_mode}` |")
+    lines.append(f"| Prompt manifest | `{prompt_manifest}` |")
+    lines.append(f"| Candidate config | `{candidate_config}` |")
+    lines.append("")
+
+    lines.append("## Scoreboard")
+    lines.append("")
+    lines.append("| Rank | Candidate | Pass rate | Passed | Failed | Errored | Avg latency | Median latency |")
+    lines.append("|---|---|---|---|---|---|---|---|")
+    for rank, entry in enumerate(scoreboard, start=1):
+        lines.append(
+            f"| {rank} | `{entry['candidate']}` | **{entry['pass_rate']:.1%}** "
+            f"| {entry['passed']} | {entry['failed']} | {entry['errored']} "
+            f"| {entry.get('avg_latency_s', '?')}s | {entry.get('median_latency_s', '?')}s |"
+        )
+    lines.append("")
+
+    for report in reports:
+        cand = report["candidate"]
+        cand_name = cand.get("name", cand.get("model", "?"))
+        summary = report["summary"]
+        lines.append(f"---")
+        lines.append("")
+        lines.append(f"## Candidate: `{cand_name}`")
+        lines.append("")
+        lines.append("### Config")
+        lines.append("")
+        lines.append("| Field | Value |")
+        lines.append("|---|---|")
+        lines.append(f"| Provider | `{cand.get('provider', '?')}` |")
+        lines.append(f"| Model | `{cand.get('model', '?')}` |")
+        if cand.get("base_url"):
+            lines.append(f"| Base URL | `{cand['base_url']}` |")
+        lines.append("")
+        lines.append("### Summary")
+        lines.append("")
+        lines.append("| Metric | Value |")
+        lines.append("|---|---|")
+        lines.append(f"| Pass rate | **{summary['pass_rate']:.1%}** ({summary['passed']}/{summary['cases']}) |")
+        lines.append(f"| Errored | {summary['errored']} |")
+        lines.append(f"| Avg latency | {summary.get('avg_latency_s', '?')}s |")
+        lines.append(f"| Median latency | {summary.get('median_latency_s', '?')}s |")
+        lines.append("")
+        lines.append("### Case Results")
+        lines.append("")
+        lines.append("| # | Question | Category | Passed | Tool | Inference | Results | Latency |")
+        lines.append("|---|---|---|---|---|---|---|---|")
+        for i, case in enumerate(report["cases"], start=1):
+            passed_icon = "✅" if case.get("passed") else ("💥" if case.get("error_type") else "❌")
+            tool = case.get("intent_tool") or case.get("error_type") or "—"
+            inference = "yes" if case.get("inference_used") else "no"
+            result_count = case.get("result_count", "—")
+            latency = f"{case.get('latency_s', '?')}s"
+            category = case.get("category") or "—"
+            question_short = case["question"][:60] + ("…" if len(case["question"]) > 60 else "")
+            lines.append(f"| {i} | {question_short} | `{category}` | {passed_icon} | `{tool}` | {inference} | {result_count} | {latency} |")
+        lines.append("")
+
+        # Failures detail
+        failures = [c for c in report["cases"] if not c.get("passed")]
+        if failures:
+            lines.append("### Failed Cases Detail")
+            lines.append("")
+            for case in failures:
+                lines.append(f"#### ❌ {case['question']}")
+                lines.append("")
+                if case.get("error_type"):
+                    lines.append(f"- **Error type:** `{case['error_type']}`")
+                    lines.append(f"- **Error:** {case.get('error', '?')}")
+                else:
+                    checks = case.get("checks") or {}
+                    for check_name, check_val in checks.items():
+                        icon = "✅" if check_val else "❌"
+                        lines.append(f"- {icon} `{check_name}`")
+                    if case.get("sparql_preview"):
+                        lines.append("")
+                        lines.append("**SPARQL generated:**")
+                        lines.append("")
+                        lines.append(f"```sparql\n{case['sparql_preview']}\n```")
+                lines.append("")
+
+    return "\n".join(lines)
+
+
 async def main() -> None:
     parser = argparse.ArgumentParser(description="Benchmark NLQ quality and latency across LLM candidates.")
     parser.add_argument(
@@ -183,6 +287,19 @@ async def main() -> None:
     output_path.write_text(json.dumps(final_payload, indent=2), encoding="utf-8")
     print(f"[saved] {output_path}", flush=True)
     print(json.dumps(scoreboard, indent=2))
+
+    md_path = output_path.with_suffix(".md")
+    md = _build_markdown_report(
+        timestamp=timestamp,
+        repo=repo,
+        answer_mode=answer_mode,
+        prompt_manifest=str(Path(args.prompts)),
+        candidate_config=str(Path(args.config)),
+        scoreboard=scoreboard,
+        reports=reports,
+    )
+    md_path.write_text(md, encoding="utf-8")
+    print(f"[saved] {md_path}", flush=True)
 
 
 if __name__ == "__main__":
