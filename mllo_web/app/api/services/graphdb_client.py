@@ -4,6 +4,12 @@ import logging
 
 import httpx
 
+from mllo_web.core.graph.ontology_queries import (
+    NAMED_INDIVIDUALS_QUERY,
+    ONTOLOGY_SCHEMA_QUERY,
+    PREFIX_QUERY,
+    SAMPLE_TRIPLES_QUERY,
+)
 from mllo_web.app.api.services.namespace_filter import filter_results
 
 logger = logging.getLogger(__name__)
@@ -70,23 +76,15 @@ class GraphDBClient:
         return filter_results(results, show_upper_ontology=show_upper_ontology)
 
     async def get_ontology_schema(self, repo: str | None = None) -> list[dict]:
-        from mllo_web.app.api.routers.natural_language_query import ONTOLOGY_SCHEMA_QUERY
-
         return await self.query(ONTOLOGY_SCHEMA_QUERY, repo=repo)
 
     async def get_prefixes(self, repo: str | None = None) -> list[dict]:
-        from mllo_web.app.api.routers.natural_language_query import PREFIX_QUERY
-
         return await self.query(PREFIX_QUERY, repo=repo, show_upper_ontology=True)
 
     async def get_sample_triples(self, repo: str | None = None) -> list[dict]:
-        from mllo_web.app.api.routers.natural_language_query import SAMPLE_TRIPLES_QUERY
-
         return await self.query(SAMPLE_TRIPLES_QUERY, repo=repo, show_upper_ontology=True)
 
     async def get_named_individuals(self, repo: str | None = None) -> list[dict]:
-        from mllo_web.app.api.routers.natural_language_query import NAMED_INDIVIDUALS_QUERY
-
         return await self.query(NAMED_INDIVIDUALS_QUERY, repo=repo)
 
     @staticmethod

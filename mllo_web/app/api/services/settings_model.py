@@ -25,16 +25,29 @@ def _env_allowlist() -> list[str] | None:
 
 
 class LLMProviderConfig(BaseModel):
-    provider: Literal["lm_studio", "openai", "anthropic", "gemini"]
+    provider: Literal["lm_studio", "ollama", "openai", "azure_openai", "anthropic", "gemini"]
     base_url: str | None = None
     api_key: str | None = None
+    api_version: str | None = None
     model: str
+
+    def is_blank(self) -> bool:
+        return not (self.base_url or "").strip() and not (self.api_key or "").strip() and not self.model.strip()
 
     @model_validator(mode="after")
     def validate_config(self) -> "LLMProviderConfig":
-        if self.provider == "lm_studio" and not self.base_url:
-            raise ValueError("base_url is required for lm_studio")
-        if not self.model.strip():
+        if self.provider in {"lm_studio", "ollama"} and not self.base_url:
+            raise ValueError(f"base_url is required for {self.provider}")
+        if self.provider == "azure_openai":
+            if self.is_blank():
+                return self
+            if not self.base_url:
+                raise ValueError("base_url is required for azure_openai")
+            if not self.api_version:
+                raise ValueError("api_version is required for azure_openai")
+        if self.provider != "azure_openai" and not self.model.strip():
+            raise ValueError("model is required")
+        if self.provider == "azure_openai" and not self.is_blank() and not self.model.strip():
             raise ValueError("model is required")
         return self
 
@@ -48,10 +61,23 @@ class MLLESettings(BaseModel):
             api_key=os.getenv("LLM_API_KEY", "lm-studio"),
             model=os.getenv("LLM_MODEL", "local-model"),
         ),
+        "ollama": LLMProviderConfig(
+            provider="ollama",
+            base_url=os.getenv("OLLAMA_BASE_URL", "http://localhost:11434/v1"),
+            api_key=os.getenv("OLLAMA_API_KEY", ""),
+            model=os.getenv("OLLAMA_MODEL", "llama3.1"),
+        ),
         "openai": LLMProviderConfig(
             provider="openai",
             api_key=os.getenv("OPENAI_API_KEY", os.getenv("LLM_API_KEY", "")),
             model=os.getenv("OPENAI_MODEL", "gpt-4o"),
+        ),
+        "azure_openai": LLMProviderConfig(
+            provider="azure_openai",
+            base_url=os.getenv("AZURE_OPENAI_ENDPOINT", ""),
+            api_key=os.getenv("AZURE_OPENAI_API_KEY", ""),
+            api_version=os.getenv("AZURE_OPENAI_API_VERSION", "2024-10-21"),
+            model=os.getenv("AZURE_OPENAI_DEPLOYMENT", ""),
         ),
         "anthropic": LLMProviderConfig(
             provider="anthropic",
@@ -74,6 +100,9 @@ class MLLESettings(BaseModel):
     def validate_settings(self) -> "MLLESettings":
         if self.active_llm_provider not in self.llm_providers:
             raise ValueError("active_llm_provider must exist in llm_providers")
+        active = self.llm_providers[self.active_llm_provider]
+        if active.provider == "azure_openai" and active.is_blank():
+            raise ValueError("azure_openai must be configured before it can be the active_llm_provider")
         return self
 
 

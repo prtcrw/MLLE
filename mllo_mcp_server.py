@@ -5,7 +5,7 @@ try:
 except ImportError as exc:
     raise RuntimeError("fastmcp is required to run mllo_mcp_server.py") from exc
 
-from mllo_web.app.tools.graph_native_tools import (
+from mllo_web.core.tools.graph_native import (
     check_class_membership_tool,
     compare_nodes_tool,
     count_by_property_tool,
@@ -37,7 +37,7 @@ from mllo_web.app.tools.graph_native_tools import (
     list_all_properties_tool,
     trace_lineage_tool,
 )
-from mllo_web.app.tools.mllo_tools import (
+from mllo_web.core.tools.mllo import (
     analyze_deployed_models_tool,
     compare_pipelines_tool,
     execute_sparql_tool,
@@ -170,7 +170,7 @@ async def find_common_neighbors(iri_1: str, iri_2: str, repo: str | None = None)
 
 
 @mcp.tool()
-async def graph_traversal(start_iri: str, target_class: str, max_hops: int = 5, repo: str | None = None) -> dict:
+async def graph_traversal(start_iri: str, target_class: str, max_hops: int = 10, repo: str | None = None) -> dict:
     return await graph_traversal_tool(start_iri=start_iri, target_class=target_class, max_hops=max_hops, repo=repo)
 
 
@@ -180,7 +180,7 @@ async def find_shortest_path(iri_1: str, iri_2: str, repo: str | None = None) ->
 
 
 @mcp.tool()
-async def find_all_paths(iri_1: str, iri_2: str, max_hops: int = 3, repo: str | None = None) -> dict:
+async def find_all_paths(iri_1: str, iri_2: str, max_hops: int = 10, repo: str | None = None) -> dict:
     return await find_all_paths_tool(iri_1=iri_1, iri_2=iri_2, max_hops=max_hops, repo=repo)
 
 

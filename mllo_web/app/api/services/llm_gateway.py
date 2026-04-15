@@ -22,8 +22,10 @@ class LLMGateway:
         logger.info("LLM call provider=%s prompt_chars~=%d", provider, prompt_size)
 
         try:
-            if provider in {"lm_studio", "openai"}:
+            if provider in {"lm_studio", "ollama", "openai"}:
                 text = await self._openai_compatible_completion(messages, provider_config)
+            elif provider == "azure_openai":
+                text = await self._azure_openai_completion(messages, provider_config)
             elif provider == "anthropic":
                 text = await self._anthropic_completion(messages, provider_config)
             elif provider == "gemini":
@@ -86,6 +88,55 @@ class LLMGateway:
 
         if not response.is_success:
             raise LLMServiceError(f"LLM API error {response.status_code}: {response.text[:500]}")
+
+        data = response.json()
+        content = (((data.get("choices") or [{}])[0]).get("message") or {}).get("content")
+        if not isinstance(content, str) or not content.strip():
+            raise LLMServiceError("LLM response missing message content")
+        return content.strip()
+
+    async def _azure_openai_completion(self, messages: list[dict], provider_config: dict) -> str:
+        base_url = (provider_config.get("base_url") or "").rstrip("/")
+        deployment = (provider_config.get("model") or "").strip()
+        api_key = provider_config.get("api_key")
+        api_version = (provider_config.get("api_version") or "").strip()
+
+        if not base_url:
+            raise LLMServiceError("Azure OpenAI base URL is required")
+        if not deployment:
+            raise LLMServiceError("Azure OpenAI deployment name is required")
+        if not api_key:
+            raise LLMServiceError("Azure OpenAI API key is required")
+        if not api_version:
+            raise LLMServiceError("Azure OpenAI API version is required")
+
+        headers: dict[str, str] = {
+            "Content-Type": "application/json",
+            "api-key": api_key,
+        }
+        payload: dict[str, Any] = {
+            "messages": messages,
+            "temperature": 0,
+        }
+
+        async with httpx.AsyncClient(timeout=120.0) as client:
+            response = await client.post(
+                f"{base_url}/openai/deployments/{deployment}/chat/completions",
+                headers=headers,
+                params={"api-version": api_version},
+                json=payload,
+            )
+
+        if not response.is_success:
+            detail = response.text[:500]
+            try:
+                body = response.json()
+                error = body.get("error", {}) if isinstance(body, dict) else {}
+                if isinstance(error, dict) and isinstance(error.get("message"), str):
+                    detail = error["message"]
+            except ValueError:
+                pass
+            raise LLMServiceError(f"LLM API error {response.status_code}: {detail}")
 
         data = response.json()
         content = (((data.get("choices") or [{}])[0]).get("message") or {}).get("content")

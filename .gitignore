@@ -34,3 +34,6 @@ dist-ssr
 *.png
 .env
 /docs/intern_mllo_surf
+/.nowork
+/intern_mllo_surf
+*.pdf

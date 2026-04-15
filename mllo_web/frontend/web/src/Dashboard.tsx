@@ -1,5 +1,5 @@
 import React, {useState} from 'react';
-import {BrowserRouter as Router, Route, Routes} from 'react-router-dom';
+import {BrowserRouter as Router, Navigate, Route, Routes} from 'react-router-dom';
 import {useMediaQuery} from 'react-responsive'; // Import useMediaQuery
 import Menu from './components/Menu';
 import Header from './components/Header.tsx';
@@ -11,7 +11,12 @@ import FindDatasets from './pages/analyzer/FindDatasets.tsx';
 import FindModels from './pages/analyzer/FindModels.tsx';
 import NaturalLanguageQuery from './pages/analyzer/NaturalLanguageQuery.tsx';
 import ChatWithMLLO from './pages/analyzer/ChatWithMLLO.tsx';
-import NLQSettings from './pages/analyzer/NLQSettings.tsx';
+import NLQSettings, {
+    SettingsGraphDbPage,
+    SettingsLlmPage,
+    SettingsLogsPage,
+    SettingsOverview
+} from './pages/analyzer/NLQSettings.tsx';
 import PlotPerformance from './pages/analyzer/PlotPerformance.tsx';
 import AnalyzeModelOutput from './pages/analyzer/AnalyzeModelOutput.tsx';
 import AnalyzeDeployedModels from './pages/analyzer/AnalyzeDeployedModels.tsx';
@@ -35,7 +40,13 @@ const Dashboard: React.FC = () => {
                         <Route path="/" element={<Home/>}/>
                         <Route path="/chat-with-mllo" element={<ChatWithMLLO/>}/>
                         <Route path="/datasets/natural-language-query" element={<NaturalLanguageQuery/>}/>
-                        <Route path="/settings" element={<NLQSettings/>}/>
+                        <Route path="/settings/*" element={<NLQSettings/>}>
+                            <Route index element={<SettingsOverview/>}/>
+                            <Route path="llm" element={<SettingsLlmPage/>}/>
+                            <Route path="graphdb" element={<SettingsGraphDbPage/>}/>
+                            <Route path="logs" element={<SettingsLogsPage/>}/>
+                            <Route path="*" element={<Navigate to="/settings/llm" replace/>}/>
+                        </Route>
                         <Route path="/models/analyze-models" element={<AnalyzeDeployedModels/>}/>
                         <Route path="/models/analyze-deployed-models" element={<AnalyzeDeployedModels/>}/>
                         <Route path="/models" element={<FindModels/>}/>

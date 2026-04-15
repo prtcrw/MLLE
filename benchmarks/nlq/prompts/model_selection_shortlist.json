@@ -1,0 +1,45 @@
+[
+  {
+    "question": "Which kinds of datasets exist in MLLO?",
+    "category": "conceptual_exploration",
+    "expected_tool": "explore_category",
+    "expected_inference_used": true,
+    "min_results": 1,
+    "expected_keys": ["entity", "entity_type", "label"]
+  },
+  {
+    "question": "What pipeline uses MnistG16?",
+    "category": "pipeline_lookup",
+    "expected_tool": "find_pipelines",
+    "min_results": 1,
+    "expected_keys": ["pipeline_name", "pipeline_data_input"]
+  },
+  {
+    "question": "Which models use downstream artifacts of MnistG16?",
+    "category": "lineage_with_model_enrichment",
+    "expected_tool": "custom_sparql",
+    "min_results": 1,
+    "expected_keys": ["model_name", "downstream_dataset"]
+  },
+  {
+    "question": "Show me models their test dataset, and their pipeline that has performance more than 0.9",
+    "category": "performance_enrichment",
+    "expected_tool": "custom_sparql",
+    "min_results": 1,
+    "expected_keys": ["model_name", "test_datasets", "pipelines"]
+  },
+  {
+    "question": "Which datasets are consumed by processes that execute a machine learning model?",
+    "category": "custom_sparql_join",
+    "expected_tool": "custom_sparql",
+    "min_results": 1,
+    "expected_keys": ["dataset"]
+  },
+  {
+    "question": "Show me models with performance more than 0.95",
+    "category": "performance_threshold",
+    "expected_tool": "custom_sparql",
+    "min_results": 1,
+    "expected_keys": ["model_name", "model_performance_value"]
+  }
+]

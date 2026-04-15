@@ -26,9 +26,10 @@ export interface ConvertResult {
 }
 
 export interface LLMProviderConfig {
-    provider: 'lm_studio' | 'openai' | 'anthropic' | 'gemini';
+    provider: 'lm_studio' | 'ollama' | 'openai' | 'azure_openai' | 'anthropic' | 'gemini';
     base_url?: string | null;
     api_key?: string | null;
+    api_version?: string | null;
     model: string;
 }
 

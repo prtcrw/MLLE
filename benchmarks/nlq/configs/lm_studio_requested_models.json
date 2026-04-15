@@ -1,0 +1,30 @@
+{
+  "repo": "mllo4",
+  "answer_mode": "auto",
+  "candidates": [
+    {
+      "name": "gemma4-e2b",
+      "provider": "lm_studio",
+      "base_url": "http://127.0.0.1:1234/v1",
+      "model": "google/gemma-4-e2b"
+    },
+    {
+      "name": "gemma4-e4b",
+      "provider": "lm_studio",
+      "base_url": "http://127.0.0.1:1234/v1",
+      "model": "google/gemma-4-e4b"
+    },
+    {
+      "name": "qwen-coder-next",
+      "provider": "lm_studio",
+      "base_url": "http://127.0.0.1:1234/v1",
+      "model": "qwen/qwen3-coder-next"
+    },
+    {
+      "name": "gpt-oss-120b",
+      "provider": "lm_studio",
+      "base_url": "http://127.0.0.1:1234/v1",
+      "model": "openai/gpt-oss-120b"
+    }
+  ]
+}

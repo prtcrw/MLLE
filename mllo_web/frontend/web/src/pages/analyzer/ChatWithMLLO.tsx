@@ -219,6 +219,7 @@ const buildContextualQuestion = (messages: ChatMessage[], currentQuestion: strin
 
 const examplePrompts = [
     'What kinds of models exist in MLLO?',
+    'Which kinds of datasets exist in MLLO?',
     'Show me models trained on MNIST.',
     'Which datasets are used as test data sets?',
     'Show me deployed models and the systems they run on.',
@@ -236,7 +237,13 @@ const examplePrompts = [
     'Trace the lineage of PreprocessedDataset1 upstream.',
     'Which pipeline produced PreprocessedDataset1?',
     'What downstream artifacts use MnistG16?',
+    'Which models use downstream artifacts of MnistG16?',
     'Trace the lineage of MnistG16 downstream.',
+    'Which datasets are consumed by processes that execute a machine learning model?',
+    'Which datasets are produced by processes that also use a model output?',
+    'Which models and pipelines share the same dataset?',
+    'Which model outputs are later used as inputs to another process?',
+    'Which pipelines share a dataset with a model?',
 ];
 
 const ChatWithMLLO: React.FC = () => {

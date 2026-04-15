@@ -1,0 +1,304 @@
+[
+  {
+    "candidate": {
+      "name": "gemma4-e4b",
+      "provider": "lm_studio",
+      "base_url": "http://127.0.0.1:1234/v1",
+      "model": "google/gemma-4-e4b"
+    },
+    "summary": {
+      "candidate": "gemma4-e4b",
+      "cases": 6,
+      "passed": 6,
+      "failed": 0,
+      "errored": 0,
+      "pass_rate": 1.0,
+      "avg_latency_s": 21.961,
+      "median_latency_s": 20.209
+    },
+    "cases": [
+      {
+        "question": "Which kinds of datasets exist in MLLO?",
+        "category": "conceptual_exploration",
+        "latency_s": 14.286,
+        "passed": true,
+        "checks": {
+          "tool": true,
+          "inference": true,
+          "min_results": true,
+          "keys": true
+        },
+        "intent_tool": "explore_category",
+        "inference_used": true,
+        "result_count": 100,
+        "result_keys": [
+          "entity",
+          "entity_type",
+          "label"
+        ],
+        "sparql_preview": "\nPREFIX ml: <http://www.semanticweb.org/mnd14/ml/>\nPREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>\nPREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>\nSELECT DISTINCT ?entity ?entity_type ?label\nWHERE {\n    {\n        ?entity rdfs:subClassOf+ ml:MachineLearningDataSet .\n        BIND(\"Class\" AS ?entity_type)\n        OPTIONAL { ?entity rdfs:label ?label }\n        FILTER(?entity != <http://www.w3.org/2002/07/owl#Nothing>)\n    }\n    UNION\n    {\n        ?entity rdf:type/rdfs:subClassOf* ml:"
+      },
+      {
+        "question": "What pipeline uses MnistG16?",
+        "category": "pipeline_lookup",
+        "latency_s": 13.594,
+        "passed": true,
+        "checks": {
+          "tool": true,
+          "min_results": true,
+          "keys": true
+        },
+        "intent_tool": "find_pipelines",
+        "inference_used": false,
+        "result_count": 20,
+        "result_keys": [
+          "pipeline_associated_model",
+          "pipeline_components",
+          "pipeline_data_input",
+          "pipeline_data_output",
+          "pipeline_name",
+          "pipeline_type"
+        ],
+        "sparql_preview": "\nPREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>\nPREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>\nPREFIX ml: <http://www.semanticweb.org/mnd14/ml/>\nPREFIX bfo: <http://purl.obolibrary.org/obo/>\nPREFIX iof-core: <https://spec.industrialontologies.org/ontology/core/Core/>\nSELECT DISTINCT\n    (STRAFTER(STR(?pipeline), \"#\") AS ?pipeline_name)\n    ?pipeline_type\n    ?pipeline_components\n    (STRAFTER(STR(?pipeline_data_input_iri), \"#\") AS ?pipeline_data_input)\n    (STRAFTER(STR(?pipelin"
+      },
+      {
+        "question": "Which models use downstream artifacts of MnistG16?",
+        "category": "lineage_with_model_enrichment",
+        "latency_s": 19.567,
+        "passed": true,
+        "checks": {
+          "tool": true,
+          "min_results": true,
+          "keys": true
+        },
+        "intent_tool": "custom_sparql",
+        "inference_used": false,
+        "result_count": 12,
+        "result_keys": [
+          "artifact",
+          "artifact_label",
+          "artifact_types",
+          "downstream_dataset",
+          "downstream_dataset_type",
+          "downstream_process",
+          "downstream_process_type",
+          "model_dataset_role",
+          "model_name"
+        ],
+        "sparql_preview": "-- Step 1: resolve artifact\n\nPREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>\nPREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>\nPREFIX skos: <http://www.w3.org/2004/02/skos/core#>\nSELECT DISTINCT ?node ?label ?type ?type_label WHERE {\n  {\n    ?node rdfs:label|skos:prefLabel|skos:altLabel ?label .\n    FILTER(LCASE(STR(?label)) = LCASE(\"MnistG16\"))\n  } UNION {\n    ?node ?p ?o .\n    FILTER(LCASE(STRAFTER(STR(?node), \"#\")) = LCASE(\"MnistG16\"))\n    BIND(STRAFTER(STR(?node), \"#\") AS ?label"
+      },
+      {
+        "question": "Show me models their test dataset, and their pipeline that has performance more than 0.9",
+        "category": "performance_enrichment",
+        "latency_s": 30.686,
+        "passed": true,
+        "checks": {
+          "tool": true,
+          "min_results": true,
+          "keys": true
+        },
+        "intent_tool": "custom_sparql",
+        "inference_used": false,
+        "result_count": 6,
+        "result_keys": [
+          "model_name",
+          "model_performance_metric",
+          "model_performance_value",
+          "pipelines",
+          "test_dataset_roles",
+          "test_datasets"
+        ],
+        "sparql_preview": "-- Step 1: performance filter\n\nPREFIX ml: <http://www.semanticweb.org/mnd14/ml/>\nPREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>\nPREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>\nPREFIX bfo: <http://purl.obolibrary.org/obo/>\nPREFIX iof-core: <https://spec.industrialontologies.org/ontology/core/Core/>\nPREFIX xsd: <http://www.w3.org/2001/XMLSchema#>\nSELECT DISTINCT ?model_name ?model_performance_metric ?model_performance_value WHERE {\n    ?ml_process (ml:executes|bfo:BFO_0000057) ?mod"
+      },
+      {
+        "question": "Which datasets are consumed by processes that execute a machine learning model?",
+        "category": "custom_sparql_join",
+        "latency_s": 32.781,
+        "passed": true,
+        "checks": {
+          "tool": true,
+          "min_results": true,
+          "keys": true
+        },
+        "intent_tool": "custom_sparql",
+        "inference_used": false,
+        "result_count": 29,
+        "result_keys": [
+          "dataset"
+        ],
+        "sparql_preview": "PREFIX ml: <http://www.semanticweb.org/mnd14/ml/>\nSELECT DISTINCT ?dataset\nWHERE {\n  ?process ml:executes ?model .\n  ?process ml:hasDataInput ?dataset .\n}\nLIMIT 100"
+      },
+      {
+        "question": "Show me models with performance more than 0.95",
+        "category": "performance_threshold",
+        "latency_s": 20.85,
+        "passed": true,
+        "checks": {
+          "tool": true,
+          "min_results": true,
+          "keys": true
+        },
+        "intent_tool": "custom_sparql",
+        "inference_used": false,
+        "result_count": 8,
+        "result_keys": [
+          "model_name",
+          "model_performance_metric",
+          "model_performance_value"
+        ],
+        "sparql_preview": "-- Step 1: performance filter\n\nPREFIX ml: <http://www.semanticweb.org/mnd14/ml/>\nPREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>\nPREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>\nPREFIX bfo: <http://purl.obolibrary.org/obo/>\nPREFIX iof-core: <https://spec.industrialontologies.org/ontology/core/Core/>\nPREFIX xsd: <http://www.w3.org/2001/XMLSchema#>\nSELECT DISTINCT ?model_name ?model_performance_metric ?model_performance_value WHERE {\n    ?ml_process (ml:executes|bfo:BFO_0000057) ?mod"
+      }
+    ]
+  },
+  {
+    "candidate": {
+      "name": "qwen-coder-next",
+      "provider": "lm_studio",
+      "base_url": "http://127.0.0.1:1234/v1",
+      "model": "qwen/qwen3-coder-next"
+    },
+    "summary": {
+      "candidate": "qwen-coder-next",
+      "cases": 6,
+      "passed": 6,
+      "failed": 0,
+      "errored": 0,
+      "pass_rate": 1.0,
+      "avg_latency_s": 13.501,
+      "median_latency_s": 9.837
+    },
+    "cases": [
+      {
+        "question": "Which kinds of datasets exist in MLLO?",
+        "category": "conceptual_exploration",
+        "latency_s": 29.259,
+        "passed": true,
+        "checks": {
+          "tool": true,
+          "inference": true,
+          "min_results": true,
+          "keys": true
+        },
+        "intent_tool": "explore_category",
+        "inference_used": true,
+        "result_count": 100,
+        "result_keys": [
+          "entity",
+          "entity_type",
+          "label"
+        ],
+        "sparql_preview": "\nPREFIX ml: <http://www.semanticweb.org/mnd14/ml/>\nPREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>\nPREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>\nSELECT DISTINCT ?entity ?entity_type ?label\nWHERE {\n    {\n        ?entity rdfs:subClassOf+ ml:MachineLearningDataSet .\n        BIND(\"Class\" AS ?entity_type)\n        OPTIONAL { ?entity rdfs:label ?label }\n        FILTER(?entity != <http://www.w3.org/2002/07/owl#Nothing>)\n    }\n    UNION\n    {\n        ?entity rdf:type/rdfs:subClassOf* ml:"
+      },
+      {
+        "question": "What pipeline uses MnistG16?",
+        "category": "pipeline_lookup",
+        "latency_s": 8.818,
+        "passed": true,
+        "checks": {
+          "tool": true,
+          "min_results": true,
+          "keys": true
+        },
+        "intent_tool": "find_pipelines",
+        "inference_used": false,
+        "result_count": 20,
+        "result_keys": [
+          "pipeline_associated_model",
+          "pipeline_components",
+          "pipeline_data_input",
+          "pipeline_data_output",
+          "pipeline_name",
+          "pipeline_type"
+        ],
+        "sparql_preview": "\nPREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>\nPREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>\nPREFIX ml: <http://www.semanticweb.org/mnd14/ml/>\nPREFIX bfo: <http://purl.obolibrary.org/obo/>\nPREFIX iof-core: <https://spec.industrialontologies.org/ontology/core/Core/>\nSELECT DISTINCT\n    (STRAFTER(STR(?pipeline), \"#\") AS ?pipeline_name)\n    ?pipeline_type\n    ?pipeline_components\n    (STRAFTER(STR(?pipeline_data_input_iri), \"#\") AS ?pipeline_data_input)\n    (STRAFTER(STR(?pipelin"
+      },
+      {
+        "question": "Which models use downstream artifacts of MnistG16?",
+        "category": "lineage_with_model_enrichment",
+        "latency_s": 10.134,
+        "passed": true,
+        "checks": {
+          "tool": true,
+          "min_results": true,
+          "keys": true
+        },
+        "intent_tool": "custom_sparql",
+        "inference_used": false,
+        "result_count": 12,
+        "result_keys": [
+          "artifact",
+          "artifact_label",
+          "artifact_types",
+          "downstream_dataset",
+          "downstream_dataset_type",
+          "downstream_process",
+          "downstream_process_type",
+          "model_dataset_role",
+          "model_name"
+        ],
+        "sparql_preview": "-- Step 1: resolve artifact\n\nPREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>\nPREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>\nPREFIX skos: <http://www.w3.org/2004/02/skos/core#>\nSELECT DISTINCT ?node ?label ?type ?type_label WHERE {\n  {\n    ?node rdfs:label|skos:prefLabel|skos:altLabel ?label .\n    FILTER(LCASE(STR(?label)) = LCASE(\"MnistG16\"))\n  } UNION {\n    ?node ?p ?o .\n    FILTER(LCASE(STRAFTER(STR(?node), \"#\")) = LCASE(\"MnistG16\"))\n    BIND(STRAFTER(STR(?node), \"#\") AS ?label"
+      },
+      {
+        "question": "Show me models their test dataset, and their pipeline that has performance more than 0.9",
+        "category": "performance_enrichment",
+        "latency_s": 16.88,
+        "passed": true,
+        "checks": {
+          "tool": true,
+          "min_results": true,
+          "keys": true
+        },
+        "intent_tool": "custom_sparql",
+        "inference_used": false,
+        "result_count": 6,
+        "result_keys": [
+          "model_name",
+          "model_performance_metric",
+          "model_performance_value",
+          "pipelines",
+          "test_dataset_roles",
+          "test_datasets"
+        ],
+        "sparql_preview": "-- Step 1: performance filter\n\nPREFIX ml: <http://www.semanticweb.org/mnd14/ml/>\nPREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>\nPREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>\nPREFIX bfo: <http://purl.obolibrary.org/obo/>\nPREFIX iof-core: <https://spec.industrialontologies.org/ontology/core/Core/>\nPREFIX xsd: <http://www.w3.org/2001/XMLSchema#>\nSELECT DISTINCT ?model_name ?model_performance_metric ?model_performance_value WHERE {\n    ?ml_process (ml:executes|bfo:BFO_0000057) ?mod"
+      },
+      {
+        "question": "Which datasets are consumed by processes that execute a machine learning model?",
+        "category": "custom_sparql_join",
+        "latency_s": 9.54,
+        "passed": true,
+        "checks": {
+          "tool": true,
+          "min_results": true,
+          "keys": true
+        },
+        "intent_tool": "custom_sparql",
+        "inference_used": false,
+        "result_count": 5,
+        "result_keys": [
+          "dataset"
+        ],
+        "sparql_preview": "PREFIX bfo: <http://purl.obolibrary.org/obo/>\nPREFIX ml: <http://www.semanticweb.org/mnd14/ml/>\nPREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>\nSELECT DISTINCT ?dataset WHERE {\n  ?mlProcess a/ml:executes|bfo:BFO_0000057 ?model .\n  ?mlProcess ml:hasDataInput ?dataset .\n  ?dataset a/rdfs:subClassOf* bfo:IAO_0000100 .\n}\nLIMIT 100"
+      },
+      {
+        "question": "Show me models with performance more than 0.95",
+        "category": "performance_threshold",
+        "latency_s": 6.377,
+        "passed": true,
+        "checks": {
+          "tool": true,
+          "min_results": true,
+          "keys": true
+        },
+        "intent_tool": "custom_sparql",
+        "inference_used": false,
+        "result_count": 8,
+        "result_keys": [
+          "model_name",
+          "model_performance_metric",
+          "model_performance_value"
+        ],
+        "sparql_preview": "-- Step 1: performance filter\n\nPREFIX ml: <http://www.semanticweb.org/mnd14/ml/>\nPREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>\nPREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>\nPREFIX bfo: <http://purl.obolibrary.org/obo/>\nPREFIX iof-core: <https://spec.industrialontologies.org/ontology/core/Core/>\nPREFIX xsd: <http://www.w3.org/2001/XMLSchema#>\nSELECT DISTINCT ?model_name ?model_performance_metric ?model_performance_value WHERE {\n    ?ml_process (ml:executes|bfo:BFO_0000057) ?mod"
+      }
+    ]
+  }
+]
