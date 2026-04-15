@@ -34,20 +34,7 @@ def performance_query_spec(question: str) -> dict[str, Any] | None:
     return spec
 
 
-def build_performance_query_from_spec(
-    spec: dict[str, Any],
-    *,
-    include_dataset: bool = False,
-) -> str:
-    dataset_projection = " ?test_dataset ?test_dataset_role" if include_dataset else ""
-    dataset_pattern = ""
-    if include_dataset:
-        dataset_pattern = """
-    ?ml_process ml:hasDataInput ?test_dataset .
-    ?test_dataset rdf:type ?test_dataset_type .
-    ?test_dataset_type rdfs:subClassOf* ml:TestDataSet .
-    OPTIONAL { ?test_dataset_type rdfs:label ?test_dataset_role }
-"""
+def build_performance_query_from_spec(spec: dict[str, Any]) -> str:
     threshold_clause = ""
     if spec["threshold_op"] and spec["threshold_value"]:
         threshold_clause = f"FILTER(xsd:decimal(?model_performance_value) {spec['threshold_op']} {spec['threshold_value']})"
@@ -58,7 +45,7 @@ PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
 PREFIX bfo: <http://purl.obolibrary.org/obo/>
 PREFIX iof-core: <https://spec.industrialontologies.org/ontology/core/Core/>
 PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>
-SELECT DISTINCT ?model_name ?model_performance_metric ?model_performance_value{dataset_projection} WHERE {{
+SELECT DISTINCT ?model_name ?ml_process ?model_performance_metric ?model_performance_value WHERE {{
     ?ml_process (ml:executes|bfo:BFO_0000057) ?model_name .
     ?model_name rdf:type/rdfs:subClassOf* ml:MachineLearningModel .
     ?model_performance_assessment ml:hasDataInput ?model_output .
@@ -71,7 +58,6 @@ SELECT DISTINCT ?model_name ?model_performance_metric ?model_performance_value{d
     ?model_performance_assessment ml:hasDataOutput/iof-core:hasSimpleExpressionValue ?model_performance_value .
     FILTER(LCASE(STR(?model_performance_metric)) = "{spec['metric_label']}")
     {threshold_clause}
-    {dataset_pattern}
 }}
 ORDER BY {spec['order']}(xsd:decimal(?model_performance_value))
 LIMIT {spec['limit']}
@@ -88,17 +74,16 @@ def question_requests_pipeline_context(question: str) -> bool:
     return "pipeline" in lowered or "pipelines" in lowered
 
 
-def build_model_dataset_query(model_iris: list[str], *, dataset_kind: str = "test") -> str:
-    escaped_models = " ".join(f"<{model}>" for model in model_iris if model)
+def build_model_dataset_query(process_iris: list[str], *, dataset_kind: str = "test") -> str:
+    escaped_processes = " ".join(f"<{p}>" for p in process_iris if p)
     dataset_class = "ml:TestDataSet" if dataset_kind == "test" else "ml:MachineLearningDataSet"
     return f"""
 PREFIX ml: <http://www.semanticweb.org/mnd14/ml/>
 PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
 PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
 PREFIX bfo: <http://purl.obolibrary.org/obo/>
-SELECT DISTINCT ?model_name ?dataset ?dataset_role WHERE {{
-    VALUES ?model_name {{ {escaped_models} }}
-    ?ml_process (ml:executes|bfo:BFO_0000057) ?model_name .
+SELECT DISTINCT ?ml_process ?dataset ?dataset_role WHERE {{
+    VALUES ?ml_process {{ {escaped_processes} }}
     ?ml_process ml:hasDataInput ?dataset .
     ?dataset rdf:type ?dataset_type .
     ?dataset_type rdfs:subClassOf* {dataset_class} .
@@ -129,10 +114,9 @@ def dedupe_model_performance_rows(rows: list[dict[str, Any]]) -> list[dict[str, 
     for row in rows:
         key = (
             row.get("model_name"),
+            row.get("ml_process"),
             row.get("model_performance_metric"),
             row.get("model_performance_value"),
-            row.get("test_dataset"),
-            row.get("test_dataset_role"),
         )
         if key in seen:
             continue
@@ -165,18 +149,19 @@ def aggregate_best_performance_by_model(rows: list[dict[str, Any]]) -> list[dict
 
 
 def merge_model_dataset_rows(performance_rows: list[dict[str, Any]], dataset_rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    datasets_by_model: dict[str, list[dict[str, Any]]] = {}
+    # Key by ml_process so each test run gets its own specific dataset(s)
+    datasets_by_process: dict[str, list[dict[str, Any]]] = {}
     for row in dataset_rows:
-        model_name = row.get("model_name")
-        if not model_name:
+        ml_process = row.get("ml_process")
+        if not ml_process:
             continue
-        bucket = datasets_by_model.setdefault(model_name, [])
+        bucket = datasets_by_process.setdefault(ml_process, [])
         candidate = {"test_dataset": row.get("dataset"), "test_dataset_role": row.get("dataset_role")}
         if candidate not in bucket:
             bucket.append(candidate)
     merged = []
     for row in performance_rows:
-        datasets = datasets_by_model.get(row.get("model_name"), [])
+        datasets = datasets_by_process.get(row.get("ml_process"), [])
         if not datasets:
             merged.append({**row, "test_datasets": []})
             continue
@@ -249,27 +234,28 @@ async def execute_performance_orchestration(
     )
 
     model_iris = sorted({row.get("model_name") for row in performance_rows if row.get("model_name")})
+    process_iris = sorted({row.get("ml_process") for row in performance_rows if row.get("ml_process")})
     state.set_artifact("matching_models", model_iris)
     enrichment_plan = plan_performance_enrichment_steps(question)
     for plan_step in enrichment_plan:
         state.add_plan_step(tool=plan_step["tool"], params=plan_step.get("params"), reasoning=plan_step.get("reasoning"))
 
-    should_enrich_per_model = bool(enrichment_plan) and bool(model_iris)
-    combined_results = aggregate_best_performance_by_model(performance_rows) if should_enrich_per_model else performance_rows
+    # Keep one row per (model, process, metric, value) — do NOT collapse to one row per model
+    combined_results = list(performance_rows)
     sparql_parts = [f"-- Step 1: performance filter\n{performance_sparql}"]
 
     for index, plan_step in enumerate(enrichment_plan, start=2):
         tool = plan_step["tool"]
-        if not model_iris:
+        if not process_iris:
             break
 
         if tool == "find_test_datasets_for_models":
             dataset_kind = plan_step.get("params", {}).get("dataset_kind", "test")
-            step_sparql = build_model_dataset_query(model_iris, dataset_kind=dataset_kind)
+            step_sparql = build_model_dataset_query(process_iris, dataset_kind=dataset_kind)
             step_rows = await graphdb_client.query(step_sparql, repo=resolved_repo, use_inference=False)
             state.add_step(
                 tool=tool,
-                params={"model_iris": model_iris, "dataset_kind": dataset_kind},
+                params={"process_iris": process_iris, "dataset_kind": dataset_kind},
                 sparql=step_sparql,
                 results=step_rows,
                 inference_used=False,
