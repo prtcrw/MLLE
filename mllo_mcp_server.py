@@ -1,5 +1,23 @@
 from __future__ import annotations
 
+"""MCP entry point for MLLE graph tools.
+
+Run this file as a local stdio MCP server:
+
+    python mllo_mcp_server.py
+
+LM Studio can launch it from ~/.lmstudio/mcp.json using a command such as:
+
+    {
+      "mcpServers": {
+        "mlle": {
+          "command": "/absolute/path/to/.mcp-venv/bin/python",
+          "args": ["/absolute/path/to/mllo_mcp_server.py"]
+        }
+      }
+    }
+"""
+
 try:
     from fastmcp import FastMCP
 except ImportError as exc:
@@ -48,7 +66,26 @@ from mllo_web.core.tools.mllo import (
     get_artifact_details_tool,
 )
 
-mcp = FastMCP("MLLE")
+SERVER_NAME = "MLLE"
+DOMAIN_TOOL_COUNT = 8
+GRAPH_NATIVE_TOOL_COUNT = 30
+
+mcp = FastMCP(SERVER_NAME)
+
+
+@mcp.tool()
+async def server_status() -> dict:
+    """Return server metadata and tool counts without querying GraphDB."""
+    return {
+        "server": SERVER_NAME,
+        "purpose": "Expose MLLE GraphDB and MLLO ontology tools to MCP clients.",
+        "tool_count": DOMAIN_TOOL_COUNT + GRAPH_NATIVE_TOOL_COUNT + 1,
+        "domain_tool_count": DOMAIN_TOOL_COUNT,
+        "graph_native_tool_count": GRAPH_NATIVE_TOOL_COUNT,
+        "requires_graphdb_for_queries": True,
+        "llm_inside_tools": False,
+        "transport": "stdio by default via mcp.run()",
+    }
 
 
 @mcp.tool()
@@ -59,6 +96,7 @@ async def find_datasets(
     date_to: str = "",
     repo: str | None = None,
 ) -> dict:
+    """Find ML datasets by text, role, date range, and optional GraphDB repository."""
     return await find_datasets_tool(search_term=search_term, role=role, date_from=date_from, date_to=date_to, repo=repo)
 
 
@@ -68,6 +106,7 @@ async def find_models(
     model_type: str = "",
     repo: str | None = None,
 ) -> dict:
+    """Find ML models by linked dataset name, model type, and optional GraphDB repository."""
     return await find_models_tool(dataset_name=dataset_name, model_type=model_type, repo=repo)
 
 
@@ -77,6 +116,7 @@ async def find_pipelines(
     pipeline_type: str = "",
     repo: str | None = None,
 ) -> dict:
+    """Find ML/data-processing pipelines by text, pipeline type, and optional GraphDB repository."""
     return await find_pipelines_tool(search_term=search_term, pipeline_type=pipeline_type, repo=repo)
 
 
@@ -85,11 +125,13 @@ async def compare_pipelines(
     pipeline_ids: list[str],
     repo: str | None = None,
 ) -> dict:
+    """Compare two or more pipelines by identifier/name in a GraphDB repository."""
     return await compare_pipelines_tool(pipeline_ids=pipeline_ids, repo=repo)
 
 
 @mcp.tool()
 async def analyze_deployed_models(repo: str | None = None) -> dict:
+    """List deployed model inventory, deployment systems, execution dates, and metrics."""
     return await analyze_deployed_models_tool(repo=repo)
 
 
@@ -99,6 +141,7 @@ async def get_artifact_details(
     repo: str | None = None,
     show_upper_ontology: bool = False,
 ) -> dict:
+    """Return all known properties and relationships for a specific artifact IRI."""
     return await get_artifact_details_tool(iri=iri, repo=repo, show_upper_ontology=show_upper_ontology)
 
 
@@ -107,6 +150,7 @@ async def explore_category(
     category_name: str,
     repo: str | None = None,
 ) -> dict:
+    """Explore an ontology category, including subclasses and matching instances."""
     return await explore_category_tool(category_name=category_name, repo=repo)
 
 
@@ -116,101 +160,121 @@ async def execute_sparql(
     use_inference: bool = False,
     repo: str | None = None,
 ) -> dict:
+    """Execute a raw SPARQL query against GraphDB; use only with trusted queries."""
     return await execute_sparql_tool(query=query, use_inference=use_inference, repo=repo)
 
 
 @mcp.tool()
 async def filter_by_string(search_term: str, repo: str | None = None) -> dict:
+    """Search labels, comments, and local names for a case-insensitive text string."""
     return await filter_by_string_tool(search_term=search_term, repo=repo)
 
 
 @mcp.tool()
 async def find_by_type(class_iri: str, limit: int = 50, repo: str | None = None) -> dict:
+    """Find individuals whose RDF type is the given class or one of its subclasses."""
     return await find_by_type_tool(class_iri=class_iri, limit=limit, repo=repo)
 
 
 @mcp.tool()
 async def find_by_property_value(property_iri: str, value: str, repo: str | None = None) -> dict:
+    """Find nodes where a given property has the supplied literal or IRI value."""
     return await find_by_property_value_tool(property_iri=property_iri, value=value, repo=repo)
 
 
 @mcp.tool()
 async def list_all_classes(repo: str | None = None) -> dict:
+    """List domain classes with instance counts, filtering common schema-only types."""
     return await list_all_classes_tool(repo=repo)
 
 
 @mcp.tool()
 async def list_all_properties(class_iri: str | None = None, repo: str | None = None) -> dict:
+    """List frequently used properties globally or for instances of a class."""
     return await list_all_properties_tool(class_iri=class_iri, repo=repo)
 
 
 @mcp.tool()
 async def find_surrounding_nodes(iri: str, depth: int = 1, repo: str | None = None) -> dict:
+    """Return incoming and outgoing neighbors around an IRI up to the requested depth."""
     return await find_surrounding_nodes_tool(iri=iri, depth=depth, repo=repo)
 
 
 @mcp.tool()
 async def describe_node(iri: str, repo: str | None = None) -> dict:
+    """Describe one node by returning its predicates, objects, labels, and relationships."""
     return await describe_node_tool(iri=iri, repo=repo)
 
 
 @mcp.tool()
 async def find_node_by_label(label: str, repo: str | None = None) -> dict:
+    """Find candidate node IRIs by exact or fuzzy label/local-name matching."""
     return await find_node_by_label_tool(label=label, repo=repo)
 
 
 @mcp.tool()
 async def compare_nodes(iri_1: str, iri_2: str, repo: str | None = None) -> dict:
+    """Compare two node IRIs by their properties and graph neighborhoods."""
     return await compare_nodes_tool(iri_1=iri_1, iri_2=iri_2, repo=repo)
 
 
 @mcp.tool()
 async def find_common_neighbors(iri_1: str, iri_2: str, repo: str | None = None) -> dict:
+    """Find graph neighbors shared by two node IRIs."""
     return await find_common_neighbors_tool(iri_1=iri_1, iri_2=iri_2, repo=repo)
 
 
 @mcp.tool()
 async def graph_traversal(start_iri: str, target_class: str, max_hops: int = 10, repo: str | None = None) -> dict:
+    """Traverse outward from a start IRI until nodes of a target class are reached."""
     return await graph_traversal_tool(start_iri=start_iri, target_class=target_class, max_hops=max_hops, repo=repo)
 
 
 @mcp.tool()
 async def find_shortest_path(iri_1: str, iri_2: str, repo: str | None = None) -> dict:
+    """Find a shortest graph path between two node IRIs."""
     return await find_shortest_path_tool(iri_1=iri_1, iri_2=iri_2, repo=repo)
 
 
 @mcp.tool()
 async def find_all_paths(iri_1: str, iri_2: str, max_hops: int = 10, repo: str | None = None) -> dict:
+    """Find graph paths between two node IRIs up to a maximum hop count."""
     return await find_all_paths_tool(iri_1=iri_1, iri_2=iri_2, max_hops=max_hops, repo=repo)
 
 
 @mcp.tool()
 async def trace_lineage(iri: str, direction: str = "upstream", max_hops: int = 10, repo: str | None = None) -> dict:
+    """Trace upstream or downstream lineage/provenance relationships from an IRI."""
     return await trace_lineage_tool(iri=iri, direction=direction, max_hops=max_hops, repo=repo)
 
 
 @mcp.tool()
 async def find_subgraph(root_iri: str, depth: int = 2, repo: str | None = None) -> dict:
+    """Extract a small subgraph around a root IRI."""
     return await find_subgraph_tool(root_iri=root_iri, depth=depth, repo=repo)
 
 
 @mcp.tool()
 async def get_class_hierarchy(root_class: str | None = None, repo: str | None = None) -> dict:
+    """Return an ontology class hierarchy, optionally rooted at a specific class."""
     return await get_class_hierarchy_tool(root_class=root_class, repo=repo)
 
 
 @mcp.tool()
 async def get_class_schema(class_iri: str, repo: str | None = None) -> dict:
+    """Return properties and schema context associated with a class IRI."""
     return await get_class_schema_tool(class_iri=class_iri, repo=repo)
 
 
 @mcp.tool()
 async def find_related_classes(class_iri: str, repo: str | None = None) -> dict:
+    """Find classes connected to a target class by property domain/range patterns."""
     return await find_related_classes_tool(class_iri=class_iri, repo=repo)
 
 
 @mcp.tool()
 async def get_namespace_summary(repo: str | None = None) -> dict:
+    """Summarize graph nodes by namespace/prefix."""
     return await get_namespace_summary_tool(repo=repo)
 
 
@@ -221,56 +285,67 @@ async def check_class_membership(
     use_inference: bool = False,
     repo: str | None = None,
 ) -> dict:
+    """Check whether an IRI belongs to a class, optionally using inference."""
     return await check_class_membership_tool(iri=iri, class_iri=class_iri, use_inference=use_inference, repo=repo)
 
 
 @mcp.tool()
 async def count_by_type(repo: str | None = None) -> dict:
+    """Count instances grouped by RDF type."""
     return await count_by_type_tool(repo=repo)
 
 
 @mcp.tool()
 async def count_by_property(property_iri: str, repo: str | None = None) -> dict:
+    """Count nodes that have a specific property."""
     return await count_by_property_tool(property_iri=property_iri, repo=repo)
 
 
 @mcp.tool()
 async def get_property_distribution(class_iri: str, property_iri: str, repo: str | None = None) -> dict:
+    """Return the value distribution of a property for a class."""
     return await get_property_distribution_tool(class_iri=class_iri, property_iri=property_iri, repo=repo)
 
 
 @mcp.tool()
 async def find_missing_properties(class_iri: str, required_properties: list[str], repo: str | None = None) -> dict:
+    """Find instances of a class that lack expected properties."""
     return await find_missing_properties_tool(class_iri=class_iri, required_properties=required_properties, repo=repo)
 
 
 @mcp.tool()
 async def find_outliers(class_iri: str, property_iri: str, repo: str | None = None) -> dict:
+    """Find statistical outliers for a numeric property on instances of a class."""
     return await find_outliers_tool(class_iri=class_iri, property_iri=property_iri, repo=repo)
 
 
 @mcp.tool()
 async def find_external_links(iri: str, repo: str | None = None) -> dict:
+    """Find external URI links associated with a node."""
     return await find_external_links_tool(iri=iri, repo=repo)
 
 
 @mcp.tool()
 async def find_cross_ontology_nodes(namespace_uri: str, repo: str | None = None) -> dict:
+    """Find nodes that bridge or reference a specified ontology namespace."""
     return await find_cross_ontology_nodes_tool(namespace_uri=namespace_uri, repo=repo)
 
 
 @mcp.tool()
 async def find_bridge_nodes(namespace_1: str, namespace_2: str, repo: str | None = None) -> dict:
+    """Find high-connectivity nodes bridging two ontology namespaces."""
     return await find_bridge_nodes_tool(namespace_1=namespace_1, namespace_2=namespace_2, repo=repo)
 
 
 @mcp.tool()
 async def get_annotation_properties(iri: str, repo: str | None = None) -> dict:
+    """Return annotation properties for a node IRI."""
     return await get_annotation_properties_tool(iri=iri, repo=repo)
 
 
 @mcp.tool()
 async def find_by_external_id(id_value: str, id_property: str | None = None, repo: str | None = None) -> dict:
+    """Find nodes by DOI, UUID, accession, or another external identifier."""
     return await find_by_external_id_tool(id_value=id_value, id_property=id_property, repo=repo)
 
 
