@@ -1,5 +1,5 @@
 # MLLO Web
-MLLO Web is a web application for [MLLOS](https://github.com/hakjuoh/MLLOS).
+MLLO Web is a web application for [MLLO](https://github.com/hakjuoh/MLLOS).
 
 This guide is intended for developers working on the MLLO Web project.
 
@@ -62,7 +62,6 @@ Natural-language query features need an LLM provider. There are two related conf
 LLM_PROVIDER=lm_studio
 LLM_CLIENT_TYPE=openai_compatible
 LLM_BASE_URL=http://localhost:1234/v1
-LLM_CHAT_COMPLETIONS_PATH=/chat/completions
 LLM_MODEL=local-model
 LLM_API_KEY=lm-studio
 ```
@@ -74,7 +73,7 @@ Then open the web app Settings page, choose `lm_studio`, set the same base URL/m
 Start Ollama and pull a model, for example:
 
 ```
-ollama pull llama3.1
+ollama pull YOUR-MODEL
 ```
 
 Then configure:
@@ -82,7 +81,7 @@ Then configure:
 ```
 LLM_PROVIDER=ollama
 OLLAMA_BASE_URL=http://localhost:11434/v1
-OLLAMA_MODEL=llama3.1
+OLLAMA_MODEL= YOUR-MODEL
 ```
 
 #### OpenAI-compatible API
@@ -106,31 +105,6 @@ OPENAI_API_KEY=YOUR_API_KEY
 OPENAI_MODEL=YOUR_MODEL
 ```
 
-#### Azure OpenAI / Azure Foundry
-
-Use the full chat-completions URL and the `api-key` header:
-
-```
-LLM_CLIENT_TYPE=azure_foundry
-LLM_CHAT_COMPLETIONS_URL=https://YOUR-RESOURCE.openai.azure.com/openai/deployments/YOUR-DEPLOYMENT/chat/completions
-LLM_SEND_MODEL=false
-LLM_API_KEY=YOUR_AZURE_API_KEY
-LLM_API_KEY_HEADER=api-key
-LLM_API_KEY_PREFIX=
-LLM_API_VERSION=2024-10-21
-LLM_MAX_COMPLETION_TOKENS=1024
-LLM_AZURE_SEND_TEMPERATURE=false
-```
-
-For the Settings page `azure_openai` provider, set:
-
-```
-AZURE_OPENAI_ENDPOINT=https://YOUR-RESOURCE.openai.azure.com
-AZURE_OPENAI_API_KEY=YOUR_AZURE_API_KEY
-AZURE_OPENAI_API_VERSION=2024-10-21
-AZURE_OPENAI_DEPLOYMENT=YOUR-DEPLOYMENT
-```
-
 ### Running the Application
 
 #### Run the backend server:
@@ -147,34 +121,6 @@ npm run dev
 ```
 
 Vite will print the frontend URL, usually `http://localhost:5173`.
-
-#### Run the MCP server for LM Studio / external agents:
-```
-python mllo_mcp_server.py
-```
-
-The MCP server is optional for the web app. It exposes the same MLLO/GraphDB tool layer to MCP clients such as LM Studio. LM Studio can launch it from `~/.lmstudio/mcp.json`:
-
-```
-conda run --no-capture-output -n mlloweb python -m venv .mcp-venv
-.mcp-venv/bin/python -m pip install -r requirements-mcp.txt
-```
-
-```json
-{
-  "mcpServers": {
-    "mlle": {
-      "command": "/Users/pnc12/Documents/GitHub/MLLO-Web-2/.mcp-venv/bin/python",
-      "args": [
-        "/Users/pnc12/Documents/GitHub/MLLO-Web-2/mllo_mcp_server.py"
-      ],
-      "cwd": "/Users/pnc12/Documents/GitHub/MLLO-Web-2"
-    }
-  }
-}
-```
-
-This repo uses a dedicated `.mcp-venv` for LM Studio so FastMCP's dependency stack stays isolated from the main `mlloweb` app environment.
 
 #### Build the frontend UI for deployment:
 ```
