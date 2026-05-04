@@ -168,7 +168,7 @@ const wrapAxisLabel = (label: string, maxLineLength = 18) => {
 };
 
 const PlotPerformance: React.FC = () => {
-    const [plotMode, setPlotMode] = useState<PlotMode>('auto');
+    const [plotMode, setPlotMode] = useState<PlotMode>('bar');
     const [metric, setMetric] = useState('');
     const [performanceCutoff, setPerformanceCutoff] = useState(0);
     const [orderBy, setOrderBy] = useState<SortOrder>('Descending');
@@ -426,7 +426,7 @@ const PlotPerformance: React.FC = () => {
                             return [
                                 `${point.modelName}: ${formatScore(point.modelPerformanceValue)}`,
                                 `Type: ${point.modelType}`,
-                                `Source: ${point.rawData || 'Unknown'}`,
+                                `Raw Data Set: ${point.rawData || 'Unknown'}`,
                             ];
                         }
                     },

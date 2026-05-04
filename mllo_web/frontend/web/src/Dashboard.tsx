@@ -3,6 +3,7 @@ import {BrowserRouter as Router, Navigate, Route, Routes} from 'react-router-dom
 import {useMediaQuery} from 'react-responsive'; // Import useMediaQuery
 import Menu from './components/Menu';
 import Header from './components/Header.tsx';
+import DemoReplay from './components/DemoReplay.tsx';
 import Home from './pages/Home';
 import PipelineEditor from './pages/editor/PipelineEditor.tsx';
 import FindDatasetUsages from './pages/analyzer/FindDatasetUsages.tsx';
@@ -21,6 +22,7 @@ import PlotPerformance from './pages/analyzer/PlotPerformance.tsx';
 import AnalyzeModelOutput from './pages/analyzer/AnalyzeModelOutput.tsx';
 import AnalyzeDeployedModels from './pages/analyzer/AnalyzeDeployedModels.tsx';
 import ComparePipelines from './pages/analyzer/ComparePipelines.tsx';
+import DemoAutomationHome from './pages/demo/DemoAutomationHome.tsx';
 
 const Dashboard: React.FC = () => {
     const [isMenuOpen, setIsMenuOpen] = useState(true);
@@ -38,6 +40,7 @@ const Dashboard: React.FC = () => {
                     <Header isMenuOpen={isMenuOpen} toggleMenu={toggleMenu}/>
                     <Routes>
                         <Route path="/" element={<Home/>}/>
+                        <Route path="/demos" element={<DemoAutomationHome/>}/>
                         <Route path="/chat-with-mllo" element={<ChatWithMLLO/>}/>
                         <Route path="/datasets/natural-language-query" element={<NaturalLanguageQuery/>}/>
                         <Route path="/settings/*" element={<NLQSettings/>}>
@@ -58,6 +61,7 @@ const Dashboard: React.FC = () => {
                         <Route path="/datasets/plot-performance" element={<PlotPerformance/>}/>
                         <Route path="/datasets/analyze-model-output" element={<AnalyzeModelOutput/>}/>
                     </Routes>
+                    <DemoReplay/>
                 </div>
             </div>
         </Router>

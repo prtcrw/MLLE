@@ -49,6 +49,14 @@ const parsePositiveInt = (value: string | null, fallback: number) => {
     return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
 };
 
+const stripReplayParams = (search: string) => {
+    const params = new URLSearchParams(search);
+    params.delete('replay');
+    params.delete('from');
+    const nextSearch = params.toString();
+    return nextSearch ? `?${nextSearch}` : '';
+};
+
 const FindPipelines: React.FC = () => {
     const [pipelines, setPipelines] = useState<PipelineData[]>([]);
     const [totalPages, setTotalPages] = useState(0);
@@ -119,8 +127,9 @@ const FindPipelines: React.FC = () => {
 
     useEffect(() => {
         const savedSearch = window.sessionStorage.getItem(PIPELINES_VIEW_STATE_KEY);
-        if (!location.search && savedSearch) {
-            navigate({pathname: location.pathname, search: savedSearch}, {replace: true});
+        const cleanSavedSearch = savedSearch ? stripReplayParams(savedSearch) : '';
+        if (!location.search && cleanSavedSearch) {
+            navigate({pathname: location.pathname, search: cleanSavedSearch}, {replace: true});
             return;
         }
         setHasHydratedState(true);
@@ -130,7 +139,7 @@ const FindPipelines: React.FC = () => {
         if (!hasHydratedState) {
             return;
         }
-        window.sessionStorage.setItem(PIPELINES_VIEW_STATE_KEY, location.search);
+        window.sessionStorage.setItem(PIPELINES_VIEW_STATE_KEY, stripReplayParams(location.search));
     }, [hasHydratedState, location.search]);
 
     useEffect(() => {

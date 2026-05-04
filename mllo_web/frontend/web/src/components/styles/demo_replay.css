@@ -1,0 +1,134 @@
+.demo-replay-cursor {
+    position: fixed;
+    top: 0;
+    left: 0;
+    z-index: 80;
+    width: 18px;
+    height: 18px;
+    pointer-events: none;
+    transition: transform 650ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.demo-replay-cursor::before {
+    content: "";
+    position: absolute;
+    top: -2px;
+    left: -2px;
+    width: 0;
+    height: 0;
+    border-top: 18px solid #17212b;
+    border-right: 12px solid transparent;
+    filter: drop-shadow(0 2px 4px rgba(23, 33, 43, 0.3));
+}
+
+.demo-replay-cursor::after {
+    content: "";
+    position: absolute;
+    top: 6px;
+    left: 6px;
+    width: 26px;
+    height: 26px;
+    border: 2px solid #f1c40f;
+    border-radius: 50%;
+    opacity: 0;
+    transform: scale(0.72);
+    transition: opacity 160ms ease, transform 160ms ease;
+}
+
+.demo-replay-cursor.is-clicking::after {
+    opacity: 1;
+    transform: scale(1);
+}
+
+.demo-replay-status {
+    position: fixed;
+    right: 18px;
+    bottom: 18px;
+    z-index: 70;
+    width: min(360px, calc(100vw - 36px));
+    color: #17212b;
+    background: rgba(255, 255, 255, 0.96);
+    border: 1px solid #c8d3dd;
+    border-left: 4px solid #006d77;
+    border-radius: 8px;
+    box-shadow: 0 16px 38px rgba(23, 33, 43, 0.16);
+    padding: 12px 14px;
+}
+
+.demo-replay-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.demo-replay-status span {
+    display: block;
+    color: #006d77;
+    font-size: 0.7rem;
+    font-weight: 900;
+    text-transform: uppercase;
+}
+
+.demo-replay-status strong {
+    display: block;
+    margin-top: 3px;
+    font-size: 0.92rem;
+}
+
+.demo-replay-collapse {
+    flex: 0 0 auto;
+    min-height: 28px;
+    padding: 4px 8px;
+    border: 1px solid #b9c6d1;
+    background: #f7fafc;
+    color: #17212b;
+    font-size: 0.7rem;
+    font-weight: 900;
+}
+
+.demo-replay-status p {
+    margin: 4px 0 0;
+    color: #526272;
+    font-size: 0.76rem;
+    line-height: 1.35;
+}
+
+.demo-replay-controls,
+.demo-replay-seek {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: 10px;
+}
+
+.demo-replay-controls button,
+.demo-replay-seek button {
+    min-height: 30px;
+    padding: 5px 9px;
+    border: 1px solid #b9c6d1;
+    background: #ffffff;
+    color: #17212b;
+    font-size: 0.72rem;
+    font-weight: 800;
+}
+
+.demo-replay-controls button:first-child {
+    border-color: #006d77;
+    color: #004f57;
+}
+
+.demo-replay-seek {
+    padding-top: 8px;
+    border-top: 1px solid #dde5ec;
+}
+
+.demo-replay-seek button {
+    background: #f7fafc;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .demo-replay-cursor {
+        transition-duration: 80ms;
+    }
+}

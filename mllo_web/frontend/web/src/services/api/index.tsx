@@ -1,4 +1,14 @@
-export const buildV1Url = (path: string): string => `http://localhost:5252/api/v1/${path}`;
+const getApiBaseUrl = (): string => {
+    const configuredBase = import.meta.env.VITE_API_BASE_URL as string | undefined;
+    if (configuredBase) {
+        return configuredBase.replace(/\/$/, '');
+    }
+
+    const host = window.location.hostname || '127.0.0.1';
+    return `http://${host}:5252/api/v1`;
+};
+
+export const buildV1Url = (path: string): string => `${getApiBaseUrl()}/${path}`;
 
 export const downloadFromResponse = async (response: Response, default_filename: string) => {
     const blob = await response.blob();

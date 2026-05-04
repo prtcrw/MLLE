@@ -11,10 +11,13 @@ PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
 PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
 PREFIX bfo: <http://purl.obolibrary.org/obo/>
 PREFIX iof-core: <https://spec.industrialontologies.org/ontology/core/Core/>
+PREFIX owl: <http://www.w3.org/2002/07/owl#>
 SELECT DISTINCT
     ?model
     ?model_type
+    ?model_objective_iri
     ?model_objective
+    ?model_objective_description
     ?deployment_status
     ?linked_dataset
     ?linked_dataset_type
@@ -33,6 +36,12 @@ WHERE {
     OPTIONAL {
         ?model bfo:BFO_0000178 ?model_objective_iri .
         ?model_objective_iri rdf:type/rdfs:label ?model_objective .
+        OPTIONAL {
+            ?model_objective_iri ?objective_description_property ?model_objective_description .
+            ?objective_description_property rdf:type owl:AnnotationProperty .
+            ?objective_description_property rdfs:label ?objective_description_property_label .
+            FILTER(LCASE(STR(?objective_description_property_label)) = "description")
+        }
     }
     OPTIONAL {
         ?process (ml:executes | bfo:BFO_0000057) ?model .
@@ -158,6 +167,7 @@ class FindModelsQueryBuilder(QueryBuilder):
         "Model": "model",
         "Model Type": "model_type",
         "Objective": "model_objective",
+        "Objective Description": "model_objective_description",
         "Deployment Status": "deployment_status",
         "Linked Dataset": "linked_dataset",
         "Linked Dataset Type": "linked_dataset_type",
@@ -193,6 +203,8 @@ class FindModelsQueryBuilder(QueryBuilder):
                         "FILTER(",
                         f'    CONTAINS(LCASE(COALESCE(?model_label, "")), LCASE("{self.search_term}")) ||',
                         f'    CONTAINS(LCASE(STRAFTER(STR(?model), "#")), LCASE("{normalized}")) ||',
+                        f'    CONTAINS(LCASE(COALESCE(?model_objective, "")), LCASE("{self.search_term}")) ||',
+                        f'    CONTAINS(LCASE(COALESCE(?model_objective_description, "")), LCASE("{self.search_term}")) ||',
                         f'    CONTAINS(LCASE(COALESCE(STRAFTER(STR(?linked_dataset), "#"), "")), LCASE("{normalized}")) ||',
                         f'    CONTAINS(LCASE(COALESCE(STRAFTER(STR(?linked_pipeline), "#"), "")), LCASE("{normalized}"))',
                         ")",
@@ -247,4 +259,3 @@ class DeployedModelsQueryBuilder(QueryBuilder):
         if config.sparql_backend == "graphdb":
             query = inject_explicit_graph(query)
         return query
-
