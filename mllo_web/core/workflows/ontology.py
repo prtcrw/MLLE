@@ -8,6 +8,7 @@ from fastapi import HTTPException
 logger = logging.getLogger(__name__)
 
 ONTOLOGY_UNAVAILABLE_USER_MESSAGE = "Can't access ontology data source."
+_ONTOLOGY_CONTEXT_CACHE: dict[str, dict] = {}
 
 
 def build_ontology_context(
@@ -234,6 +235,8 @@ def ontology_context_to_text(ctx: dict, max_chars: int = 8000) -> str:
 
 
 async def load_ontology_context(client, repo: str) -> dict:
+    if repo in _ONTOLOGY_CONTEXT_CACHE:
+        return _ONTOLOGY_CONTEXT_CACHE[repo]
     try:
         schema_rows = await client.get_ontology_schema(repo)
         prefix_rows = await client.get_prefixes(repo)
@@ -242,4 +245,6 @@ async def load_ontology_context(client, repo: str) -> dict:
     except Exception as exc:
         logger.error("Failed to fetch ontology schema: %s", exc)
         raise HTTPException(status_code=500, detail=ONTOLOGY_UNAVAILABLE_USER_MESSAGE) from exc
-    return build_ontology_context(schema_rows, prefix_rows, sample_rows, individual_rows)
+    ctx = build_ontology_context(schema_rows, prefix_rows, sample_rows, individual_rows)
+    _ONTOLOGY_CONTEXT_CACHE[repo] = ctx
+    return ctx

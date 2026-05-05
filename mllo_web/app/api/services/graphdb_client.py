@@ -44,7 +44,11 @@ class GraphDBClient:
         resolved_repo = repo or self.default_repo
         if self.repo_allowlist is not None and resolved_repo not in self.repo_allowlist:
             raise ValueError(f"Repository '{resolved_repo}' is not allowed")
-        repos = await self.list_repos()
+        try:
+            repos = await self.list_repos()
+        except Exception as exc:
+            logger.warning("GraphDB repo listing failed; using requested repo '%s': %s", resolved_repo, exc)
+            return resolved_repo
         if resolved_repo not in repos:
             raise ValueError(f"Repository '{resolved_repo}' was not found")
         return resolved_repo

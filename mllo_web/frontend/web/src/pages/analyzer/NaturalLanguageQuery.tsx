@@ -179,7 +179,7 @@ interface PersistedNLQState {
     selectedRepo: string;
     answerMode: 'exact' | 'conceptual' | 'auto';
     metadata: {repo_used: string; inference_used: boolean} | null;
-    debugInfo: {tool: string; reasoning: string} | null;
+    debugInfo: {tool: string; executionTool?: string | null; reasoning: string} | null;
 }
 
 const NaturalLanguageQuery: React.FC = () => {
@@ -194,7 +194,7 @@ const NaturalLanguageQuery: React.FC = () => {
     const [selectedRepo, setSelectedRepo] = useState('');
     const [answerMode, setAnswerMode] = useState<'exact' | 'conceptual' | 'auto'>('auto');
     const [metadata, setMetadata] = useState<{repo_used: string; inference_used: boolean} | null>(null);
-    const [debugInfo, setDebugInfo] = useState<{tool: string; reasoning: string} | null>(null);
+    const [debugInfo, setDebugInfo] = useState<{tool: string; executionTool?: string | null; reasoning: string} | null>(null);
     const [hasRestoredState, setHasRestoredState] = useState(false);
     const examplePrompts = [
         'Get all pipelines.',
@@ -285,7 +285,7 @@ const NaturalLanguageQuery: React.FC = () => {
             setResults(res.results);
             setAnswer(res.answer);
             setMetadata({repo_used: res.repo_used, inference_used: res.inference_used});
-            setDebugInfo({tool: res.intent.tool, reasoning: res.intent.reasoning});
+            setDebugInfo({tool: res.intent.tool, executionTool: res.execution_tool, reasoning: res.intent.reasoning});
         } catch (err: any) {
             setError(err.message || String(err));
         } finally {
@@ -412,6 +412,7 @@ const NaturalLanguageQuery: React.FC = () => {
                         <summary>Debug Info</summary>
                         <div style={{marginTop: '0.5rem'}}>
                             <div><strong>Intent Tool:</strong> {debugInfo.tool}</div>
+                            {debugInfo.executionTool && <div><strong>Execution Tool:</strong> {debugInfo.executionTool}</div>}
                             <div><strong>Reasoning:</strong> {debugInfo.reasoning}</div>
                         </div>
                     </details>

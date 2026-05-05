@@ -2,12 +2,15 @@ from __future__ import annotations
 
 import contextvars
 import json
+import logging
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 from uuid import uuid4
 
 from mllo_web.app.api.services.settings_model import get_app_data_dir
+
+logger = logging.getLogger(__name__)
 
 _current_trace: contextvars.ContextVar[dict[str, Any] | None] = contextvars.ContextVar(
     "mllo_nlq_trace",
@@ -83,9 +86,12 @@ def finalize_nlq_trace(*, success: bool, payload: dict[str, Any] | None = None, 
 
     if trace.get("enabled"):
         path = _log_file_path()
-        path.parent.mkdir(parents=True, exist_ok=True)
-        with path.open("a", encoding="utf-8") as handle:
-            handle.write(json.dumps(trace, ensure_ascii=True) + "\n")
+        try:
+            path.parent.mkdir(parents=True, exist_ok=True)
+            with path.open("a", encoding="utf-8") as handle:
+                handle.write(json.dumps(trace, ensure_ascii=True) + "\n")
+        except OSError as exc:
+            logger.warning("Failed to write NLQ trace log to %s: %s", path, exc)
 
     return trace
 

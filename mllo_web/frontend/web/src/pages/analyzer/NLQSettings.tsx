@@ -297,6 +297,7 @@ export const SettingsLogsPage: React.FC = () => {
                                             <div><strong>Started</strong><div>{new Date(log.started_at).toLocaleString()}</div></div>
                                             <div><strong>LLM Model</strong><div>{String(primaryModel)}</div></div>
                                             <div><strong>Intent</strong><div>{String(intent.tool ?? 'Unknown')}</div></div>
+                                            <div><strong>Execution</strong><div>{String(response.execution_tool ?? intent.tool ?? 'Unknown')}</div></div>
                                             <div><strong>Repo</strong><div>{String(response.repo_used ?? log.metadata?.repo_requested ?? '')}</div></div>
                                             <div><strong>Rows</strong><div>{Array.isArray(response.results) ? response.results.length : 0}</div></div>
                                         </div>

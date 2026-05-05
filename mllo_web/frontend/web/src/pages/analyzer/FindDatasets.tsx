@@ -87,6 +87,14 @@ const formatDateParam = (value: Date | null) => {
     return value.toISOString().slice(0, 10);
 };
 
+const stripReplayParams = (search: string) => {
+    const params = new URLSearchParams(search);
+    params.delete('replay');
+    params.delete('from');
+    const nextSearch = params.toString();
+    return nextSearch ? `?${nextSearch}` : '';
+};
+
 const escapeCsvValue = (value: unknown) => {
     const text = value === null || value === undefined ? '' : String(value);
     return `"${text.replace(/"/g, '""')}"`;
@@ -257,8 +265,9 @@ const FindDatasets: React.FC = () => {
 
     useEffect(() => {
         const savedSearch = window.sessionStorage.getItem(DATASETS_VIEW_STATE_KEY);
-        if (!location.search && savedSearch) {
-            navigate({pathname: location.pathname, search: savedSearch}, {replace: true});
+        const cleanSavedSearch = savedSearch ? stripReplayParams(savedSearch) : '';
+        if (!location.search && cleanSavedSearch) {
+            navigate({pathname: location.pathname, search: cleanSavedSearch}, {replace: true});
             return;
         }
         setHasHydratedState(true);
@@ -268,7 +277,7 @@ const FindDatasets: React.FC = () => {
         if (!hasHydratedState) {
             return;
         }
-        window.sessionStorage.setItem(DATASETS_VIEW_STATE_KEY, location.search);
+        window.sessionStorage.setItem(DATASETS_VIEW_STATE_KEY, stripReplayParams(location.search));
     }, [hasHydratedState, location.search]);
 
     useEffect(() => {

@@ -1,5 +1,5 @@
 import React, {useEffect, useMemo, useState} from 'react';
-import {useNavigate} from 'react-router-dom';
+import {useLocation, useNavigate} from 'react-router-dom';
 import {buildV1Url} from '../../services/api';
 import LoadingBar from '../../components/LoadingBar.tsx';
 import ErrorMessage from '../../components/ErrorMessage.tsx';
@@ -13,7 +13,9 @@ import './styles/discovery.css';
 interface ModelRecord {
     model: string;
     model_type: string;
+    model_objective_iri: string;
     model_objective: string;
+    model_objective_description: string;
     deployment_status: string;
     linked_dataset: string;
     linked_dataset_type: string;
@@ -30,7 +32,9 @@ interface ExplorerModel {
     iri: string;
     label: string;
     modelTypes: string[];
+    objectiveIris: string[];
     objectives: string[];
+    objectiveDescriptions: string[];
     deploymentStatus: 'Deployed' | 'Undeployed';
     linkedDatasets: { iri: string; typeLabel: string }[];
     linkedPipelines: string[];
@@ -83,11 +87,23 @@ const humanizeText = (value: string) => {
     return value;
 };
 
+const formatObjectives = (objectives: string[]) => {
+    const formatted = objectives.map(humanizeText).filter(Boolean);
+    return formatted.length > 0 ? formatted.join(', ') : 'Objective not recorded';
+};
+
+const formatDescriptions = (descriptions: string[]) => {
+    const formatted = descriptions.filter((description) => description.trim().length > 0);
+    return formatted.length > 0 ? formatted.join(' ') : 'Description not recorded';
+};
+
 const FindModels: React.FC = () => {
-    const [searchTerm, setSearchTerm] = useState('');
+    const location = useLocation();
+    const initialParams = new URLSearchParams(location.search);
+    const [searchTerm, setSearchTerm] = useState(initialParams.get('search_term') ?? '');
     const [rows, setRows] = useState<ModelRecord[]>([]);
     const [selectedModelTypes, setSelectedModelTypes] = useState<string[]>([]);
-    const [selectedDeploymentStatus, setSelectedDeploymentStatus] = useState<string[]>([]);
+    const [selectedDeploymentStatus, setSelectedDeploymentStatus] = useState<string[]>(initialParams.getAll('deployment_status'));
     const [selectedModelIri, setSelectedModelIri] = useState<string | null>(null);
     const [isLoading, setIsLoading] = useState(false);
     const [message, setMessage] = useState('');
@@ -119,7 +135,9 @@ const FindModels: React.FC = () => {
                 iri: row.model,
                 label: pascalCaseToWords(getUniqueIriPart(row.model)),
                 modelTypes: [],
+                objectiveIris: [],
                 objectives: [],
+                objectiveDescriptions: [],
                 deploymentStatus: row.deployment_status === 'Deployed' ? 'Deployed' : 'Undeployed',
                 linkedDatasets: [],
                 linkedPipelines: [],
@@ -134,7 +152,9 @@ const FindModels: React.FC = () => {
                 current.deploymentStatus = 'Deployed';
             }
             addUnique(current.modelTypes, row.model_type);
+            addUnique(current.objectiveIris, row.model_objective_iri);
             addUnique(current.objectives, row.model_objective);
+            addUnique(current.objectiveDescriptions, row.model_objective_description);
             if (row.linked_dataset && !current.linkedDatasets.some((dataset) => dataset.iri === row.linked_dataset && dataset.typeLabel === (row.linked_dataset_type || 'Unclassified dataset'))) {
                 current.linkedDatasets.push({
                     iri: row.linked_dataset,
@@ -234,8 +254,13 @@ const FindModels: React.FC = () => {
     };
 
     useEffect(() => {
-        void fetchData(searchTerm, selectedModelTypes, selectedDeploymentStatus);
-    }, []);
+        const params = new URLSearchParams(location.search);
+        const seededSearchTerm = params.get('search_term') ?? '';
+        const seededDeploymentStatus = params.getAll('deployment_status');
+        setSearchTerm(seededSearchTerm);
+        setSelectedDeploymentStatus(seededDeploymentStatus);
+        void fetchData(seededSearchTerm, selectedModelTypes, seededDeploymentStatus);
+    }, [location.search]);
 
     useEffect(() => {
         if (!selectedModelIri && explorerModels.length > 0) {
@@ -260,11 +285,13 @@ const FindModels: React.FC = () => {
 
         downloadCsv(
             'find_models.csv',
-            ['model', 'model_types', 'objectives', 'deployment_status', 'linked_datasets', 'linked_pipelines', 'deployed_on_systems', 'last_model_update', 'last_model_execution', 'output_utilizations', 'performance_entries'],
+            ['model', 'model_types', 'objective_iris', 'objectives', 'objective_descriptions', 'deployment_status', 'linked_datasets', 'linked_pipelines', 'deployed_on_systems', 'last_model_update', 'last_model_execution', 'output_utilizations', 'performance_entries'],
             explorerModels.map((model) => [
                 model.iri,
                 model.modelTypes.join('; '),
+                model.objectiveIris.join('; '),
                 model.objectives.join('; '),
+                model.objectiveDescriptions.join('; '),
                 model.deploymentStatus,
                 model.linkedDatasets.map((dataset) => `${dataset.typeLabel}: ${dataset.iri}`).join('; '),
                 model.linkedPipelines.join('; '),
@@ -297,6 +324,25 @@ const FindModels: React.FC = () => {
     const closePopup = () => {
         setIsPopupOpen(false);
         setQueryResult(null);
+    };
+
+    const renderObjectiveLinks = (model: ExplorerModel) => {
+        if (model.objectiveIris.length === 0) {
+            return formatObjectives(model.objectives);
+        }
+
+        return model.objectiveIris.map((iri, index) => (
+            <React.Fragment key={iri}>
+                {index > 0 && ', '}
+                <button
+                    type="button"
+                    className="model-explorer-inline-link"
+                    onClick={() => void handleIriClick(iri)}
+                >
+                    {humanizeText(model.objectives[index] || getUniqueIriPart(iri))}
+                </button>
+            </React.Fragment>
+        ));
     };
 
     const handleAnalyzeModels = (model?: ExplorerModel | null) => {
@@ -447,6 +493,13 @@ const FindModels: React.FC = () => {
                                         <span>{model.linkedDatasets.length} datasets</span>
                                         <span>{model.linkedPipelines.length} pipelines</span>
                                     </div>
+                                    <div className="model-explorer-card-objective">
+                                        <span>Objective</span>
+                                        <strong>{formatObjectives(model.objectives)}</strong>
+                                    </div>
+                                    <p className="model-explorer-card-description">
+                                        {formatDescriptions(model.objectiveDescriptions)}
+                                    </p>
                                 </button>
                             ))}
                         </aside>
@@ -457,6 +510,12 @@ const FindModels: React.FC = () => {
                                     <div>
                                         <div className="model-explorer-kicker">Machine Learning Model</div>
                                         <h2>{selectedModel.label}</h2>
+                                        <div className="model-explorer-objective">
+                                            {renderObjectiveLinks(selectedModel)}
+                                        </div>
+                                        <p className="model-explorer-description">
+                                            {formatDescriptions(selectedModel.objectiveDescriptions)}
+                                        </p>
                                     </div>
                                     <div className={`model-explorer-status-badge ${selectedModel.deploymentStatus === 'Deployed' ? 'deployed' : 'undeployed'}`}>
                                         {selectedModel.deploymentStatus}
@@ -469,11 +528,11 @@ const FindModels: React.FC = () => {
                                         <strong>{selectedModel.linkedDatasets.length}</strong>
                                     </div>
                                     <div className="model-explorer-stat">
-                                        <span>Pipelines</span>
+                                        <span>Development Pipelines</span>
                                         <strong>{selectedModel.linkedPipelines.length}</strong>
                                     </div>
                                     <div className="model-explorer-stat">
-                                        <span>Systems</span>
+                                        <span>Deployed Systems</span>
                                         <strong>{selectedModel.deployedOnSystems.length}</strong>
                                     </div>
                                     <div className="model-explorer-stat">
@@ -530,7 +589,8 @@ const FindModels: React.FC = () => {
                                     <ul className="model-explorer-list">
                                         <li><strong>IRI:</strong> {selectedModel.iri}</li>
                                         <li><strong>Model Type:</strong> {selectedModel.modelTypes.map(humanizeText).join(', ') || '-'}</li>
-                                        <li><strong>Objective:</strong> {selectedModel.objectives.map(humanizeText).join(', ') || '-'}</li>
+                                        <li><strong>Objective:</strong> {renderObjectiveLinks(selectedModel)}</li>
+                                        <li><strong>Objective Description:</strong> {formatDescriptions(selectedModel.objectiveDescriptions)}</li>
                                         <li><strong>Latest Training / Update:</strong> {selectedModel.lastModelUpdate || '-'}</li>
                                         <li><strong>Latest Execution:</strong> {selectedModel.lastModelExecution || '-'}</li>
                                     </ul>

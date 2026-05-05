@@ -5,6 +5,7 @@ import unittest
 from unittest.mock import patch
 
 from mllo_web.app.api.services.settings_model import MLLESettings, load_settings
+from mllo_web.core.workflows.performance import merge_process_pipeline_rows
 from mllo_web.core.workflows.nlq import execute_nlq
 
 
@@ -122,6 +123,37 @@ class NLQRegressionTests(unittest.IsolatedAsyncioTestCase):
         self.assertIn("model_name", result_keys)
         self.assertIn("test_datasets", result_keys)
         self.assertIn("pipelines", result_keys)
+
+        for row in response.results:
+            ml_process = row.get("ml_process")
+            pipelines = row.get("pipelines") or []
+            if ml_process and pipelines:
+                self.assertIn(ml_process, pipelines)
+
+    def test_performance_pipeline_enrichment_preserves_process_anchor(self) -> None:
+        rows = [
+            {
+                "model_name": "MLModel1",
+                "ml_process": "ModelExecution4",
+                "model_performance_value": "0.9807",
+                "test_datasets": ["PreprocessedDataset4"],
+            },
+            {
+                "model_name": "MLModel1",
+                "ml_process": "ModelExecution5",
+                "model_performance_value": "0.9803",
+                "test_datasets": ["PreprocessedDataset5"],
+            },
+        ]
+        pipeline_rows = [
+            {"ml_process": "ModelExecution4", "pipeline": "ModelExecution4", "pipeline_relation": "same process"},
+            {"ml_process": "ModelExecution5", "pipeline": "ModelExecution5", "pipeline_relation": "same process"},
+        ]
+
+        merged = merge_process_pipeline_rows(rows, pipeline_rows)
+
+        self.assertEqual(merged[0]["pipelines"], ["ModelExecution4"])
+        self.assertEqual(merged[1]["pipelines"], ["ModelExecution5"])
 
     async def test_conceptual_dataset_prompt_uses_inference(self) -> None:
         response = await self._execute("Which kinds of datasets exist in MLLO?")

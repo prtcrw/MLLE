@@ -23,6 +23,7 @@ interface ChatAssistantPayload {
     inference_used: boolean;
     intent: {
         tool: string;
+        executionTool?: string | null;
         reasoning: string;
     };
 }
@@ -254,6 +255,8 @@ const ChatWithMLLO: React.FC = () => {
     const [repos, setRepos] = useState<string[]>([]);
     const [selectedRepo, setSelectedRepo] = useState('');
     const [answerMode, setAnswerMode] = useState<AnswerMode>('auto');
+    const [forceCustomSparql, setForceCustomSparql] = useState(false);
+    const [customSparqlEnhancedPrompt, setCustomSparqlEnhancedPrompt] = useState(false);
     const [selectedExample, setSelectedExample] = useState('');
     const [chatReady, setChatReady] = useState(false);
 
@@ -336,7 +339,13 @@ const ChatWithMLLO: React.FC = () => {
 
         try {
             const contextualQuestion = buildContextualQuestion(messages, trimmed);
-            const response: NLQResponse = await queryNaturalLanguage(contextualQuestion, selectedRepo, answerMode);
+            const response: NLQResponse = await queryNaturalLanguage(
+                contextualQuestion,
+                selectedRepo,
+                answerMode,
+                forceCustomSparql,
+                customSparqlEnhancedPrompt,
+            );
             const assistantMessage: ChatMessage = {
                 id: makeId(),
                 role: 'assistant',
@@ -349,6 +358,7 @@ const ChatWithMLLO: React.FC = () => {
                     inference_used: response.inference_used,
                     intent: {
                         tool: response.intent.tool,
+                        executionTool: response.execution_tool,
                         reasoning: response.intent.reasoning,
                     },
                 },
@@ -398,6 +408,24 @@ const ChatWithMLLO: React.FC = () => {
                         <option value="conceptual">Conceptual</option>
                         <option value="auto">Auto</option>
                     </select>
+                </label>
+                <label style={{display: 'flex', alignItems: 'center', gap: '0.45rem', minHeight: '3.75rem'}}>
+                    <input
+                        type="checkbox"
+                        checked={forceCustomSparql}
+                        onChange={(e) => setForceCustomSparql(e.target.checked)}
+                        disabled={loading}
+                    />
+                    Force custom SPARQL
+                </label>
+                <label style={{display: 'flex', alignItems: 'center', gap: '0.45rem', minHeight: '3.75rem'}} title="Adds MLLO terms, patterns, examples, and observed class-path grounding to the custom SPARQL prompt. Leave off for pure node-hop grounding.">
+                    <input
+                        type="checkbox"
+                        checked={customSparqlEnhancedPrompt}
+                        onChange={(e) => setCustomSparqlEnhancedPrompt(e.target.checked)}
+                        disabled={loading}
+                    />
+                    Enhanced grounding
                 </label>
             </div>
 
@@ -474,6 +502,9 @@ const ChatWithMLLO: React.FC = () => {
                                                 <summary>Debug Info</summary>
                                                 <div style={{marginTop: '0.5rem'}}>
                                                     <div><strong>Intent Tool:</strong> {message.payload.intent.tool}</div>
+                                                    {message.payload.intent.executionTool && (
+                                                        <div><strong>Execution Tool:</strong> {message.payload.intent.executionTool}</div>
+                                                    )}
                                                     <div><strong>Reasoning:</strong> {message.payload.intent.reasoning}</div>
                                                 </div>
                                             </details>

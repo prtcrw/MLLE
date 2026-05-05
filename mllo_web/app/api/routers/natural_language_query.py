@@ -16,4 +16,10 @@ async def nlq_query(body: NLQRequest) -> NLQResponse:
     question = body.question.strip()
     if not question:
         raise HTTPException(status_code=400, detail="Question is required.")
-    return await execute_nlq(question, repo=body.repo, answer_mode=body.answer_mode)
+    return await execute_nlq(
+        question,
+        repo=body.repo,
+        answer_mode=body.answer_mode,
+        force_custom_sparql=body.force_custom_sparql,
+        custom_sparql_enhanced_prompt=body.custom_sparql_enhanced_prompt,
+    )

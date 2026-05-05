@@ -3,9 +3,12 @@ from __future__ import annotations
 import re
 from typing import Any
 
+from mllo_web.core.workflows.lineage import current_question_text
+
 
 def performance_query_spec(question: str) -> dict[str, Any] | None:
-    lowered = question.lower()
+    focused = current_question_text(question)
+    lowered = focused.lower()
     if not any(
         token in lowered
         for token in ("performance", "accuracy", "metric", "score", "best", "top", "highest", "lowest", "more than", "less than")
@@ -93,16 +96,24 @@ LIMIT 200
 """
 
 
-def build_model_pipeline_query(model_iris: list[str]) -> str:
-    escaped_models = " ".join(f"<{model}>" for model in model_iris if model)
+def build_process_pipeline_query(process_iris: list[str]) -> str:
+    escaped_processes = " ".join(f"<{process}>" for process in process_iris if process)
     return f"""
 PREFIX ml: <http://www.semanticweb.org/mnd14/ml/>
 PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
 PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
 PREFIX bfo: <http://purl.obolibrary.org/obo/>
-SELECT DISTINCT ?model_name ?pipeline WHERE {{
-    VALUES ?model_name {{ {escaped_models} }}
-    ?pipeline bfo:BFO_0000117*/(bfo:BFO_0000057 | ml:executes) ?model_name .
+SELECT DISTINCT ?ml_process ?pipeline ?pipeline_relation WHERE {{
+    VALUES ?ml_process {{ {escaped_processes} }}
+    {{
+        BIND(?ml_process AS ?pipeline)
+        BIND("same process" AS ?pipeline_relation)
+    }}
+    UNION
+    {{
+        ?pipeline bfo:BFO_0000117+ ?ml_process .
+        BIND("contains process" AS ?pipeline_relation)
+    }}
 }}
 LIMIT 200
 """
@@ -175,17 +186,30 @@ def merge_model_dataset_rows(performance_rows: list[dict[str, Any]], dataset_row
     return merged
 
 
-def merge_model_pipeline_rows(performance_rows: list[dict[str, Any]], pipeline_rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    pipelines_by_model: dict[str, list[str]] = {}
+def merge_process_pipeline_rows(performance_rows: list[dict[str, Any]], pipeline_rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    pipelines_by_process: dict[str, list[str]] = {}
+    relations_by_process: dict[str, list[str]] = {}
     for row in pipeline_rows:
-        model_name = row.get("model_name")
+        ml_process = row.get("ml_process")
         pipeline = row.get("pipeline")
-        if not model_name or not pipeline:
+        relation = row.get("pipeline_relation")
+        if not ml_process or not pipeline:
             continue
-        bucket = pipelines_by_model.setdefault(model_name, [])
+        bucket = pipelines_by_process.setdefault(ml_process, [])
         if pipeline not in bucket:
             bucket.append(pipeline)
-    return [{**row, "pipelines": pipelines_by_model.get(row.get("model_name"), [])} for row in performance_rows]
+        if relation:
+            relation_bucket = relations_by_process.setdefault(ml_process, [])
+            if relation not in relation_bucket:
+                relation_bucket.append(relation)
+    return [
+        {
+            **row,
+            "pipelines": pipelines_by_process.get(row.get("ml_process"), []),
+            "pipeline_relations": relations_by_process.get(row.get("ml_process"), []),
+        }
+        for row in performance_rows
+    ]
 
 
 def plan_performance_enrichment_steps(question: str) -> list[dict[str, Any]]:
@@ -201,9 +225,9 @@ def plan_performance_enrichment_steps(question: str) -> list[dict[str, Any]]:
     if question_requests_pipeline_context(question):
         steps.append(
             {
-                "tool": "find_pipelines_for_models",
+                "tool": "find_pipelines_for_processes",
                 "params": {},
-                "reasoning": "The question asks for related pipeline context.",
+                "reasoning": "The question asks for row-specific pipeline context.",
             }
         )
     return steps
@@ -265,19 +289,19 @@ async def execute_performance_orchestration(
             sparql_parts.append(f"-- Step {index}: model {dataset_kind} datasets\n{step_sparql}")
             continue
 
-        if tool == "find_pipelines_for_models":
-            step_sparql = build_model_pipeline_query(model_iris)
+        if tool == "find_pipelines_for_processes":
+            step_sparql = build_process_pipeline_query(process_iris)
             step_rows = await graphdb_client.query(step_sparql, repo=resolved_repo, use_inference=False)
             state.add_step(
                 tool=tool,
-                params={"model_iris": model_iris},
+                params={"process_iris": process_iris},
                 sparql=step_sparql,
                 results=step_rows,
                 inference_used=False,
                 reasoning=plan_step.get("reasoning"),
             )
-            combined_results = merge_model_pipeline_rows(combined_results, step_rows)
-            sparql_parts.append(f"-- Step {index}: model pipelines\n{step_sparql}")
+            combined_results = merge_process_pipeline_rows(combined_results, step_rows)
+            sparql_parts.append(f"-- Step {index}: process pipelines\n{step_sparql}")
 
     state.set_artifact("merged_rows", combined_results)
     return payload_type(

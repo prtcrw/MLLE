@@ -1,4 +1,14 @@
-export const buildV1Url = (path: string): string => `http://localhost:5252/api/v1/${path}`;
+const getApiBaseUrl = (): string => {
+    const configuredBase = import.meta.env.VITE_API_BASE_URL as string | undefined;
+    if (configuredBase) {
+        return configuredBase.replace(/\/$/, '');
+    }
+
+    const host = window.location.hostname || '127.0.0.1';
+    return `http://${host}:5252/api/v1`;
+};
+
+export const buildV1Url = (path: string): string => `${getApiBaseUrl()}/${path}`;
 
 export const downloadFromResponse = async (response: Response, default_filename: string) => {
     const blob = await response.blob();
@@ -53,6 +63,7 @@ export interface QueryIntent {
 export interface NLQResponse {
     question: string;
     intent: QueryIntent;
+    execution_tool?: string | null;
     sparql: string;
     results: Record<string, string | null | string[]>[];
     answer: string;
@@ -306,6 +317,8 @@ export const queryNaturalLanguage = async (
     question: string,
     repo?: string,
     answerMode?: 'exact' | 'conceptual' | 'auto',
+    forceCustomSparql = false,
+    customSparqlEnhancedPrompt = false,
 ): Promise<NLQResponse> => {
     const response = await fetch(buildV1Url('nlq/query'), {
         method: 'POST',
@@ -316,6 +329,8 @@ export const queryNaturalLanguage = async (
             question,
             repo: repo || undefined,
             answer_mode: answerMode || undefined,
+            force_custom_sparql: forceCustomSparql,
+            custom_sparql_enhanced_prompt: customSparqlEnhancedPrompt,
         }),
     });
     if (!response.ok) {

@@ -7,6 +7,7 @@ const navGroups = [
         heading: 'Conversation',
         eyebrow: 'Ask and Inspect',
         items: [
+            {label: 'Demo Automations', path: '/demos'},
             {label: 'Chat with MLLO', path: '/chat-with-mllo'},
             {label: 'Natural Language Query', path: '/datasets/natural-language-query'},
         ],

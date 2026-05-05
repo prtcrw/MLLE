@@ -11,6 +11,8 @@ class NLQRequest(BaseModel):
     question: str
     repo: str | None = None
     answer_mode: str | None = None
+    force_custom_sparql: bool = False
+    custom_sparql_enhanced_prompt: bool = False
 
 
 class NLQStepRecord(BaseModel):
@@ -81,10 +83,23 @@ class NLQQueryState(BaseModel):
     def get_artifact(self, key: str, default: Any = None) -> Any:
         return self.artifacts.get(key, default)
 
+    def execution_tool(self) -> str | None:
+        if any(step.tool == "custom_sparql" for step in self.steps):
+            return "custom_sparql"
+        planner_action = self.artifacts.get("planner_action")
+        if isinstance(planner_action, dict) and planner_action.get("tool"):
+            return planner_action["tool"]
+        if self.plan:
+            return self.plan[0].tool
+        if self.steps:
+            return self.steps[0].tool
+        return None
+
 
 class NLQResponse(BaseModel):
     question: str
     intent: QueryIntent
+    execution_tool: str | None = None
     sparql: str
     results: list[dict[str, Any]]
     answer: str
@@ -97,4 +112,3 @@ class NLQExecutionPayload(BaseModel):
     results: list[dict[str, Any]]
     inference_used: bool
     state: NLQQueryState
-

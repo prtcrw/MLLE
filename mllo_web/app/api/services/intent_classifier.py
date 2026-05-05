@@ -50,6 +50,8 @@ Use custom_sparql with use_inference=false for provenance, lineage, and chain-tr
 Use custom_sparql with use_inference=false for ranking, aggregation, or metric-based questions, especially when the question includes:
 "best", "top", "highest", "lowest", "maximum", "minimum", "max", "min", "most accurate", "least accurate", "performance", "accuracy", "score", "metric"
 
+Use custom_sparql with use_inference=false for relationship joins across multiple artifact categories. This includes questions asking what entities "share" a dataset, what was "also" used by the same process, what is "later" reused by another process, or how models, pipelines, datasets, outputs, evaluations, and processes are connected.
+
 Do not use explore_category for ranking, performance, or superlative questions.
 
 Return JSON only with:
@@ -60,6 +62,30 @@ Return JSON only with:
   "reasoning": "brief explanation"
 }
 """
+
+
+def _is_relationship_join_question(question: str) -> bool:
+    lowered = question.lower()
+    relationship_terms = ("share", "same", "also", "later", "another process", "connected", "associated with")
+    artifact_mentions = sum(
+        1
+        for term in (
+            "model",
+            "models",
+            "pipeline",
+            "pipelines",
+            "dataset",
+            "datasets",
+            "output",
+            "outputs",
+            "process",
+            "processes",
+            "evaluation",
+            "evaluations",
+        )
+        if term in lowered
+    )
+    return artifact_mentions >= 2 and any(term in lowered for term in relationship_terms)
 
 
 def _extract_json(text: str) -> dict:
@@ -144,12 +170,12 @@ def _fallback_intent(question: str) -> QueryIntent:
             use_inference=False,
             reasoning="Fallback selected custom SPARQL for ranking or metric-based analysis.",
         )
-    if is_lineage_or_provenance:
+    if is_lineage_or_provenance or _is_relationship_join_question(question):
         return QueryIntent(
             tool="custom_sparql",
             params={"question": question},
             use_inference=False,
-            reasoning="Fallback selected custom SPARQL for provenance or lineage tracing.",
+            reasoning="Fallback selected custom SPARQL for provenance, lineage, or relationship-join tracing.",
         )
     if "pipeline" in lowered:
         return QueryIntent(
@@ -201,6 +227,14 @@ async def classify_intent(
             provider_config,
             purpose="intent_classification",
         )
-        return QueryIntent.model_validate(_extract_json(raw))
+        intent = QueryIntent.model_validate(_extract_json(raw))
+        if intent.tool != "custom_sparql" and _is_relationship_join_question(question):
+            return QueryIntent(
+                tool="custom_sparql",
+                params={"question": question},
+                use_inference=False,
+                reasoning="Overrode lookup intent because the question asks for a multi-artifact relationship join.",
+            )
+        return intent
     except Exception:
         return _fallback_intent(question)

@@ -15,8 +15,7 @@ from mllo_web.core.sparql import (
 )
 from mllo_web.core.workflows.answering import generate_answer
 from mllo_web.core.workflows.generation import (
-    REPAIR_MESSAGE,
-    SYSTEM_MESSAGE,
+    build_execution_repair_messages,
     contains_cannot_answer,
     extract_sparql,
     generate_sparql,
@@ -31,6 +30,7 @@ from mllo_web.core.workflows.shared import (
     normalize_list,
     pipeline_names_from_params,
 )
+from mllo_web.core.workflows.nlq_graph import LangGraphOrchestrationError, execute_nlq_graph
 from mllo_web.app.api.services.graphdb_client import GraphDBClient
 from mllo_web.app.api.services.interaction_logging import (
     finalize_nlq_trace,
@@ -104,11 +104,13 @@ async def _execute_with_state(
     use_inference: bool,
     graphdb_client: GraphDBClient,
     gateway: LLMGateway,
+    force_custom_sparql: bool = False,
+    custom_sparql_enhanced_prompt: bool = False,
 ) -> NLQExecutionPayload:
     state = NLQQueryState(question=question, repo=resolved_repo)
     state.set_artifact("intent", intent.model_dump())
 
-    if lineage_query_spec(question):
+    if lineage_query_spec(question) and not force_custom_sparql:
         return await execute_lineage_orchestration(
             question=question,
             resolved_repo=resolved_repo,
@@ -117,7 +119,7 @@ async def _execute_with_state(
             payload_type=NLQExecutionPayload,
         )
 
-    if performance_query_spec(question):
+    if performance_query_spec(question) and not force_custom_sparql:
         return await execute_performance_orchestration(
             question=question,
             resolved_repo=resolved_repo,
@@ -134,21 +136,27 @@ async def _execute_with_state(
         "compare_pipelines",
         "get_artifact_details",
         "explore_category",
-    }:
+    } and not force_custom_sparql:
         sparql, results = await _execute_structured_tool(intent, resolved_repo, use_inference, graphdb_client)
         state.add_step(tool=intent.tool, params=intent.params, sparql=sparql, results=results, inference_used=use_inference, reasoning=intent.reasoning)
         return NLQExecutionPayload(sparql=sparql, results=results, inference_used=use_inference, state=state)
 
     settings = load_settings()
-    sparql, ctx = await generate_sparql(intent.params.get("question") or question, resolved_repo, settings, graphdb_client, gateway)
+    grounding_context = {"prompt_mode": "enhanced"} if custom_sparql_enhanced_prompt else {"prompt_mode": "pure_node_hops"}
+    state.set_artifact("custom_sparql_prompt_mode", grounding_context["prompt_mode"])
+    sparql, ctx = await generate_sparql(
+        intent.params.get("question") or question,
+        resolved_repo,
+        settings,
+        graphdb_client,
+        gateway,
+        grounding_context=grounding_context,
+        enhanced_prompt=custom_sparql_enhanced_prompt,
+    )
     try:
         results = await graphdb_client.query(sparql, repo=resolved_repo, use_inference=use_inference)
     except Exception as exc:
-        repair_prompt = [
-            {"role": "system", "content": SYSTEM_MESSAGE},
-            {"role": "assistant", "content": sparql},
-            {"role": "user", "content": f"{REPAIR_MESSAGE}\n\nExecution error:\n{exc}"},
-        ]
+        repair_prompt = build_execution_repair_messages(sparql, exc, enhanced_prompt=custom_sparql_enhanced_prompt)
         repaired = await gateway.chat_completion(repair_prompt, active_provider_config(settings), purpose="sparql_repair_execution")
         if contains_cannot_answer(repaired):
             raise HTTPException(status_code=422, detail="The question cannot be answered using the available ontology.")
@@ -158,10 +166,12 @@ async def _execute_with_state(
     return NLQExecutionPayload(sparql=sparql, results=results, inference_used=use_inference, state=state)
 
 
-async def execute_nlq(
+async def execute_nlq_legacy(
     question: str,
     repo: str | None = None,
     answer_mode: str | None = None,
+    force_custom_sparql: bool = False,
+    custom_sparql_enhanced_prompt: bool = False,
 ) -> NLQResponse:
     settings = load_settings()
     trace_token = start_nlq_trace(
@@ -171,6 +181,8 @@ async def execute_nlq(
             "repo_requested": repo,
             "answer_mode_requested": answer_mode,
             "active_llm_provider": settings.active_llm_provider,
+            "force_custom_sparql": force_custom_sparql,
+            "custom_sparql_enhanced_prompt": custom_sparql_enhanced_prompt,
         },
     )
     resolved_answer_mode = answer_mode or settings.answer_mode
@@ -191,11 +203,14 @@ async def execute_nlq(
             use_inference=use_inference,
             graphdb_client=graphdb_client,
             gateway=gateway,
+            force_custom_sparql=force_custom_sparql,
+            custom_sparql_enhanced_prompt=custom_sparql_enhanced_prompt,
         )
         answer = await generate_answer(question, execution.results, settings, gateway, state=execution.state)
         response = NLQResponse(
             question=question,
             intent=intent,
+            execution_tool=execution.state.execution_tool(),
             sparql=execution.sparql,
             results=execution.results,
             answer=answer,
@@ -224,7 +239,85 @@ async def execute_nlq(
         reset_nlq_trace(trace_token)
 
 
+async def execute_nlq(
+    question: str,
+    repo: str | None = None,
+    answer_mode: str | None = None,
+    force_custom_sparql: bool = False,
+    custom_sparql_enhanced_prompt: bool = False,
+) -> NLQResponse:
+    settings = load_settings()
+    trace_token = start_nlq_trace(
+        enabled=settings.enable_nlq_logging,
+        metadata={
+            "question": question,
+            "repo_requested": repo,
+            "answer_mode_requested": answer_mode,
+            "active_llm_provider": settings.active_llm_provider,
+            "orchestration": "langgraph",
+            "force_custom_sparql": force_custom_sparql,
+            "custom_sparql_enhanced_prompt": custom_sparql_enhanced_prompt,
+        },
+    )
+    resolved_answer_mode = answer_mode or settings.answer_mode
+    graphdb_client = GraphDBClient(
+        base_url=settings.graphdb_url,
+        default_repo=settings.graphdb_default_repo,
+        repo_allowlist=settings.graphdb_repo_allowlist,
+    )
+    gateway = LLMGateway()
+    try:
+        response, execution_state = await execute_nlq_graph(
+            question=question,
+            repo=repo,
+            answer_mode=answer_mode,
+            settings=settings,
+            graphdb_client=graphdb_client,
+            gateway=gateway,
+            force_custom_sparql=force_custom_sparql,
+            custom_sparql_enhanced_prompt=custom_sparql_enhanced_prompt,
+        )
+        update_nlq_trace(
+            resolved_repo=response.repo_used,
+            resolved_answer_mode=resolved_answer_mode,
+            intent=response.intent.model_dump(),
+        )
+        finalize_nlq_trace(
+            success=True,
+            payload={
+                "response": response.model_dump(mode="json"),
+                "plan": [step.model_dump(mode="json") for step in execution_state.plan],
+                "steps": [step.model_dump(mode="json") for step in execution_state.steps],
+                "artifacts": execution_state.artifacts,
+            },
+        )
+        return response
+    except LangGraphOrchestrationError as exc:
+        finalize_nlq_trace(success=False, error=f"LangGraph orchestration failed; falling back to legacy NLQ: {exc}")
+        reset_nlq_trace(trace_token)
+        trace_token = None
+        return await execute_nlq_legacy(
+            question,
+            repo=repo,
+            answer_mode=answer_mode,
+            force_custom_sparql=force_custom_sparql,
+            custom_sparql_enhanced_prompt=custom_sparql_enhanced_prompt,
+        )
+    except Exception as exc:
+        finalize_nlq_trace(success=False, error=str(exc))
+        raise
+    finally:
+        if trace_token is not None:
+            reset_nlq_trace(trace_token)
+
+
 async def nlq_query(body: NLQRequest) -> NLQResponse:
     if not body.question.strip():
         raise HTTPException(status_code=400, detail="Question is required.")
-    return await execute_nlq(body.question.strip(), repo=body.repo, answer_mode=body.answer_mode)
+    return await execute_nlq(
+        body.question.strip(),
+        repo=body.repo,
+        answer_mode=body.answer_mode,
+        force_custom_sparql=body.force_custom_sparql,
+        custom_sparql_enhanced_prompt=body.custom_sparql_enhanced_prompt,
+    )
