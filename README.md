@@ -1,5 +1,5 @@
-# MLLO Web
-MLLO Web is a web application for [MLLOS](https://github.com/hakjuoh/MLLOS).
+# MLLE
+MLLE is a web application for [MLLO](https://github.com/iofoundry/ontology/tree/mllo-dev)
 
 This guide is intended for developers working on the MLLO Web project.
 
