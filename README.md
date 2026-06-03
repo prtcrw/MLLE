@@ -1,64 +1,151 @@
-# MLLO Web
-MLLO Web is a web application for [MLLO](https://github.com/hakjuoh/MLLOS).
+# MLLE
 
-This guide is intended for developers working on the MLLO Web project.
+MLLE is a web application for exploring [MLLO](https://github.com/iofoundry/ontology/tree/mllo-dev) data through a Python/FastAPI backend and a Vite/React frontend.
 
-### Prerequisites
+Use this guide if you want to run MLLE locally.
 
-- Node.js and npm: required for the Vite/React frontend.
-- Python 3.11+ with a virtual environment: recommended for isolating backend dependencies.
-- A SPARQL backend:
-  - MOBI Server version 3.0.0. [MOBI install guide](https://inovexcorp.github.io/mobi-docs/latest/index.html#installing_the_docker_image)
-  - GraphDB, if you prefer the GraphDB backend.
-- An LLM endpoint for natural-language query features. Local OpenAI-compatible servers such as LM Studio and Ollama are supported, along with OpenAI-compatible and Azure OpenAI/Foundry endpoints.
+## What You Need
 
-### Setting up the project
+Required:
 
-#### Create local environment configuration:
-```
+- Python 3.11 or newer
+- [uv](https://docs.astral.sh/uv/) for Python environment and dependency management
+- Node.js and npm
+- A SPARQL backend with MLLO data loaded
+
+Choose one SPARQL backend:
+
+- MOBI Server 3.0.0. See the [MOBI install guide](https://inovexcorp.github.io/mobi-docs/latest/index.html#installing_the_docker_image).
+- ([GraphDB](https://graphdb.ontotext.com/)).
+
+Optional:
+
+- An LLM endpoint. This is only needed for natural-language query and chat workflows. You can run the rest of the app without it.
+
+## Run MLLE Locally
+
+### 1. Clone the repository
+
+If you already have this repository, start from the repository root.
+
+### 2. Create your environment file
+
+```bash
 cp .env.example .env
 ```
 
-Edit `.env` for your local services. The most common values to check are:
+Open `.env` and choose the backend you want to use.
 
-- `HOST` / `PORT`: backend bind address. The frontend expects the backend at `http://localhost:5252`.
-- `SPARQL_BACKEND`: use `mobi` or `graphdb`.
-- `MOBI_ENDPOINT`, `MOBI_AUTH_*`: MOBI connection settings.
-- `GRAPHDB_URL`, `GRAPHDB_DEFAULT_REPO`, or `GRAPHDB_ENDPOINT`: GraphDB connection settings.
-- `LLM_*`: backend LLM request settings.
+If you do not create a `.env` file, or if `.env` does not set the SPARQL backend, MLLE uses GraphDB by default:
 
-#### Install frontend dependencies:
+```env
+SPARQL_BACKEND=graphdb
+GRAPHDB_URL=http://localhost:7200
+GRAPHDB_DEFAULT_REPO=mllo
+GRAPHDB_ENDPOINT=http://localhost:7200/repositories/mllo
+GRAPHDB_AUTH_TYPE=none
 ```
+
+The default GraphDB repository is `mllo`. Create or import an `mllo` repository in GraphDB and load the MLLO ontology/data there, or change `GRAPHDB_DEFAULT_REPO` to match your local MLLO repository name.
+
+For MOBI:
+
+```env
+SPARQL_BACKEND=mobi
+MOBI_ENDPOINT=https://localhost:8443/mobirest/sparql
+MOBI_AUTH_TYPE=basic
+MOBI_AUTH_USERNAME=admin
+MOBI_AUTH_PASSWORD=admin
+```
+
+For GraphDB:
+
+```env
+SPARQL_BACKEND=graphdb
+GRAPHDB_URL=http://localhost:7200
+GRAPHDB_DEFAULT_REPO=mllo4
+GRAPHDB_AUTH_TYPE=none
+```
+
+You can also set `GRAPHDB_ENDPOINT` directly if you want to use a full repository endpoint, for example:
+
+```env
+GRAPHDB_ENDPOINT=http://localhost:7200/repositories/mllo4
+```
+
+The default app server settings are:
+
+```env
+HOST=127.0.0.1
+PORT=5252
+DEV=true
+```
+
+The frontend expects the API at `http://localhost:5252/api/v1` unless you set `VITE_API_BASE_URL`.
+
+### 3. Install backend dependencies with uv
+
+```bash
+uv sync --python 3.11
+```
+
+This creates or updates the project `.venv` from `pyproject.toml` and `uv.lock`.
+
+### 4. Install frontend dependencies
+
+```bash
 cd mllo_web/frontend/web
 npm install
 cd ../../..
 ```
 
-#### Install/Activate virtualenv:
-```
-python -m venv .venv
-source .venv/bin/activate
+### 5. Start your SPARQL backend
+
+Start MOBI or GraphDB before starting MLLE.
+
+For GraphDB, make sure the repository named in `GRAPHDB_DEFAULT_REPO` exists and contains the MLLO data. For MOBI, make sure `MOBI_ENDPOINT` is reachable with the credentials from `.env`.
+
+### 6. Start the backend
+
+From the repository root:
+
+```bash
+uv run python -m mllo_web.app.api_app
 ```
 
-#### Install backend dependencies:
-```
-pip install -r requirements.txt
+The backend listens on `http://localhost:5252` by default.
+
+### 7. Start the frontend
+
+Open a second terminal:
+
+```bash
+cd mllo_web/frontend/web
+npm run dev
 ```
 
-### LLM setup
+Vite prints the local frontend URL, usually `http://localhost:5173`.
 
-Natural-language query features need an LLM provider. There are two related configuration surfaces:
+### 8. Open MLLE
+
+Open the Vite URL in your browser. Keep both terminals running while using the app in development mode.
+
+## Optional LLM Setup
+
+LLM setup is optional. Without an LLM endpoint, avoid the natural-language query and chat pages. SPARQL-backed browsing, search, and other non-LLM workflows can still run as long as your SPARQL backend is configured.
+
+There are two configuration surfaces:
 
 - `.env` controls backend defaults and low-level chat-completions requests.
-- The app Settings page (`/settings/llm`) controls the saved provider used by the NLQ workflow. Saved settings are stored in the user data directory as `MLLE/mlle_settings.json` and override defaults loaded from environment variables.
+- The app Settings page at `/settings/llm` stores provider settings for the natural-language workflow. Saved settings live in the user data directory as `MLLE/mlle_settings.json` and override environment defaults.
 
-#### LM Studio
+### LM Studio
 
 1. Start the LM Studio local server.
-2. Load a chat/instruct model.
-3. Use an OpenAI-compatible base URL:
+2. Load a chat or instruct model.
+3. Add or update these values in `.env`:
 
-```
+```env
 LLM_PROVIDER=lm_studio
 LLM_CLIENT_TYPE=openai_compatible
 LLM_BASE_URL=http://localhost:1234/v1
@@ -66,29 +153,32 @@ LLM_MODEL=local-model
 LLM_API_KEY=lm-studio
 ```
 
-Then open the web app Settings page, choose `lm_studio`, set the same base URL/model if needed, and use **Test connection**.
+Then open `/settings/llm`, choose `lm_studio`, confirm the base URL and model, and use **Test connection**.
 
-#### Ollama
+### Ollama
 
-Start Ollama and pull a model, for example:
+1. Start Ollama.
+2. Pull a model:
 
-```
+```bash
 ollama pull YOUR-MODEL
 ```
 
-Then configure:
+3. Add or update these values in `.env`:
 
-```
+```env
 LLM_PROVIDER=ollama
 OLLAMA_BASE_URL=http://localhost:11434/v1
-OLLAMA_MODEL= YOUR-MODEL
+OLLAMA_MODEL=YOUR-MODEL
 ```
 
-#### OpenAI-compatible API
+Then open `/settings/llm`, choose `ollama`, confirm the model, and use **Test connection**.
 
-For services that expose `/v1/chat/completions`:
+### OpenAI-Compatible API
 
-```
+For services that expose `/v1/chat/completions`, add or update:
+
+```env
 LLM_CLIENT_TYPE=openai_compatible
 LLM_BASE_URL=https://YOUR-ENDPOINT/v1
 LLM_CHAT_COMPLETIONS_PATH=/chat/completions
@@ -100,54 +190,63 @@ LLM_API_KEY_PREFIX=Bearer
 
 For the Settings page `openai` provider, set:
 
-```
+```env
 OPENAI_API_KEY=YOUR_API_KEY
 OPENAI_MODEL=YOUR_MODEL
 ```
 
-### Running the Application
+### Azure OpenAI or Azure Foundry
 
-#### Run the backend server:
-```
-python -m mllo_web.app.api_app
+Use the full chat-completions URL override and the `api-key` header:
+
+```env
+LLM_CLIENT_TYPE=azure_foundry
+LLM_CHAT_COMPLETIONS_URL=https://YOUR-RESOURCE-NAME.openai.azure.com/openai/deployments/YOUR-DEPLOYMENT-NAME/chat/completions
+LLM_SEND_MODEL=false
+LLM_API_KEY=YOUR_AZURE_API_KEY
+LLM_API_KEY_HEADER=api-key
+LLM_API_KEY_PREFIX=
+LLM_API_VERSION=2024-10-21
+LLM_API_VERSION_PARAM=api-version
+LLM_MAX_COMPLETION_TOKENS=1024
+LLM_AZURE_SEND_TEMPERATURE=false
 ```
 
-The backend listens on `http://localhost:5252` by default and serves API routes under `/api`.
+## Build for Deployment
 
-#### Run the frontend server for development:
-```
-cd mllo_web/frontend/web
-npm run dev
-```
+Build the frontend:
 
-Vite will print the frontend URL, usually `http://localhost:5173`.
-
-#### Build the frontend UI for deployment:
-```
+```bash
 cd mllo_web/frontend/web
 npm run build
 cd ../../..
 ```
 
-After building, `python -m mllo_web.app.api_app` can serve the compiled frontend from `mllo_web/frontend/web/dist`.
+Then start the backend:
 
-### Testing and checks
-
-Run the focused NLQ regression tests:
-
+```bash
+uv run python -m mllo_web.app.api_app
 ```
-python -m unittest tests.nlq.test_regressions
+
+After the frontend build exists, the backend serves the compiled UI from `mllo_web/frontend/web/dist`.
+
+## Checks
+
+Run backend NLQ regression tests:
+
+```bash
+uv run python -m unittest tests.nlq.test_regressions
 ```
 
 Point the NLQ tests at a specific GraphDB repository:
 
-```
-MLLO_NLQ_TEST_REPO=mllo4 python -m unittest tests.nlq.test_regressions
+```bash
+MLLO_NLQ_TEST_REPO=mllo4 uv run python -m unittest tests.nlq.test_regressions
 ```
 
 Run frontend checks:
 
-```
+```bash
 cd mllo_web/frontend/web
 npm run lint
 npm run build

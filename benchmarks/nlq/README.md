@@ -26,13 +26,13 @@ Starter assets added here:
 Run a model comparison with:
 
 ```bash
-conda run --no-capture-output -n mlloweb python benchmarks/nlq/scripts/benchmark_llm_candidates.py
+uv run python benchmarks/nlq/scripts/benchmark_llm_candidates.py
 ```
 
 Or point to your own candidate config:
 
 ```bash
-conda run --no-capture-output -n mlloweb python benchmarks/nlq/scripts/benchmark_llm_candidates.py \
+uv run python benchmarks/nlq/scripts/benchmark_llm_candidates.py \
   --config benchmarks/nlq/configs/llm_candidates.example.json
 ```
 

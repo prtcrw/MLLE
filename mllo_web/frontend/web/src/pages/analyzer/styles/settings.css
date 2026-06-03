@@ -176,6 +176,13 @@
     gap: 16px;
 }
 
+.settings-history-search {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 12px;
+    align-items: end;
+}
+
 .settings-field {
     display: flex;
     flex-direction: column;
@@ -300,6 +307,32 @@
     border: 1px solid rgba(36, 78, 113, 0.1);
 }
 
+.settings-history-message-list {
+    display: grid;
+    gap: 10px;
+}
+
+.settings-history-message {
+    display: grid;
+    gap: 6px;
+}
+
+.settings-history-message strong {
+    color: #17304b;
+}
+
+.settings-history-message pre {
+    max-height: 180px;
+}
+
+.settings-history-message.is-user pre {
+    background: rgba(230, 245, 255, 0.9);
+}
+
+.settings-history-message.is-assistant pre {
+    background: rgba(246, 248, 251, 0.95);
+}
+
 @media (max-width: 960px) {
     .settings-shell {
         grid-template-columns: 1fr;
@@ -317,6 +350,10 @@
     }
 
     .settings-form-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .settings-history-search {
         grid-template-columns: 1fr;
     }
 }

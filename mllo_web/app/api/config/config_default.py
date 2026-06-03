@@ -1,6 +1,6 @@
 from typing import Literal
 
-from pydantic import Field, field_validator, model_validator
+from pydantic import Field, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 LOG_LEVEL = Literal["debug", "info", "warning", "error", "critical"]
@@ -27,7 +27,7 @@ class AppConfig(BaseSettings):
     log_level: LOG_LEVEL = Field(default="info", description="Emit logging messages at this level or higher.")
 
     # Switch between "mobi" and "graphdb"
-    sparql_backend: SPARQL_BACKEND = Field(default="sparql", description="SPARQL backend to use: 'mobi' or 'graphdb'.")
+    sparql_backend: SPARQL_BACKEND = Field(default="graphdb", description="SPARQL backend to use: 'mobi' or 'graphdb'.")
 
     # MOBI settings
     mobi_endpoint: str = Field(default="https://localhost:8443/mobirest/sparql",
@@ -42,7 +42,7 @@ class AppConfig(BaseSettings):
         description="Base URL for GraphDB."
     )
     graphdb_default_repo: str = Field(
-        default="mllo4",
+        default="mllo",
         description="Default GraphDB repository."
     )
     graphdb_endpoint: str | None = Field(
@@ -122,13 +122,6 @@ class AppConfig(BaseSettings):
         default=1.0,
         description="temperature value for azure_foundry payload when llm_azure_send_temperature is true."
     )
-
-    @field_validator("sparql_backend", mode="before")
-    @classmethod
-    def normalize_sparql_backend(cls, value: str | None) -> str | None:
-        if value == "sparql":
-            return "graphdb"
-        return value
 
     @model_validator(mode="after")
     def derive_graphdb_endpoint(self) -> "AppConfig":

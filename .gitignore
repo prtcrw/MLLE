@@ -2,6 +2,7 @@
 __pycache__/
 *.py[cod]
 *$py.class
+.venv/
 
 # Logs
 logs
@@ -51,3 +52,4 @@ graphify-out/cost.json
 /graphify-out
 .graphifyignore
 /scripts
+uv.lock

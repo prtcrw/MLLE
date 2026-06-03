@@ -13,6 +13,7 @@ import FindModels from './pages/analyzer/FindModels.tsx';
 import NaturalLanguageQuery from './pages/analyzer/NaturalLanguageQuery.tsx';
 import ChatWithMLLO from './pages/analyzer/ChatWithMLLO.tsx';
 import NLQSettings, {
+    SettingsCodexHistoryPage,
     SettingsGraphDbPage,
     SettingsLlmPage,
     SettingsLogsPage,
@@ -48,6 +49,7 @@ const Dashboard: React.FC = () => {
                             <Route path="llm" element={<SettingsLlmPage/>}/>
                             <Route path="graphdb" element={<SettingsGraphDbPage/>}/>
                             <Route path="logs" element={<SettingsLogsPage/>}/>
+                            <Route path="codex-history" element={<SettingsCodexHistoryPage/>}/>
                             <Route path="*" element={<Navigate to="/settings/llm" replace/>}/>
                         </Route>
                         <Route path="/models/analyze-models" element={<AnalyzeDeployedModels/>}/>

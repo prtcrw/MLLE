@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from fastapi import APIRouter, HTTPException
 
+from mllo_web.app.api.services.codex_history import get_codex_chat_history
 from mllo_web.app.api.services.graphdb_client import GraphDBClient
 from mllo_web.app.api.services.interaction_logging import get_recent_nlq_logs
 from mllo_web.app.api.services.llm_gateway import LLMGateway, LLMServiceError
@@ -63,3 +64,9 @@ async def test_llm(settings: MLLESettings | None = None) -> dict:
 async def get_nlq_logs(limit: int = 20) -> dict:
     capped_limit = max(1, min(limit, 100))
     return {"logs": get_recent_nlq_logs(capped_limit)}
+
+
+@router.get("/codex-history")
+async def get_codex_history(limit: int = 50, query: str | None = None) -> dict:
+    capped_limit = max(1, min(limit, 100))
+    return {"history": get_codex_chat_history(limit=capped_limit, query=query)}

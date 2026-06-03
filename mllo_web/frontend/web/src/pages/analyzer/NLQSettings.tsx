@@ -1,6 +1,8 @@
 import React, {useEffect, useState} from 'react';
 import {NavLink, Navigate, Outlet, useNavigate, useOutletContext} from 'react-router-dom';
 import {
+    CodexHistoryEntry,
+    getCodexHistory,
     getNlqLogs,
     getSettings,
     listSettingsRepos,
@@ -33,6 +35,7 @@ const settingsSections = [
         title: 'Diagnostics',
         items: [
             {label: 'Logs', path: '/settings/logs', description: 'NLQ trace logging and recent runs'},
+            {label: 'Codex History', path: '/settings/codex-history', description: 'Local Codex chat transcripts for this project'},
         ],
     },
 ];
@@ -50,7 +53,9 @@ type SettingsContextValue = {
     setSettings: React.Dispatch<React.SetStateAction<MLLESettings | null>>;
     repos: string[];
     logs: NlqLogEntry[];
+    codexHistory: CodexHistoryEntry[];
     loadingLogs: boolean;
+    loadingCodexHistory: boolean;
     saving: boolean;
     testing: boolean;
     message: string | null;
@@ -58,6 +63,7 @@ type SettingsContextValue = {
     handleSave: () => Promise<void>;
     handleTest: () => Promise<void>;
     handleRefreshLogs: () => Promise<void>;
+    handleRefreshCodexHistory: (query?: string) => Promise<void>;
     updateProviderField: (
         providerKey: string,
         field: 'base_url' | 'api_key' | 'api_version' | 'model',
@@ -404,6 +410,97 @@ export const SettingsLogsPage: React.FC = () => {
     );
 };
 
+export const SettingsCodexHistoryPage: React.FC = () => {
+    const {codexHistory, loadingCodexHistory, handleRefreshCodexHistory} = useSettingsContext();
+    const [query, setQuery] = useState('');
+
+    return (
+        <section className="settings-panel">
+            <div className="settings-panel-header">
+                <div>
+                    <span className="settings-panel-kicker">Local Archive</span>
+                    <h3>Codex Chat History</h3>
+                    <p>Browse read-only Codex Desktop transcripts tied to this workspace, including archived sessions.</p>
+                </div>
+                <button type="button" onClick={() => void handleRefreshCodexHistory(query)} disabled={loadingCodexHistory}>
+                    {loadingCodexHistory ? 'Refreshing...' : 'Refresh'}
+                </button>
+            </div>
+
+            <form
+                className="settings-history-search"
+                onSubmit={(event) => {
+                    event.preventDefault();
+                    void handleRefreshCodexHistory(query);
+                }}
+            >
+                <label className="settings-field settings-field-full">
+                    <span>Search History</span>
+                    <input
+                        type="search"
+                        value={query}
+                        onChange={(event) => setQuery(event.target.value)}
+                        placeholder="Thread name, question, branch, model, dataset..."
+                    />
+                </label>
+                <button type="submit" disabled={loadingCodexHistory}>
+                    Search
+                </button>
+            </form>
+
+            <div className="settings-log-list">
+                {codexHistory.length === 0 ? (
+                    <p className="settings-inline-note">No Codex history found for this workspace.</p>
+                ) : (
+                    codexHistory.map((entry) => (
+                        <details key={entry.id} className="settings-log-card">
+                            <summary className="settings-log-summary">
+                                <strong>{entry.thread_name}</strong>
+                                <span>{entry.message_count} messages</span>
+                            </summary>
+                            <div className="settings-log-content">
+                                <div className="settings-log-grid">
+                                    <div><strong>Updated</strong><div>{entry.updated_at ? new Date(entry.updated_at).toLocaleString() : 'Unknown'}</div></div>
+                                    <div><strong>User Turns</strong><div>{entry.user_message_count}</div></div>
+                                    <div><strong>Assistant Turns</strong><div>{entry.assistant_message_count}</div></div>
+                                    <div><strong>Session ID</strong><div>{entry.id}</div></div>
+                                </div>
+
+                                <div className="settings-log-section">
+                                    <strong>Workspace</strong>
+                                    <pre>{entry.cwd || 'Unknown workspace'}</pre>
+                                </div>
+
+                                <div className="settings-log-section">
+                                    <strong>First user message</strong>
+                                    <pre>{entry.first_user_message || 'No user message captured.'}</pre>
+                                </div>
+
+                                <div className="settings-log-section">
+                                    <strong>Recent conversation</strong>
+                                    <div className="settings-history-message-list">
+                                        {entry.recent_messages.map((message, index) => (
+                                            <div key={`${entry.id}-${index}`} className={`settings-history-message is-${message.role}`}>
+                                                <strong>{message.role === 'user' ? 'User' : 'Codex'}</strong>
+                                                <pre>{message.text}</pre>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+
+                                <div className="settings-log-section">
+                                    <strong>Source file</strong>
+                                    <pre>{entry.source_path}</pre>
+                                </div>
+                            </div>
+                        </details>
+                    ))
+                )}
+            </div>
+        </section>
+    );
+};
+
 const NLQSettings: React.FC = () => {
     const navigate = useNavigate();
     const [settings, setSettings] = useState<MLLESettings | null>(null);
@@ -412,9 +509,11 @@ const NLQSettings: React.FC = () => {
     const [saving, setSaving] = useState(false);
     const [testing, setTesting] = useState(false);
     const [loadingLogs, setLoadingLogs] = useState(false);
+    const [loadingCodexHistory, setLoadingCodexHistory] = useState(false);
     const [message, setMessage] = useState<string | null>(null);
     const [error, setError] = useState<string | null>(null);
     const [logs, setLogs] = useState<NlqLogEntry[]>([]);
+    const [codexHistory, setCodexHistory] = useState<CodexHistoryEntry[]>([]);
 
     useEffect(() => {
         const load = async () => {
@@ -434,6 +533,12 @@ const NLQSettings: React.FC = () => {
                     } finally {
                         setLoadingLogs(false);
                     }
+                }
+                setLoadingCodexHistory(true);
+                try {
+                    setCodexHistory(await getCodexHistory(50));
+                } finally {
+                    setLoadingCodexHistory(false);
                 }
             } catch (err) {
                 setError((err as Error).message);
@@ -493,6 +598,18 @@ const NLQSettings: React.FC = () => {
             setError((err as Error).message);
         } finally {
             setTesting(false);
+        }
+    };
+
+    const handleRefreshCodexHistory = async (query = '') => {
+        setLoadingCodexHistory(true);
+        setError(null);
+        try {
+            setCodexHistory(await getCodexHistory(50, query));
+        } catch (err) {
+            setError((err as Error).message);
+        } finally {
+            setLoadingCodexHistory(false);
         }
     };
 
@@ -565,7 +682,9 @@ const NLQSettings: React.FC = () => {
                             setSettings,
                             repos,
                             logs,
+                            codexHistory,
                             loadingLogs,
+                            loadingCodexHistory,
                             saving,
                             testing,
                             message,
@@ -573,6 +692,7 @@ const NLQSettings: React.FC = () => {
                             handleSave,
                             handleTest,
                             handleRefreshLogs,
+                            handleRefreshCodexHistory,
                             updateProviderField,
                         }}
                     />

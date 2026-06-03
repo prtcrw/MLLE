@@ -22,13 +22,13 @@ Current starter regression file:
 Run with:
 
 ```bash
-python -m unittest tests.nlq.test_regressions
+uv run python -m unittest tests.nlq.test_regressions
 ```
 
 If needed, override the GraphDB repo with:
 
 ```bash
-MLLO_NLQ_TEST_REPO=mllo4 python -m unittest tests.nlq.test_regressions
+MLLO_NLQ_TEST_REPO=mllo4 uv run python -m unittest tests.nlq.test_regressions
 ```
 
 If you want to force the tests to use an LM Studio model instead of the saved app settings:
@@ -37,5 +37,5 @@ If you want to force the tests to use an LM Studio model instead of the saved ap
 MLLO_NLQ_TEST_PROVIDER=lm_studio \
 MLLO_NLQ_TEST_BASE_URL=http://localhost:1234/v1 \
 MLLO_NLQ_TEST_MODEL=your-model-name \
-conda run --no-capture-output -n mlloweb python -m unittest tests.nlq.test_regressions
+uv run python -m unittest tests.nlq.test_regressions
 ```

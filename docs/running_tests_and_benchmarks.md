@@ -8,22 +8,22 @@ Tests live in [`tests/nlq/test_regressions.py`](../tests/nlq/test_regressions.py
 
 ```bash
 # From the project root
-python -m pytest tests/
+uv run python -m pytest tests/
 
 # Or with unittest directly
-python -m unittest discover tests/
+uv run python -m unittest discover tests/
 ```
 
 ### Run a specific file
 
 ```bash
-python -m pytest tests/nlq/test_regressions.py -v
+uv run python -m pytest tests/nlq/test_regressions.py -v
 ```
 
 ### Run a single test method
 
 ```bash
-python -m pytest tests/nlq/test_regressions.py::NLQRegressionTests::test_downstream_artifacts_query_returns_lineage_shape -v
+uv run python -m pytest tests/nlq/test_regressions.py::NLQRegressionTests::test_downstream_artifacts_query_returns_lineage_shape -v
 ```
 
 ### Override LLM provider via env vars
@@ -42,7 +42,7 @@ The tests accept these environment variables to swap in a different LLM without 
 MLLO_NLQ_TEST_PROVIDER=lm_studio \
 MLLO_NLQ_TEST_BASE_URL=http://localhost:1234/v1 \
 MLLO_NLQ_TEST_MODEL=gemma4:e4b \
-python -m pytest tests/ -v
+uv run python -m pytest tests/ -v
 ```
 
 ---
@@ -80,19 +80,19 @@ Edit `my_candidates.json` with your actual models:
 
 ```bash
 # Uses default prompts + example config
-python benchmarks/nlq/scripts/benchmark_llm_candidates.py
+uv run python benchmarks/nlq/scripts/benchmark_llm_candidates.py
 
 # Specify your own config
-python benchmarks/nlq/scripts/benchmark_llm_candidates.py \
+uv run python benchmarks/nlq/scripts/benchmark_llm_candidates.py \
   --config benchmarks/nlq/configs/my_candidates.json
 
 # Specify a different prompt set
-python benchmarks/nlq/scripts/benchmark_llm_candidates.py \
+uv run python benchmarks/nlq/scripts/benchmark_llm_candidates.py \
   --prompts benchmarks/nlq/prompts/model_selection_cases.json \
   --config benchmarks/nlq/configs/my_candidates.json
 
 # Save to a specific output file
-python benchmarks/nlq/scripts/benchmark_llm_candidates.py \
+uv run python benchmarks/nlq/scripts/benchmark_llm_candidates.py \
   --config benchmarks/nlq/configs/my_candidates.json \
   --output benchmarks/nlq/results/my_run.json
 ```
@@ -118,21 +118,21 @@ A scoreboard is also printed to stdout, sorted by pass rate then median latency.
 
 ```bash
 # Default question
-python scripts/trace_nlq.py
+uv run python scripts/trace_nlq.py
 
 # Your own question
-python scripts/trace_nlq.py "What downstream artifacts use MnistG16?"
+uv run python scripts/trace_nlq.py "What downstream artifacts use MnistG16?"
 
 # Choose repo and answer mode
-python scripts/trace_nlq.py "Show me models with performance > 0.9" \
+uv run python scripts/trace_nlq.py "Show me models with performance > 0.9" \
   --repo mllo4 \
   --answer-mode auto
 
 # Save to a specific file
-python scripts/trace_nlq.py "..." --output tmp/my_trace.md
+uv run python scripts/trace_nlq.py "..." --output tmp/my_trace.md
 
 # Print to stdout only, no file written
-python scripts/trace_nlq.py "..." --no-md
+uv run python scripts/trace_nlq.py "..." --no-md
 ```
 
 ### What the Markdown trace contains

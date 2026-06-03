@@ -171,6 +171,27 @@ export interface NlqLogEntry {
     payload?: Record<string, unknown>;
 }
 
+export interface CodexHistoryMessage {
+    role: 'user' | 'assistant';
+    text: string;
+}
+
+export interface CodexHistoryEntry {
+    id: string;
+    thread_name: string;
+    started_at: string;
+    updated_at: string;
+    cwd: string;
+    source_path: string;
+    message_count: number;
+    user_message_count: number;
+    assistant_message_count: number;
+    first_user_message: string;
+    last_user_message: string;
+    last_assistant_message: string;
+    recent_messages: CodexHistoryMessage[];
+}
+
 export const convertEnglishToSparql = async (input: string, endpoint?: string): Promise<ConvertResult> => {
     // Default to backend dev server where FastAPI serves the convert endpoint
     const base = endpoint ?? (import.meta.env.VITE_LM_ENDPOINT as string) ?? 'http://localhost:5252/api/convert-sparql';
@@ -310,6 +331,20 @@ export const getNlqLogs = async (limit = 20): Promise<NlqLogEntry[]> => {
     }
     const payload = await response.json();
     return payload?.logs ?? [];
+}
+
+export const getCodexHistory = async (limit = 50, query = ''): Promise<CodexHistoryEntry[]> => {
+    const params = new URLSearchParams({limit: String(limit)});
+    if (query.trim().length > 0) {
+        params.set('query', query.trim());
+    }
+    const response = await fetch(`${buildV1Url('settings/codex-history')}?${params.toString()}`);
+    if (!response.ok) {
+        const payload = await response.json().catch(() => ({}));
+        throw new Error(payload?.detail || 'Failed to load Codex history.');
+    }
+    const payload = await response.json();
+    return payload?.history ?? [];
 }
 
 export const queryNaturalLanguage = async (

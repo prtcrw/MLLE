@@ -16,9 +16,10 @@ This guide explains how to ensure the correctness of the MLLO Web system, evalua
 Tests are designed to be fast and deterministic. They ensure that core logic doesn't break during refactors.
 
 ### Prerequisites
-Ensure your Python virtual environment is active:
+Install the project environment:
+
 ```bash
-source .venv/bin/activate
+uv sync --python 3.11
 ```
 
 ### Execution Commands
@@ -26,15 +27,15 @@ The project uses `pytest`. You can run tests at various levels of granularity:
 
 *   **Run all tests in the project**:
     ```bash
-    pytest tests/
+    uv run python -m pytest tests/
     ```
 *   **Run only NLQ regression tests**:
     ```bash
-    pytest tests/nlq/test_regressions.py
+    uv run python -m pytest tests/nlq/test_regressions.py
     ```
 *   **Run a specific test function**:
     ```bash
-    pytest tests/nlq/test_regressions.py::test_specific_case_name
+    uv run python -m pytest tests/nlq/test_regressions.py::test_specific_case_name
     ```
 
 ---
@@ -46,7 +47,7 @@ Benchmarks are used to compare different LLM providers or models to determine wh
 Run the benchmark script by specifying a prompt manifest and a candidate configuration:
 
 ```bash
-python benchmarks/nlq/scripts/benchmark_llm_candidates.py \
+uv run python benchmarks/nlq/scripts/benchmark_llm_candidates.py \
   --prompts benchmarks/nlq/prompts/model_selection_cases.json \
   --config benchmarks/nlq/configs/llm_candidates.example.json \
   --output benchmarks/nlq/results/my_eval_run.json
@@ -77,7 +78,7 @@ When a specific query fails in a benchmark or during manual use, use the Trace s
 
 ### Execution
 ```bash
-python scripts/trace_nlq.py "What downstream artifacts use MnistG16?"
+uv run python scripts/trace_nlq.py "What downstream artifacts use MnistG16?"
 ```
 
 ### The Trace Report (`tmp/trace_<timestamp>.md`)

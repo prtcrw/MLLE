@@ -1,0 +1,36 @@
+[project]
+name = "mlle"
+version = "0.1.0"
+description = "Web application for exploring MLLO data."
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "uvicorn==0.30.5",
+    "fastapi[standard]==0.112.0",
+    "fastapi-events==0.11.1",
+    "python-socketio==5.11.3",
+    "pydantic-settings==2.14.0",
+    "pydantic==2.11.7",
+    "psutil==6.0.0",
+    "pyyaml==6.0.2",
+    "requests==2.32.3",
+    "httpx==0.28.1",
+    "platformdirs==4.3.6",
+    "anthropic==0.57.1",
+    "google-generativeai==0.8.5",
+    "fastmcp==2.10.6",
+    "scikit-learn==1.6.1",
+    "pandas==2.2.3",
+    "keras==3.5.0; python_version < '3.13'",
+    "tensorflow==2.17.0; python_version < '3.13'",
+    "keras>=3.10,<4; python_version >= '3.13'",
+    "tensorflow==2.20.0; python_version >= '3.13'",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=8.0,<9",
+]
+
+[tool.uv]
+package = false
