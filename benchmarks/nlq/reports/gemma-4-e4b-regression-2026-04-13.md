@@ -14,7 +14,7 @@ Date: 2026-04-13 16:38:11 EDT
 MLLO_NLQ_TEST_PROVIDER=lm_studio \
 MLLO_NLQ_TEST_BASE_URL=http://127.0.0.1:1234/v1 \
 MLLO_NLQ_TEST_MODEL=google/gemma-4-e4b \
-conda run --no-capture-output -n mlloweb python -m unittest tests.nlq.test_regressions
+uv run python -m unittest tests.nlq.test_regressions
 ```
 
 ## Result
