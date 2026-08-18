@@ -1,17 +1,22 @@
-from typing import Literal
+from functools import lru_cache
+from pathlib import Path
+from typing import Annotated, Literal
 
-from pydantic import Field, model_validator
-from pydantic_settings import BaseSettings, SettingsConfigDict
+from pydantic import Field, field_validator
+from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
 
 LOG_LEVEL = Literal["debug", "info", "warning", "error", "critical"]
 SPARQL_BACKEND = Literal["mobi", "graphdb"]
 LLM_CLIENT_TYPE = Literal["openai_compatible", "azure_foundry"]
+ANSWER_MODE = Literal["exact", "conceptual", "auto"]
+ENV_FILE = Path(__file__).resolve().parents[4] / ".env"
 
 
 class AppConfig(BaseSettings):
     model_config = SettingsConfigDict(
-        env_file=".env",
+        env_file=ENV_FILE,
         env_file_encoding="utf-8",
+        env_ignore_empty=True,
         extra="ignore",
     )
 
@@ -20,9 +25,9 @@ class AppConfig(BaseSettings):
     port: int = Field(default=5252, description="Port to bind to.")
     dev: bool = Field(default=True, description="Run in development mode.")
     allow_credentials: bool = Field(default=True, description="Allow CORS credentials.")
-    allow_origins: list[str] = Field(default=[], description="Allowed CORS origins.")
-    allow_methods: list[str] = Field(default=["*"], description="Methods allowed for CORS.")
-    allow_headers: list[str] = Field(default=["*"], description="Headers allowed for CORS.")
+    allow_origins: list[str] = Field(default_factory=list, description="Allowed CORS origins.")
+    allow_methods: list[str] = Field(default_factory=lambda: ["*"], description="Methods allowed for CORS.")
+    allow_headers: list[str] = Field(default_factory=lambda: ["*"], description="Headers allowed for CORS.")
 
     log_level: LOG_LEVEL = Field(default="info", description="Emit logging messages at this level or higher.")
 
@@ -45,9 +50,9 @@ class AppConfig(BaseSettings):
         default="mllo5",
         description="Default GraphDB repository."
     )
-    graphdb_endpoint: str | None = Field(
+    graphdb_repo_allowlist: Annotated[list[str] | None, NoDecode] = Field(
         default=None,
-        description="Optional full GraphDB repository endpoint override."
+        description="Optional comma-separated list of repositories exposed by the application."
     )
     graphdb_auth_type: str = Field(default="none", description="Auth type for GraphDB: 'basic' or 'none'.")
     graphdb_auth_username: str = Field(default="admin", description="Username for GraphDB.")
@@ -59,7 +64,7 @@ class AppConfig(BaseSettings):
         description="LLM client implementation to use: 'openai_compatible' or 'azure_foundry'."
     )
     llm_base_url: str = Field(
-        default="http://localhost:1234/v1",
+        default="http://127.0.0.1:1234/v1",
         description="Base URL for the LLM API."
     )
     llm_chat_completions_path: str = Field(
@@ -123,12 +128,33 @@ class AppConfig(BaseSettings):
         description="temperature value for azure_foundry payload when llm_azure_send_temperature is true."
     )
 
-    @model_validator(mode="after")
-    def derive_graphdb_endpoint(self) -> "AppConfig":
-        if not self.graphdb_endpoint:
-            self.graphdb_endpoint = f"{self.graphdb_url.rstrip('/')}/repositories/{self.graphdb_default_repo}"
-        return self
+    answer_mode: ANSWER_MODE = Field(
+        default="auto",
+        description="Default NLQ answer mode: exact, conceptual, or auto."
+    )
+    enable_nlq_logging: bool = Field(
+        default=False,
+        description="Whether structured NLQ trace logging is enabled."
+    )
 
+    @field_validator("graphdb_repo_allowlist", mode="before")
+    @classmethod
+    def parse_graphdb_repo_allowlist(cls, value):
+        if value is None or isinstance(value, list):
+            return value
+        values = [item.strip() for item in str(value).split(",") if item.strip()]
+        return values or None
+
+    @property
+    def graphdb_endpoint(self) -> str:
+        return f"{self.graphdb_url.rstrip('/')}/repositories/{self.graphdb_default_repo}"
+
+    @property
+    def active_llm_provider(self) -> str:
+        return self.llm_client_type
+
+
+@lru_cache(maxsize=1)
 def get_config() -> AppConfig:
     config = AppConfig()
 

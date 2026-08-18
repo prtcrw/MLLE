@@ -4,7 +4,25 @@ from typing import Any
 
 
 def active_provider_config(settings) -> dict:
-    return settings.llm_providers[settings.active_llm_provider].model_dump()
+    return {
+        "provider": settings.llm_client_type,
+        "base_url": settings.llm_base_url,
+        "chat_completions_path": settings.llm_chat_completions_path,
+        "chat_completions_url": settings.llm_chat_completions_url,
+        "model": settings.llm_model,
+        "send_model": settings.llm_send_model,
+        "api_key": settings.llm_api_key,
+        "api_key_header": settings.llm_api_key_header,
+        "api_key_prefix": settings.llm_api_key_prefix,
+        "api_version": settings.llm_api_version,
+        "api_version_param": settings.llm_api_version_param,
+        "timeout_seconds": settings.llm_timeout_seconds,
+        "max_tokens": settings.llm_max_tokens,
+        "max_completion_tokens": settings.llm_max_completion_tokens,
+        "temperature": settings.llm_temperature,
+        "azure_send_temperature": settings.llm_azure_send_temperature,
+        "azure_temperature": settings.llm_azure_temperature,
+    }
 
 
 def dataset_role_params_to_query_args(dataset_roles: Any) -> list[str] | None:

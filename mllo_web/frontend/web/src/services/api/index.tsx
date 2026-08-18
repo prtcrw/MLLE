@@ -35,17 +35,12 @@ export interface ConvertResult {
     error: string | null;
 }
 
-export interface LLMProviderConfig {
-    provider: 'lm_studio' | 'ollama' | 'openai' | 'azure_openai' | 'anthropic' | 'gemini';
-    base_url?: string | null;
-    api_key?: string | null;
-    api_version?: string | null;
-    model: string;
-}
-
 export interface MLLESettings {
-    active_llm_provider: string;
-    llm_providers: Record<string, LLMProviderConfig>;
+    config_source: '.env';
+    llm_client_type: 'openai_compatible' | 'azure_foundry';
+    llm_base_url: string;
+    llm_chat_completions_url?: string | null;
+    llm_model: string;
     graphdb_url: string;
     graphdb_default_repo: string;
     graphdb_repo_allowlist?: string[] | null;
@@ -282,21 +277,6 @@ export const clearChatMemory = async (sessionId: string): Promise<void> => {
     }
 }
 
-export const saveSettings = async (settings: MLLESettings): Promise<MLLESettings> => {
-    const response = await fetch(buildV1Url('settings'), {
-        method: 'PUT',
-        headers: {
-            'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(settings),
-    });
-    if (!response.ok) {
-        const payload = await response.json().catch(() => ({}));
-        throw new Error(payload?.detail || 'Failed to save settings.');
-    }
-    return await response.json();
-}
-
 export const listSettingsRepos = async (): Promise<string[]> => {
     const response = await fetch(buildV1Url('settings/repos'));
     if (!response.ok) {
@@ -307,13 +287,9 @@ export const listSettingsRepos = async (): Promise<string[]> => {
     return payload?.repos ?? [];
 }
 
-export const testLlmConnection = async (settings?: MLLESettings): Promise<string> => {
+export const testLlmConnection = async (): Promise<string> => {
     const response = await fetch(buildV1Url('settings/test-llm'), {
         method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(settings ?? null),
     });
     if (!response.ok) {
         const payload = await response.json().catch(() => ({}));

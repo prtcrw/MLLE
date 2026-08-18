@@ -42,7 +42,6 @@ If you do not create a `.env` file, or if `.env` does not set the SPARQL backend
 SPARQL_BACKEND=graphdb
 GRAPHDB_URL=http://localhost:7200
 GRAPHDB_DEFAULT_REPO=mllo5
-GRAPHDB_ENDPOINT=http://localhost:7200/repositories/mllo5
 GRAPHDB_AUTH_TYPE=none
 ```
 
@@ -67,11 +66,7 @@ GRAPHDB_DEFAULT_REPO=mllo5
 GRAPHDB_AUTH_TYPE=none
 ```
 
-You can also set `GRAPHDB_ENDPOINT` directly if you want to use a full repository endpoint, for example:
-
-```env
-GRAPHDB_ENDPOINT=http://localhost:7200/repositories/mllo5
-```
+The repository query endpoint is always derived from `GRAPHDB_URL` and `GRAPHDB_DEFAULT_REPO`, so those values cannot drift apart.
 
 The default app server settings are:
 
@@ -134,10 +129,7 @@ Open the Vite URL in your browser. Keep both terminals running while using the a
 
 LLM setup is optional. Without an LLM endpoint, avoid the natural-language query and chat pages. SPARQL-backed browsing, search, and other non-LLM workflows can still run as long as your SPARQL backend is configured.
 
-There are two configuration surfaces:
-
-- `.env` controls backend defaults and low-level chat-completions requests.
-- The app Settings page at `/settings/llm` stores provider settings for the natural-language workflow. Saved settings live in the user data directory as `MLLE/mlle_settings.json` and override environment defaults.
+The repository-root `.env` is the single runtime configuration source for the server, GraphDB, LLM, and natural-language workflow. The Settings pages are read-only diagnostics and never store credentials or override `.env`. Restart the backend after changing `.env`.
 
 ### LM Studio
 
@@ -146,14 +138,13 @@ There are two configuration surfaces:
 3. Add or update these values in `.env`:
 
 ```env
-LLM_PROVIDER=lm_studio
 LLM_CLIENT_TYPE=openai_compatible
-LLM_BASE_URL=http://localhost:1234/v1
+LLM_BASE_URL=http://127.0.0.1:1234/v1
 LLM_MODEL=local-model
 LLM_API_KEY=lm-studio
 ```
 
-Then open `/settings/llm`, choose `lm_studio`, confirm the base URL and model, and use **Test connection**.
+Then open `/settings/llm` to verify the effective non-secret values and use **Test connection**.
 
 ### Ollama
 
@@ -167,12 +158,12 @@ ollama pull YOUR-MODEL
 3. Add or update these values in `.env`:
 
 ```env
-LLM_PROVIDER=ollama
-OLLAMA_BASE_URL=http://localhost:11434/v1
-OLLAMA_MODEL=YOUR-MODEL
+LLM_CLIENT_TYPE=openai_compatible
+LLM_BASE_URL=http://localhost:11434/v1
+LLM_MODEL=YOUR-MODEL
 ```
 
-Then open `/settings/llm`, choose `ollama`, confirm the model, and use **Test connection**.
+Then open `/settings/llm` and use **Test connection**.
 
 ### OpenAI-Compatible API
 
@@ -186,13 +177,6 @@ LLM_MODEL=YOUR-MODEL
 LLM_API_KEY=YOUR_API_KEY
 LLM_API_KEY_HEADER=Authorization
 LLM_API_KEY_PREFIX=Bearer
-```
-
-For the Settings page `openai` provider, set:
-
-```env
-OPENAI_API_KEY=YOUR_API_KEY
-OPENAI_MODEL=YOUR_MODEL
 ```
 
 ### Azure OpenAI or Azure Foundry

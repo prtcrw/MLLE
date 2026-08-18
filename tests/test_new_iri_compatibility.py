@@ -1,14 +1,12 @@
 from __future__ import annotations
 
-import json
 import tempfile
 import unittest
 from pathlib import Path
-from unittest.mock import patch
 
+from mllo_web.app.api.config.config_default import AppConfig
 from mllo_web.app.api.services.graphdb_client import GraphDBClient
 from mllo_web.app.api.services.namespace_filter import filter_results
-from mllo_web.app.api.services.settings_model import load_settings
 from mllo_web.core.graph.ontology_queries import PREFIX_QUERY
 
 
@@ -43,23 +41,14 @@ class NewIriCompatibilityTests(unittest.TestCase):
     def test_graphdb_client_defaults_to_mllo5(self) -> None:
         self.assertEqual(GraphDBClient().default_repo, "mllo5")
 
-    def test_legacy_saved_repo_settings_migrate_to_mllo5(self) -> None:
+    def test_graphdb_settings_load_from_env_file(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
-            settings_path = Path(temp_dir) / "mlle_settings.json"
-            settings_path.write_text(
-                json.dumps(
-                    {
-                        "graphdb_default_repo": "mllo4",
-                        "graphdb_repo_allowlist": ["mllo4", "shared"],
-                    }
-                ),
+            env_path = Path(temp_dir) / ".env"
+            env_path.write_text(
+                "GRAPHDB_DEFAULT_REPO=mllo5\nGRAPHDB_REPO_ALLOWLIST=mllo5,shared\n",
                 encoding="utf-8",
             )
-            with patch(
-                "mllo_web.app.api.services.settings_model.get_settings_path",
-                return_value=settings_path,
-            ):
-                settings = load_settings()
+            settings = AppConfig(_env_file=env_path)
 
         self.assertEqual(settings.graphdb_default_repo, "mllo5")
         self.assertEqual(settings.graphdb_repo_allowlist, ["mllo5", "shared"])

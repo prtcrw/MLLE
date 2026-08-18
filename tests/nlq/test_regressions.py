@@ -4,7 +4,7 @@ import os
 import unittest
 from unittest.mock import patch
 
-from mllo_web.app.api.services.settings_model import MLLESettings, load_settings
+from mllo_web.app.api.services.settings_model import load_settings
 from mllo_web.core.workflows.nlq import execute_nlq
 
 
@@ -76,17 +76,13 @@ class NLQRegressionTests(unittest.IsolatedAsyncioTestCase):
         if not (TEST_PROVIDER and TEST_MODEL):
             return await execute_nlq(question, repo=TEST_REPO, answer_mode="auto")
 
-        settings_dict = load_settings().model_dump(mode="python")
-        provider_name = "test_provider"
-        settings_dict["active_llm_provider"] = provider_name
-        settings_dict["llm_providers"][provider_name] = {
-            "provider": TEST_PROVIDER,
-            "base_url": TEST_BASE_URL or None,
-            "api_key": TEST_API_KEY,
-            "api_version": None,
-            "model": TEST_MODEL,
-        }
-        overridden_settings = MLLESettings.model_validate(settings_dict)
+        client_type = "azure_foundry" if TEST_PROVIDER in {"azure_openai", "azure_foundry"} else "openai_compatible"
+        overridden_settings = load_settings().model_copy(update={
+            "llm_client_type": client_type,
+            "llm_base_url": TEST_BASE_URL,
+            "llm_api_key": TEST_API_KEY,
+            "llm_model": TEST_MODEL,
+        })
         with patch("mllo_web.core.workflows.nlq.load_settings", return_value=overridden_settings):
             return await execute_nlq(question, repo=TEST_REPO, answer_mode="auto")
 

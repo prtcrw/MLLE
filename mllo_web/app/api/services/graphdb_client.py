@@ -4,6 +4,7 @@ import logging
 
 import httpx
 
+from mllo_web.app.api.config import get_config
 from mllo_web.core.graph.ontology_queries import (
     NAMED_INDIVIDUALS_QUERY,
     ONTOLOGY_SCHEMA_QUERY,
@@ -18,13 +19,14 @@ logger = logging.getLogger(__name__)
 class GraphDBClient:
     def __init__(
         self,
-        base_url: str = "http://localhost:7200",
-        default_repo: str = "mllo5",
+        base_url: str | None = None,
+        default_repo: str | None = None,
         repo_allowlist: list[str] | None = None,
     ):
-        self.base_url = base_url.rstrip("/")
-        self.default_repo = default_repo
-        self.repo_allowlist = repo_allowlist
+        config = get_config()
+        self.base_url = (base_url or config.graphdb_url).rstrip("/")
+        self.default_repo = default_repo or config.graphdb_default_repo
+        self.repo_allowlist = repo_allowlist if repo_allowlist is not None else config.graphdb_repo_allowlist
 
     async def list_repos(self) -> list[str]:
         async with httpx.AsyncClient(timeout=30.0) as client:

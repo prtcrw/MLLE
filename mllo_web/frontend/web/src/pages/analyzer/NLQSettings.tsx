@@ -8,20 +8,10 @@ import {
     listSettingsRepos,
     MLLESettings,
     NlqLogEntry,
-    saveSettings,
     testLlmConnection
 } from '../../services/api';
 import './styles/plot_performance.css';
 import './styles/settings.css';
-
-const providerOptions = [
-    {value: 'lm_studio', label: 'LM Studio'},
-    {value: 'ollama', label: 'Ollama'},
-    {value: 'openai', label: 'OpenAI'},
-    {value: 'azure_openai', label: 'Azure OpenAI'},
-    {value: 'anthropic', label: 'Anthropic'},
-    {value: 'gemini', label: 'Gemini'},
-];
 
 const settingsSections = [
     {
@@ -50,25 +40,17 @@ const llmCallsForPurposes = (log: NlqLogEntry, purposes: string[]) =>
 
 type SettingsContextValue = {
     settings: MLLESettings;
-    setSettings: React.Dispatch<React.SetStateAction<MLLESettings | null>>;
     repos: string[];
     logs: NlqLogEntry[];
     codexHistory: CodexHistoryEntry[];
     loadingLogs: boolean;
     loadingCodexHistory: boolean;
-    saving: boolean;
     testing: boolean;
     message: string | null;
     error: string | null;
-    handleSave: () => Promise<void>;
     handleTest: () => Promise<void>;
     handleRefreshLogs: () => Promise<void>;
     handleRefreshCodexHistory: (query?: string) => Promise<void>;
-    updateProviderField: (
-        providerKey: string,
-        field: 'base_url' | 'api_key' | 'api_version' | 'model',
-        value: string,
-    ) => void;
 };
 
 const useSettingsContext = () => useOutletContext<SettingsContextValue>();
@@ -78,17 +60,15 @@ const SettingsOverview: React.FC = () => (
 );
 
 export const SettingsLlmPage: React.FC = () => {
-    const {settings, setSettings, testing, handleTest, updateProviderField} = useSettingsContext();
-    const activeProvider = settings.active_llm_provider;
-    const activeConfig = settings.llm_providers[activeProvider];
+    const {settings, testing, handleTest} = useSettingsContext();
 
     return (
         <section className="settings-panel">
             <div className="settings-panel-header">
                 <div>
-                    <span className="settings-panel-kicker">Provider Setup</span>
+                    <span className="settings-panel-kicker">.env Configuration</span>
                     <h3>LLM Settings</h3>
-                    <p>Choose the active provider, set credentials, and verify the current model can answer requests.</p>
+                    <p>Runtime values are read from the repository .env. Secrets are never returned to this page.</p>
                 </div>
                 <button type="button" onClick={() => void handleTest()} disabled={testing}>
                     {testing ? 'Testing...' : 'Test Connection'}
@@ -97,78 +77,26 @@ export const SettingsLlmPage: React.FC = () => {
 
             <div className="settings-form-grid">
                 <label className="settings-field settings-field-full">
-                    <span>Provider</span>
-                    <select
-                        value={settings.active_llm_provider}
-                        onChange={(e) => setSettings((current) => current ? {...current, active_llm_provider: e.target.value} : current)}
-                    >
-                        {providerOptions.map((option) => (
-                            <option key={option.value} value={option.value}>{option.label}</option>
-                        ))}
-                    </select>
+                    <span>Client Type</span>
+                    <input type="text" value={settings.llm_client_type} readOnly />
                 </label>
 
-                {(activeConfig.provider === 'lm_studio' || activeConfig.provider === 'ollama') && (
-                    <label className="settings-field settings-field-full">
-                        <span>Base URL</span>
-                        <input
-                            type="text"
-                            value={activeConfig.base_url ?? ''}
-                            onChange={(e) => updateProviderField(activeProvider, 'base_url', e.target.value)}
-                            placeholder={activeConfig.provider === 'ollama' ? 'http://localhost:11434/v1' : 'http://localhost:1234/v1'}
-                        />
-                    </label>
-                )}
+                <label className="settings-field settings-field-full">
+                    <span>Base URL</span>
+                    <input type="text" value={settings.llm_base_url} readOnly />
+                </label>
 
-                {activeConfig.provider === 'azure_openai' && (
-                    <>
-                        <label className="settings-field settings-field-full">
-                            <span>Azure Endpoint</span>
-                            <input
-                                type="text"
-                                value={activeConfig.base_url ?? ''}
-                                onChange={(e) => updateProviderField(activeProvider, 'base_url', e.target.value)}
-                                placeholder="https://YOUR-RESOURCE.openai.azure.com"
-                            />
-                        </label>
-                        <label className="settings-field">
-                            <span>API Version</span>
-                            <input
-                                type="text"
-                                value={activeConfig.api_version ?? ''}
-                                onChange={(e) => updateProviderField(activeProvider, 'api_version', e.target.value)}
-                                placeholder="2024-10-21"
-                            />
-                        </label>
-                    </>
-                )}
-
-                {activeConfig.provider !== 'lm_studio' && activeConfig.provider !== 'ollama' && (
+                {settings.llm_chat_completions_url && (
                     <label className="settings-field settings-field-full">
-                        <span>API Key</span>
-                        <input
-                            type="password"
-                            value={activeConfig.api_key ?? ''}
-                            onChange={(e) => updateProviderField(activeProvider, 'api_key', e.target.value)}
-                            placeholder="Enter API key"
-                        />
+                        <span>Full Chat Completions URL</span>
+                        <input type="text" value={settings.llm_chat_completions_url} readOnly />
                     </label>
                 )}
 
                 <label className="settings-field settings-field-full">
-                    <span>{activeConfig.provider === 'azure_openai' ? 'Deployment Name' : 'Model Name'}</span>
-                    <input
-                        type="text"
-                        value={activeConfig.model}
-                        onChange={(e) => updateProviderField(activeProvider, 'model', e.target.value)}
-                        placeholder={
-                            activeConfig.provider === 'azure_openai'
-                                ? 'your-deployment-name'
-                                : activeConfig.provider === 'ollama'
-                                    ? 'llama3.1'
-                                    : 'gpt-4.1-mini'
-                        }
-                    />
+                    <span>Model</span>
+                    <input type="text" value={settings.llm_model} readOnly />
+                    <small>Edit LLM_* values in .env and restart the backend to apply changes.</small>
                 </label>
             </div>
         </section>
@@ -176,7 +104,7 @@ export const SettingsLlmPage: React.FC = () => {
 };
 
 export const SettingsGraphDbPage: React.FC = () => {
-    const {settings, setSettings, repos} = useSettingsContext();
+    const {settings, repos} = useSettingsContext();
 
     return (
         <section className="settings-panel">
@@ -184,7 +112,7 @@ export const SettingsGraphDbPage: React.FC = () => {
                 <div>
                     <span className="settings-panel-kicker">Data Access</span>
                     <h3>GraphDB Settings</h3>
-                    <p>Control the knowledge graph endpoint, pick the default repository, and optionally limit the repo list.</p>
+                    <p>GraphDB values are read-only here and come exclusively from the repository .env.</p>
                 </div>
             </div>
 
@@ -194,21 +122,14 @@ export const SettingsGraphDbPage: React.FC = () => {
                     <input
                         type="text"
                         value={settings.graphdb_url}
-                        onChange={(e) => setSettings((current) => current ? {...current, graphdb_url: e.target.value} : current)}
+                        readOnly
                     />
                 </label>
 
                 <label className="settings-field">
                     <span>Default Repository</span>
-                    <select
-                        value={settings.graphdb_default_repo}
-                        onChange={(e) => setSettings((current) => current ? {...current, graphdb_default_repo: e.target.value} : current)}
-                    >
-                        <option value={settings.graphdb_default_repo}>{settings.graphdb_default_repo}</option>
-                        {repos.filter((repo) => repo !== settings.graphdb_default_repo).map((repo) => (
-                            <option key={repo} value={repo}>{repo}</option>
-                        ))}
-                    </select>
+                    <input type="text" value={settings.graphdb_default_repo} readOnly />
+                    <small>Available repositories: {repos.join(', ') || 'none returned'}</small>
                 </label>
 
                 <label className="settings-field settings-field-full">
@@ -216,16 +137,10 @@ export const SettingsGraphDbPage: React.FC = () => {
                     <input
                         type="text"
                         value={(settings.graphdb_repo_allowlist ?? []).join(', ')}
-                        onChange={(e) => setSettings((current) => current ? {
-                            ...current,
-                            graphdb_repo_allowlist: e.target.value
-                                .split(',')
-                                .map((item) => item.trim())
-                                .filter(Boolean),
-                        } : current)}
-                        placeholder="mllo5, mllo_test"
+                        readOnly
+                        placeholder="All repositories"
                     />
-                    <small>Leave blank to allow every repository the backend returns.</small>
+                    <small>Edit GRAPHDB_* values in .env and restart the backend to apply changes.</small>
                 </label>
             </div>
         </section>
@@ -233,7 +148,7 @@ export const SettingsGraphDbPage: React.FC = () => {
 };
 
 export const SettingsLogsPage: React.FC = () => {
-    const {settings, setSettings, logs, loadingLogs, handleRefreshLogs} = useSettingsContext();
+    const {settings, logs, loadingLogs, handleRefreshLogs} = useSettingsContext();
 
     return (
         <section className="settings-panel">
@@ -253,17 +168,17 @@ export const SettingsLogsPage: React.FC = () => {
                     <input
                         type="checkbox"
                         checked={settings.enable_nlq_logging}
-                        onChange={(e) => setSettings((current) => current ? {...current, enable_nlq_logging: e.target.checked} : current)}
+                        readOnly
                     />
                     <div>
                         <strong>Enable NLQ / chat logging</strong>
-                        <p>Turn this on and save to start recording new runs for debugging and analysis.</p>
+                        <p>Set ENABLE_NLQ_LOGGING in .env and restart the backend to change this.</p>
                     </div>
                 </label>
             </div>
 
             {!settings.enable_nlq_logging && (
-                <p className="settings-inline-note">Logging is off right now. Save after enabling it to start collecting new entries.</p>
+                <p className="settings-inline-note">Logging is off. Set ENABLE_NLQ_LOGGING=true in .env and restart the backend.</p>
             )}
 
             {settings.enable_nlq_logging && (
@@ -506,7 +421,6 @@ const NLQSettings: React.FC = () => {
     const [settings, setSettings] = useState<MLLESettings | null>(null);
     const [repos, setRepos] = useState<string[]>([]);
     const [loading, setLoading] = useState(true);
-    const [saving, setSaving] = useState(false);
     const [testing, setTesting] = useState(false);
     const [loadingLogs, setLoadingLogs] = useState(false);
     const [loadingCodexHistory, setLoadingCodexHistory] = useState(false);
@@ -550,49 +464,13 @@ const NLQSettings: React.FC = () => {
         void load();
     }, []);
 
-    const updateProviderField = (
-        providerKey: string,
-        field: 'base_url' | 'api_key' | 'api_version' | 'model',
-        value: string,
-    ) => {
-        setSettings((current) => {
-            if (!current) return current;
-            return {
-                ...current,
-                llm_providers: {
-                    ...current.llm_providers,
-                    [providerKey]: {
-                        ...current.llm_providers[providerKey],
-                        [field]: value,
-                    },
-                },
-            };
-        });
-    };
-
-    const handleSave = async () => {
-        if (!settings) return;
-        setSaving(true);
-        setMessage(null);
-        setError(null);
-        try {
-            const saved = await saveSettings(settings);
-            setSettings(saved);
-            setMessage('Settings saved.');
-        } catch (err) {
-            setError((err as Error).message);
-        } finally {
-            setSaving(false);
-        }
-    };
-
     const handleTest = async () => {
         if (!settings) return;
         setTesting(true);
         setMessage(null);
         setError(null);
         try {
-            const response = await testLlmConnection(settings);
+            const response = await testLlmConnection();
             setMessage(`LLM test response: ${response}`);
         } catch (err) {
             setError((err as Error).message);
@@ -635,14 +513,11 @@ const NLQSettings: React.FC = () => {
                 <div>
                     <span className="plot-performance-kicker">Settings</span>
                     <h1>Application Settings</h1>
-                    <p>Organized into focused pages so you can move through setup the way you would in a code editor.</p>
+                    <p>Read-only runtime configuration loaded from the repository .env. Restart the backend after editing it.</p>
                 </div>
                 <div className="settings-hero-actions">
                     <button type="button" onClick={() => navigate('/')}>
                         Back to Home
-                    </button>
-                    <button type="button" onClick={() => void handleSave()} disabled={saving}>
-                        {saving ? 'Saving...' : 'Save'}
                     </button>
                 </div>
             </section>
@@ -679,21 +554,17 @@ const NLQSettings: React.FC = () => {
                     <Outlet
                         context={{
                             settings,
-                            setSettings,
                             repos,
                             logs,
                             codexHistory,
                             loadingLogs,
                             loadingCodexHistory,
-                            saving,
                             testing,
                             message,
                             error,
-                            handleSave,
                             handleTest,
                             handleRefreshLogs,
                             handleRefreshCodexHistory,
-                            updateProviderField,
                         }}
                     />
                 </main>

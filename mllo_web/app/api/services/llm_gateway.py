@@ -22,14 +22,8 @@ class LLMGateway:
         logger.info("LLM call provider=%s prompt_chars~=%d", provider, prompt_size)
 
         try:
-            if provider in {"lm_studio", "ollama", "openai"}:
-                text = await self._openai_compatible_completion(messages, provider_config)
-            elif provider == "azure_openai":
-                text = await self._azure_openai_completion(messages, provider_config)
-            elif provider == "anthropic":
-                text = await self._anthropic_completion(messages, provider_config)
-            elif provider == "gemini":
-                text = await self._gemini_completion(messages, provider_config)
+            if provider in {"openai_compatible", "azure_foundry"}:
+                text = await self._chat_completions_request(messages, provider_config)
             else:
                 raise LLMServiceError(f"Unsupported LLM provider: {provider}")
 
@@ -66,64 +60,43 @@ class LLMGateway:
             )
             raise LLMServiceError(str(exc)) from exc
 
-    async def _openai_compatible_completion(self, messages: list[dict], provider_config: dict) -> str:
-        base_url = (provider_config.get("base_url") or "https://api.openai.com/v1").rstrip("/")
+    async def _chat_completions_request(self, messages: list[dict], provider_config: dict) -> str:
+        provider = provider_config.get("provider")
+        base_url = (provider_config.get("base_url") or "").rstrip("/")
+        path = "/" + (provider_config.get("chat_completions_path") or "chat/completions").lstrip("/")
+        request_url = provider_config.get("chat_completions_url")
+        if not request_url and not base_url:
+            raise LLMServiceError("LLM chat completions URL is required")
+        request_url = request_url or f"{base_url}{path}"
+
         headers: dict[str, str] = {"Content-Type": "application/json"}
         api_key = provider_config.get("api_key")
         if api_key:
-            headers["Authorization"] = f"Bearer {api_key}"
+            header_name = provider_config.get("api_key_header") or "Authorization"
+            prefix = (provider_config.get("api_key_prefix") or "").strip()
+            headers[header_name] = f"{prefix} {api_key}".strip()
 
-        payload: dict[str, Any] = {
-            "model": provider_config.get("model"),
-            "messages": messages,
-            "temperature": 0,
-        }
+        payload: dict[str, Any] = {"messages": messages}
+        if provider_config.get("send_model", True):
+            payload["model"] = provider_config.get("model")
+        if provider == "azure_foundry":
+            payload["max_completion_tokens"] = provider_config.get("max_completion_tokens", 1024)
+            if provider_config.get("azure_send_temperature", False):
+                payload["temperature"] = provider_config.get("azure_temperature", 1.0)
+        else:
+            payload["max_tokens"] = provider_config.get("max_tokens", 1024)
+            payload["temperature"] = provider_config.get("temperature", 0.0)
 
-        async with httpx.AsyncClient(timeout=120.0) as client:
+        params = None
+        api_version = provider_config.get("api_version")
+        if api_version:
+            params = {provider_config.get("api_version_param") or "api-version": api_version}
+
+        async with httpx.AsyncClient(timeout=provider_config.get("timeout_seconds", 120.0)) as client:
             response = await client.post(
-                f"{base_url}/chat/completions",
+                request_url,
                 headers=headers,
-                json=payload,
-            )
-
-        if not response.is_success:
-            raise LLMServiceError(f"LLM API error {response.status_code}: {response.text[:500]}")
-
-        data = response.json()
-        content = (((data.get("choices") or [{}])[0]).get("message") or {}).get("content")
-        if not isinstance(content, str) or not content.strip():
-            raise LLMServiceError("LLM response missing message content")
-        return content.strip()
-
-    async def _azure_openai_completion(self, messages: list[dict], provider_config: dict) -> str:
-        base_url = (provider_config.get("base_url") or "").rstrip("/")
-        deployment = (provider_config.get("model") or "").strip()
-        api_key = provider_config.get("api_key")
-        api_version = (provider_config.get("api_version") or "").strip()
-
-        if not base_url:
-            raise LLMServiceError("Azure OpenAI base URL is required")
-        if not deployment:
-            raise LLMServiceError("Azure OpenAI deployment name is required")
-        if not api_key:
-            raise LLMServiceError("Azure OpenAI API key is required")
-        if not api_version:
-            raise LLMServiceError("Azure OpenAI API version is required")
-
-        headers: dict[str, str] = {
-            "Content-Type": "application/json",
-            "api-key": api_key,
-        }
-        payload: dict[str, Any] = {
-            "messages": messages,
-            "temperature": 0,
-        }
-
-        async with httpx.AsyncClient(timeout=120.0) as client:
-            response = await client.post(
-                f"{base_url}/openai/deployments/{deployment}/chat/completions",
-                headers=headers,
-                params={"api-version": api_version},
+                params=params,
                 json=payload,
             )
 
@@ -143,52 +116,3 @@ class LLMGateway:
         if not isinstance(content, str) or not content.strip():
             raise LLMServiceError("LLM response missing message content")
         return content.strip()
-
-    async def _anthropic_completion(self, messages: list[dict], provider_config: dict) -> str:
-        try:
-            from anthropic import AsyncAnthropic
-        except ImportError as exc:
-            raise LLMServiceError("anthropic SDK is not installed") from exc
-
-        system_messages = [message["content"] for message in messages if message.get("role") == "system"]
-        chat_messages = [
-            {"role": message["role"], "content": message["content"]}
-            for message in messages
-            if message.get("role") in {"user", "assistant"}
-        ]
-        client = AsyncAnthropic(api_key=provider_config.get("api_key"))
-        response = await client.messages.create(
-            model=provider_config.get("model"),
-            max_tokens=1024,
-            system="\n".join(system_messages),
-            messages=chat_messages,
-        )
-        texts = [block.text for block in response.content if getattr(block, "type", None) == "text"]
-        if not texts:
-            raise LLMServiceError("Anthropic response missing text content")
-        return "\n".join(texts).strip()
-
-    async def _gemini_completion(self, messages: list[dict], provider_config: dict) -> str:
-        try:
-            import google.generativeai as genai
-        except ImportError as exc:
-            raise LLMServiceError("google-generativeai SDK is not installed") from exc
-
-        genai.configure(api_key=provider_config.get("api_key"))
-        system_text = "\n".join(
-            str(message.get("content", "")) for message in messages if message.get("role") == "system"
-        )
-        prompt_text = "\n\n".join(
-            f"{message.get('role', 'user').upper()}:\n{message.get('content', '')}"
-            for message in messages
-            if message.get("role") != "system"
-        )
-        model = genai.GenerativeModel(
-            model_name=provider_config.get("model"),
-            system_instruction=system_text or None,
-        )
-        response = await model.generate_content_async(prompt_text)
-        text = getattr(response, "text", "")
-        if not text:
-            raise LLMServiceError("Gemini response missing text content")
-        return text.strip()

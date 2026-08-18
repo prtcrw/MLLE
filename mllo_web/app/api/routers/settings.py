@@ -6,22 +6,15 @@ from mllo_web.app.api.services.codex_history import get_codex_chat_history
 from mllo_web.app.api.services.graphdb_client import GraphDBClient
 from mllo_web.app.api.services.interaction_logging import get_recent_nlq_logs
 from mllo_web.app.api.services.llm_gateway import LLMGateway, LLMServiceError
-from mllo_web.app.api.services.settings_model import MLLESettings, load_settings, save_settings
+from mllo_web.app.api.services.settings_model import RuntimeSettingsView, load_settings
+from mllo_web.core.workflows.shared import active_provider_config
 
 router = APIRouter(prefix="/v1/settings", tags=["settings"])
 
 
 @router.get("")
-async def get_settings() -> MLLESettings:
-    return load_settings()
-
-
-@router.put("")
-async def put_settings(settings: MLLESettings) -> MLLESettings:
-    try:
-        return save_settings(settings)
-    except ValueError as exc:
-        raise HTTPException(status_code=422, detail=str(exc)) from exc
+async def get_settings() -> RuntimeSettingsView:
+    return RuntimeSettingsView.from_config(load_settings())
 
 
 @router.get("/repos")
@@ -42,9 +35,8 @@ async def get_repos() -> dict:
 
 
 @router.post("/test-llm")
-async def test_llm(settings: MLLESettings | None = None) -> dict:
-    resolved_settings = settings or load_settings()
-    provider = resolved_settings.llm_providers[resolved_settings.active_llm_provider]
+async def test_llm() -> dict:
+    resolved_settings = load_settings()
     gateway = LLMGateway()
     try:
         text = await gateway.chat_completion(
@@ -52,7 +44,7 @@ async def test_llm(settings: MLLESettings | None = None) -> dict:
                 {"role": "system", "content": "Reply with TEST_OK only."},
                 {"role": "user", "content": "Ping"},
             ],
-            provider.model_dump(),
+            active_provider_config(resolved_settings),
             purpose="settings_test_connection",
         )
     except LLMServiceError as exc:

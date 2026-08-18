@@ -17,7 +17,8 @@ ROOT = Path(__file__).resolve().parents[3]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from mllo_web.app.api.services.settings_model import MLLESettings, load_settings
+from mllo_web.app.api.config import AppConfig
+from mllo_web.app.api.services.settings_model import load_settings
 from mllo_web.core.workflows.nlq import execute_nlq
 
 
@@ -25,18 +26,17 @@ def _load_json(path: Path) -> Any:
     return json.loads(path.read_text(encoding="utf-8"))
 
 
-def _candidate_settings(base_settings: MLLESettings, candidate: dict[str, Any]) -> MLLESettings:
-    settings_dict = base_settings.model_dump(mode="python")
-    provider_name = candidate.get("name") or candidate["provider"]
-    settings_dict["active_llm_provider"] = provider_name
-    settings_dict["llm_providers"][provider_name] = {
-        "provider": candidate["provider"],
-        "base_url": candidate.get("base_url"),
-        "api_key": candidate.get("api_key", ""),
-        "api_version": candidate.get("api_version"),
-        "model": candidate["model"],
-    }
-    return MLLESettings.model_validate(settings_dict)
+def _candidate_settings(base_settings: AppConfig, candidate: dict[str, Any]) -> AppConfig:
+    provider = candidate["provider"]
+    client_type = "azure_foundry" if provider in {"azure_openai", "azure_foundry"} else "openai_compatible"
+    return base_settings.model_copy(update={
+        "llm_client_type": client_type,
+        "llm_base_url": candidate.get("base_url") or base_settings.llm_base_url,
+        "llm_chat_completions_url": candidate.get("chat_completions_url"),
+        "llm_api_key": candidate.get("api_key", ""),
+        "llm_api_version": candidate.get("api_version"),
+        "llm_model": candidate["model"],
+    })
 
 
 def _evaluate_case(case: dict[str, Any], response_payload: dict[str, Any] | None, error: Exception | None, latency_s: float) -> dict[str, Any]:
@@ -99,7 +99,7 @@ async def _run_candidate(
     cases: list[dict[str, Any]],
     repo: str,
     answer_mode: str,
-    base_settings: MLLESettings,
+    base_settings: AppConfig,
 ) -> dict[str, Any]:
     candidate_settings = _candidate_settings(base_settings, candidate)
     case_reports: list[dict[str, Any]] = []

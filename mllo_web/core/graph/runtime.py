@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import os
 from typing import Any
 
 from mllo_web.app.api.services.settings_model import load_settings
@@ -14,12 +13,10 @@ def graphdb_client():
     from mllo_web.app.api.services.graphdb_client import GraphDBClient
 
     resolved_settings = settings()
-    allowlist_raw = os.getenv("GRAPHDB_REPO_ALLOWLIST", "").strip()
-    env_allowlist = [item.strip() for item in allowlist_raw.split(",") if item.strip()] or None
     return GraphDBClient(
-        base_url=os.getenv("GRAPHDB_URL", resolved_settings.graphdb_url).rstrip("/"),
-        default_repo=os.getenv("GRAPHDB_DEFAULT_REPO", resolved_settings.graphdb_default_repo),
-        repo_allowlist=resolved_settings.graphdb_repo_allowlist or env_allowlist,
+        base_url=resolved_settings.graphdb_url.rstrip("/"),
+        default_repo=resolved_settings.graphdb_default_repo,
+        repo_allowlist=resolved_settings.graphdb_repo_allowlist,
     )
 
 
@@ -117,4 +114,3 @@ async def run_ask(
     payload = response_obj.json()
     result = bool(payload.get("boolean"))
     return response(tool, [{"result": result}], resolved_repo, inference_used=use_inference, boolean=result)
-
