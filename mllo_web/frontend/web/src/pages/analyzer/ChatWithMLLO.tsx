@@ -21,6 +21,9 @@ interface ChatAssistantPayload {
     results: ResultRow[];
     repo_used: string;
     inference_used: boolean;
+    execution_mode?: 'deterministic' | 'llm_generated';
+    execution_route?: string;
+    executed_tools?: string[];
     intent: {
         tool: string;
         reasoning: string;
@@ -347,6 +350,9 @@ const ChatWithMLLO: React.FC = () => {
                     results: response.results,
                     repo_used: response.repo_used,
                     inference_used: response.inference_used,
+                    execution_mode: response.execution_mode,
+                    execution_route: response.execution_route,
+                    executed_tools: response.executed_tools,
                     intent: {
                         tool: response.intent.tool,
                         reasoning: response.intent.reasoning,
@@ -473,8 +479,11 @@ const ChatWithMLLO: React.FC = () => {
                                             <details>
                                                 <summary>Debug Info</summary>
                                                 <div style={{marginTop: '0.5rem'}}>
-                                                    <div><strong>Intent Tool:</strong> {message.payload.intent.tool}</div>
-                                                    <div><strong>Reasoning:</strong> {message.payload.intent.reasoning}</div>
+                                                    <div><strong>Classified Intent:</strong> {message.payload.intent.tool}</div>
+                                                    <div><strong>Classifier Reasoning:</strong> {message.payload.intent.reasoning}</div>
+                                                    <div><strong>Execution Mode:</strong> {message.payload.execution_mode === 'deterministic' ? 'Deterministic query' : message.payload.execution_mode === 'llm_generated' ? 'LLM-generated SPARQL' : 'Unknown'}</div>
+                                                    <div><strong>Execution Route:</strong> {message.payload.execution_route ?? 'Unknown'}</div>
+                                                    <div><strong>Executed Tools:</strong> {(message.payload.executed_tools ?? []).join(' → ') || 'None recorded'}</div>
                                                 </div>
                                             </details>
 

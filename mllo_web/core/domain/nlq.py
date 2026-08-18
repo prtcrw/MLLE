@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
@@ -90,6 +90,9 @@ class NLQResponse(BaseModel):
     answer: str
     repo_used: str
     inference_used: bool
+    execution_mode: Literal["deterministic", "llm_generated"]
+    execution_route: str
+    executed_tools: list[str] = Field(default_factory=list)
 
 
 class NLQExecutionPayload(BaseModel):
@@ -97,4 +100,3 @@ class NLQExecutionPayload(BaseModel):
     results: list[dict[str, Any]]
     inference_used: bool
     state: NLQQueryState
-

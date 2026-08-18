@@ -68,6 +68,9 @@ def _evaluate_case(case: dict[str, Any], response_payload: dict[str, Any] | None
             "passed": all(checks.values()),
             "checks": checks,
             "intent_tool": response_payload["intent"]["tool"],
+            "execution_mode": response_payload.get("execution_mode"),
+            "execution_route": response_payload.get("execution_route"),
+            "executed_tools": response_payload.get("executed_tools", []),
             "inference_used": response_payload["inference_used"],
             "result_count": len(response_payload["results"]),
             "result_keys": result_keys,
@@ -190,17 +193,18 @@ def _build_markdown_report(
         lines.append("")
         lines.append("### Case Results")
         lines.append("")
-        lines.append("| # | Question | Category | Passed | Tool | Inference | Results | Latency |")
-        lines.append("|---|---|---|---|---|---|---|---|")
+        lines.append("| # | Question | Category | Passed | Classified Intent | Executed Route | Inference | Results | Latency |")
+        lines.append("|---|---|---|---|---|---|---|---|---|")
         for i, case in enumerate(report["cases"], start=1):
             passed_icon = "✅" if case.get("passed") else ("💥" if case.get("error_type") else "❌")
             tool = case.get("intent_tool") or case.get("error_type") or "—"
+            execution_route = case.get("execution_route") or "—"
             inference = "yes" if case.get("inference_used") else "no"
             result_count = case.get("result_count", "—")
             latency = f"{case.get('latency_s', '?')}s"
             category = case.get("category") or "—"
             question_short = case["question"][:60] + ("…" if len(case["question"]) > 60 else "")
-            lines.append(f"| {i} | {question_short} | `{category}` | {passed_icon} | `{tool}` | {inference} | {result_count} | {latency} |")
+            lines.append(f"| {i} | {question_short} | `{category}` | {passed_icon} | `{tool}` | `{execution_route}` | {inference} | {result_count} | {latency} |")
         lines.append("")
 
         # Failures detail

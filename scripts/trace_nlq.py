@@ -218,7 +218,14 @@ def build_markdown(trace: dict[str, Any], response_dump: dict[str, Any] | None) 
         resp = payload.get("response") or response_dump
 
         intent = resp.get("intent") or {}
-        sections.append(f"**Intent:** tool=`{intent.get('tool')}`, use_inference=`{intent.get('use_inference')}`, reasoning: {intent.get('reasoning') or '—'}")
+        sections.append(f"**Classified intent:** tool=`{intent.get('tool')}`, use_inference=`{intent.get('use_inference')}`, reasoning: {intent.get('reasoning') or '—'}")
+        sections.append("")
+        mode_label = {
+            "deterministic": "deterministic query",
+            "llm_generated": "LLM-generated SPARQL",
+        }.get(resp.get("execution_mode"), "unknown")
+        sections.append(f"**Actual execution:** `{mode_label}` via `{resp.get('execution_route') or 'unknown'}`")
+        sections.append(f"**Executed tools:** `{' → '.join(resp.get('executed_tools') or []) or 'none recorded'}`")
         sections.append("")
         sections.append(f"**Repo used:** `{resp.get('repo_used')}`")
         sections.append(f"**Inference used:** `{resp.get('inference_used')}`")

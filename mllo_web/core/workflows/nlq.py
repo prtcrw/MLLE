@@ -109,6 +109,7 @@ async def _execute_with_state(
     state.set_artifact("intent", intent.model_dump())
 
     if lineage_query_spec(question):
+        state.set_artifact("execution", {"mode": "deterministic", "route": "lineage_orchestration"})
         return await execute_lineage_orchestration(
             question=question,
             resolved_repo=resolved_repo,
@@ -118,6 +119,7 @@ async def _execute_with_state(
         )
 
     if performance_query_spec(question):
+        state.set_artifact("execution", {"mode": "deterministic", "route": "performance_orchestration"})
         return await execute_performance_orchestration(
             question=question,
             resolved_repo=resolved_repo,
@@ -135,11 +137,13 @@ async def _execute_with_state(
         "get_artifact_details",
         "explore_category",
     }:
+        state.set_artifact("execution", {"mode": "deterministic", "route": "structured_tool"})
         sparql, results = await _execute_structured_tool(intent, resolved_repo, use_inference, graphdb_client)
         state.add_step(tool=intent.tool, params=intent.params, sparql=sparql, results=results, inference_used=use_inference, reasoning=intent.reasoning)
         return NLQExecutionPayload(sparql=sparql, results=results, inference_used=use_inference, state=state)
 
     settings = load_settings()
+    state.set_artifact("execution", {"mode": "llm_generated", "route": "custom_sparql"})
     sparql, ctx = await generate_sparql(intent.params.get("question") or question, resolved_repo, settings, graphdb_client, gateway)
     try:
         results = await graphdb_client.query(sparql, repo=resolved_repo, use_inference=use_inference)
@@ -192,6 +196,10 @@ async def execute_nlq(
             graphdb_client=graphdb_client,
             gateway=gateway,
         )
+        execution_details = execution.state.get_artifact(
+            "execution",
+            {"mode": "deterministic", "route": "unknown"},
+        )
         answer = await generate_answer(question, execution.results, settings, gateway, state=execution.state)
         response = NLQResponse(
             question=question,
@@ -201,6 +209,9 @@ async def execute_nlq(
             answer=answer,
             repo_used=resolved_repo,
             inference_used=execution.inference_used,
+            execution_mode=execution_details["mode"],
+            execution_route=execution_details["route"],
+            executed_tools=[step.tool for step in execution.state.steps],
         )
         update_nlq_trace(
             resolved_repo=resolved_repo,

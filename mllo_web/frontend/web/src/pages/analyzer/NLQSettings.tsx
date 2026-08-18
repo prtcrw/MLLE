@@ -192,6 +192,9 @@ export const SettingsLogsPage: React.FC = () => {
                             const plan = ((payload.plan as Array<Record<string, unknown>> | undefined) ?? []);
                             const steps = ((payload.steps as Array<Record<string, unknown>> | undefined) ?? []);
                             const intent = (response.intent as Record<string, unknown> | undefined) ?? {};
+                            const executionMode = String(response.execution_mode ?? 'unknown');
+                            const executionRoute = String(response.execution_route ?? 'unknown');
+                            const executedTools = Array.isArray(response.executed_tools) ? response.executed_tools : [];
                             const intentCall = llmCallForPurpose(log, 'intent_classification');
                             const answerCall = llmCallForPurpose(log, 'answer_generation');
                             const primaryModel =
@@ -217,7 +220,9 @@ export const SettingsLogsPage: React.FC = () => {
                                         <div className="settings-log-grid">
                                             <div><strong>Started</strong><div>{new Date(log.started_at).toLocaleString()}</div></div>
                                             <div><strong>LLM Model</strong><div>{String(primaryModel)}</div></div>
-                                            <div><strong>Intent</strong><div>{String(intent.tool ?? 'Unknown')}</div></div>
+                                            <div><strong>Classified Intent</strong><div>{String(intent.tool ?? 'Unknown')}</div></div>
+                                            <div><strong>Execution</strong><div>{executionMode === 'deterministic' ? 'Deterministic query' : executionMode === 'llm_generated' ? 'LLM-generated SPARQL' : 'Unknown'}</div></div>
+                                            <div><strong>Route</strong><div>{executionRoute}</div></div>
                                             <div><strong>Repo</strong><div>{String(response.repo_used ?? log.metadata?.repo_requested ?? '')}</div></div>
                                             <div><strong>Rows</strong><div>{Array.isArray(response.results) ? response.results.length : 0}</div></div>
                                         </div>
@@ -225,6 +230,7 @@ export const SettingsLogsPage: React.FC = () => {
                                         <div className="settings-log-section">
                                             <strong>Step 1. Intent classification</strong>
                                             <div><strong>Reasoning:</strong> {String(intent.reasoning ?? 'No reasoning recorded.')}</div>
+                                            <div><strong>Actual execution:</strong> {executedTools.join(' → ') || executionRoute}</div>
                                             {intentCall && (
                                                 <details>
                                                     <summary>Show intent prompt and model response</summary>

@@ -179,7 +179,13 @@ interface PersistedNLQState {
     selectedRepo: string;
     answerMode: 'exact' | 'conceptual' | 'auto';
     metadata: {repo_used: string; inference_used: boolean} | null;
-    debugInfo: {tool: string; reasoning: string} | null;
+    debugInfo: {
+        classifiedIntent: string;
+        reasoning: string;
+        executionMode: 'deterministic' | 'llm_generated';
+        executionRoute: string;
+        executedTools: string[];
+    } | null;
 }
 
 const NaturalLanguageQuery: React.FC = () => {
@@ -194,7 +200,7 @@ const NaturalLanguageQuery: React.FC = () => {
     const [selectedRepo, setSelectedRepo] = useState('');
     const [answerMode, setAnswerMode] = useState<'exact' | 'conceptual' | 'auto'>('auto');
     const [metadata, setMetadata] = useState<{repo_used: string; inference_used: boolean} | null>(null);
-    const [debugInfo, setDebugInfo] = useState<{tool: string; reasoning: string} | null>(null);
+    const [debugInfo, setDebugInfo] = useState<PersistedNLQState['debugInfo']>(null);
     const [hasRestoredState, setHasRestoredState] = useState(false);
     const examplePrompts = [
         'Get all pipelines.',
@@ -285,7 +291,13 @@ const NaturalLanguageQuery: React.FC = () => {
             setResults(res.results);
             setAnswer(res.answer);
             setMetadata({repo_used: res.repo_used, inference_used: res.inference_used});
-            setDebugInfo({tool: res.intent.tool, reasoning: res.intent.reasoning});
+            setDebugInfo({
+                classifiedIntent: res.intent.tool,
+                reasoning: res.intent.reasoning,
+                executionMode: res.execution_mode,
+                executionRoute: res.execution_route,
+                executedTools: res.executed_tools,
+            });
         } catch (err: any) {
             setError(err.message || String(err));
         } finally {
@@ -306,7 +318,7 @@ const NaturalLanguageQuery: React.FC = () => {
     return (
         <div className="page-container">
             <h2>LLM Query</h2>
-            <p>Enter a natural-language description and convert it to SPARQL using your configured LLM endpoint.</p>
+            <p>Enter a natural-language question. MLLE will report whether it executed a deterministic query route or generated custom SPARQL.</p>
 
             <div style={{display: 'flex', flexDirection: 'column', gap: '0.5rem'}}>
                 <div style={{display: 'flex', flexDirection: 'column', gap: '0.35rem'}}>
@@ -411,8 +423,11 @@ const NaturalLanguageQuery: React.FC = () => {
                     <details>
                         <summary>Debug Info</summary>
                         <div style={{marginTop: '0.5rem'}}>
-                            <div><strong>Intent Tool:</strong> {debugInfo.tool}</div>
-                            <div><strong>Reasoning:</strong> {debugInfo.reasoning}</div>
+                            <div><strong>Classified Intent:</strong> {debugInfo.classifiedIntent ?? 'Unknown'}</div>
+                            <div><strong>Classifier Reasoning:</strong> {debugInfo.reasoning}</div>
+                            <div><strong>Execution Mode:</strong> {debugInfo.executionMode === 'deterministic' ? 'Deterministic query' : debugInfo.executionMode === 'llm_generated' ? 'LLM-generated SPARQL' : 'Unknown'}</div>
+                            <div><strong>Execution Route:</strong> {debugInfo.executionRoute ?? 'Unknown'}</div>
+                            <div><strong>Executed Tools:</strong> {(debugInfo.executedTools ?? []).join(' → ') || 'None recorded'}</div>
                         </div>
                     </details>
                 )}

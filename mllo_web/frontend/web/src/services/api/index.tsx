@@ -63,6 +63,9 @@ export interface NLQResponse {
     answer: string;
     repo_used: string;
     inference_used: boolean;
+    execution_mode: 'deterministic' | 'llm_generated';
+    execution_route: string;
+    executed_tools: string[];
 }
 
 export interface PipelineEditorNode {
