@@ -3,6 +3,15 @@ from __future__ import annotations
 from typing import Any
 
 
+def current_question_text(question: str) -> str:
+    marker = "Current user question:"
+    if marker not in question:
+        return question
+    tail = question.rsplit(marker, 1)[-1].strip()
+    lines = [line.strip() for line in tail.splitlines() if line.strip()]
+    return lines[0] if lines else question
+
+
 def active_provider_config(settings) -> dict:
     return {
         "provider": settings.llm_client_type,

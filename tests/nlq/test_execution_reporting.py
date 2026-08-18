@@ -77,6 +77,46 @@ class ExecutionReportingTests(unittest.IsolatedAsyncioTestCase):
         )
         self.assertEqual([step.tool for step in execution.state.steps], ["custom_sparql"])
 
+    async def test_prior_performance_context_does_not_hijack_current_custom_question(self) -> None:
+        current_question = (
+            "For each process, list every input artifact together with every output artifact "
+            "and the model it executes."
+        )
+        contextual_question = (
+            "Conversation context:\n"
+            "User: Show models with performance more than 0.95.\n"
+            "Assistant: Here are the performance results.\n\n"
+            f"Current user question: {current_question}\n"
+            "Resolve references to earlier turns when needed."
+        )
+        with patch(
+            "mllo_web.core.workflows.nlq.generate_sparql",
+            new=AsyncMock(return_value=("SELECT * WHERE {}", {"prefixes": []})),
+        ) as generate_sparql:
+            execution = await self.execute(contextual_question, custom_intent(contextual_question))
+
+        self.assertEqual(
+            execution.state.get_artifact("execution"),
+            {"mode": "llm_generated", "route": "custom_sparql"},
+        )
+        self.assertEqual(generate_sparql.await_args.args[0], current_question)
+
+    async def test_prior_dataset_and_pipeline_context_does_not_add_performance_enrichment(self) -> None:
+        current_question = "Show models with performance more than 0.95."
+        contextual_question = (
+            "Conversation context:\n"
+            "User: Include test datasets and pipelines.\n\n"
+            f"Current user question: {current_question}\n"
+            "Resolve references to earlier turns when needed."
+        )
+        execution = await self.execute(contextual_question, custom_intent(current_question))
+
+        self.assertEqual(
+            execution.state.get_artifact("execution"),
+            {"mode": "deterministic", "route": "performance_orchestration"},
+        )
+        self.assertEqual([step.tool for step in execution.state.steps], ["performance_filter"])
+
     async def test_response_keeps_classified_intent_separate_from_actual_execution(self) -> None:
         question = "What datasets are downstream of MnistG16?"
         intent = custom_intent(question)

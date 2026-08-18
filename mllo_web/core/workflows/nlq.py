@@ -27,6 +27,7 @@ from mllo_web.core.workflows.lineage import execute_lineage_orchestration
 from mllo_web.core.workflows.performance import execute_performance_orchestration, performance_query_spec
 from mllo_web.core.workflows.shared import (
     active_provider_config,
+    current_question_text,
     dataset_role_params_to_query_args,
     normalize_list,
     pipeline_names_from_params,
@@ -105,23 +106,24 @@ async def _execute_with_state(
     graphdb_client: GraphDBClient,
     gateway: LLMGateway,
 ) -> NLQExecutionPayload:
-    state = NLQQueryState(question=question, repo=resolved_repo)
+    focused_question = current_question_text(question)
+    state = NLQQueryState(question=focused_question, repo=resolved_repo)
     state.set_artifact("intent", intent.model_dump())
 
-    if lineage_query_spec(question):
+    if lineage_query_spec(focused_question):
         state.set_artifact("execution", {"mode": "deterministic", "route": "lineage_orchestration"})
         return await execute_lineage_orchestration(
-            question=question,
+            question=focused_question,
             resolved_repo=resolved_repo,
             state=state,
             graphdb_client=graphdb_client,
             payload_type=NLQExecutionPayload,
         )
 
-    if performance_query_spec(question):
+    if performance_query_spec(focused_question):
         state.set_artifact("execution", {"mode": "deterministic", "route": "performance_orchestration"})
         return await execute_performance_orchestration(
-            question=question,
+            question=focused_question,
             resolved_repo=resolved_repo,
             state=state,
             graphdb_client=graphdb_client,
@@ -144,7 +146,8 @@ async def _execute_with_state(
 
     settings = load_settings()
     state.set_artifact("execution", {"mode": "llm_generated", "route": "custom_sparql"})
-    sparql, ctx = await generate_sparql(intent.params.get("question") or question, resolved_repo, settings, graphdb_client, gateway)
+    generation_question = current_question_text(intent.params.get("question") or focused_question)
+    sparql, ctx = await generate_sparql(generation_question, resolved_repo, settings, graphdb_client, gateway)
     try:
         results = await graphdb_client.query(sparql, repo=resolved_repo, use_inference=use_inference)
     except Exception as exc:

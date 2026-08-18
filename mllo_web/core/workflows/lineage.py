@@ -3,14 +3,7 @@ from __future__ import annotations
 import re
 from typing import Any
 
-
-def current_question_text(question: str) -> str:
-    marker = "Current user question:"
-    if marker not in question:
-        return question
-    tail = question.rsplit(marker, 1)[-1].strip()
-    lines = [line.strip() for line in tail.splitlines() if line.strip()]
-    return lines[0] if lines else question
+from mllo_web.core.workflows.shared import current_question_text
 
 
 def lineage_query_spec(question: str) -> dict[str, Any] | None:
@@ -59,7 +52,7 @@ def lineage_query_spec(question: str) -> dict[str, Any] | None:
 
 
 def question_requests_model_context(question: str) -> bool:
-    lowered = question.lower()
+    lowered = current_question_text(question).lower()
     return "model" in lowered or "models" in lowered
 
 

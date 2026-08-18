@@ -3,9 +3,11 @@ from __future__ import annotations
 import re
 from typing import Any
 
+from mllo_web.core.workflows.shared import current_question_text
+
 
 def performance_query_spec(question: str) -> dict[str, Any] | None:
-    lowered = question.lower()
+    lowered = current_question_text(question).lower()
     if not any(
         token in lowered
         for token in ("performance", "accuracy", "metric", "score", "best", "top", "highest", "lowest", "more than", "less than")
@@ -65,12 +67,12 @@ LIMIT {spec['limit']}
 
 
 def question_requests_dataset_context(question: str) -> bool:
-    lowered = question.lower()
+    lowered = current_question_text(question).lower()
     return any(token in lowered for token in ("test dataset", "dataset", "data set"))
 
 
 def question_requests_pipeline_context(question: str) -> bool:
-    lowered = question.lower()
+    lowered = current_question_text(question).lower()
     return "pipeline" in lowered or "pipelines" in lowered
 
 
