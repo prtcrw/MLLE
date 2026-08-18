@@ -91,7 +91,7 @@ class MLLESettings(BaseModel):
         ),
     })
     graphdb_url: str = Field(default_factory=lambda: os.getenv("GRAPHDB_URL", "http://localhost:7200"))
-    graphdb_default_repo: str = Field(default_factory=lambda: os.getenv("GRAPHDB_DEFAULT_REPO", "mllo3"))
+    graphdb_default_repo: str = Field(default_factory=lambda: os.getenv("GRAPHDB_DEFAULT_REPO", "mllo5"))
     graphdb_repo_allowlist: list[str] | None = Field(default_factory=_env_allowlist)
     answer_mode: Literal["exact", "conceptual", "auto"] = "auto"
     enable_nlq_logging: bool = False

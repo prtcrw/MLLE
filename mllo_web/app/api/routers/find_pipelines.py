@@ -30,9 +30,9 @@ def _inject_explicit_graph(query: str) -> str:
 QUERY = """
 PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
 PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
-PREFIX ml: <http://www.semanticweb.org/mnd14/ml/>
+PREFIX ml: <https://spec.industrialontologies.org/ontology/construct/>
 PREFIX bfo: <http://purl.obolibrary.org/obo/>
-PREFIX iof-core: <https://spec.industrialontologies.org/ontology/core/Core/>
+PREFIX iof-core: <https://spec.industrialontologies.org/ontology/construct/>
 SELECT DISTINCT 
     (STRAFTER(STR(?pipeline), "#") AS ?pipeline_name)
     ?pipeline_type
@@ -78,11 +78,11 @@ WHERE {
     }
     OPTIONAL {
         {
-            ?pipeline bfo:BFO_0000117*/(bfo:BFO_0000057 | ml:executes) ?pipeline_associated_model_iri
+            ?pipeline bfo:BFO_0000117*/bfo:BFO_0000057 ?pipeline_associated_model_iri
         }
         UNION
         {
-            ?pipeline bfo:BFO_0000063+/(bfo:BFO_0000057 | ml:executes) ?pipeline_associated_model_iri
+            ?pipeline bfo:BFO_0000063+/bfo:BFO_0000057 ?pipeline_associated_model_iri
         }
 	?pipeline_associated_model_iri rdf:type/rdfs:subClassOf* ml:MachineLearningModel
     }
@@ -92,9 +92,9 @@ WHERE {
 COMPARE_QUERY = """
 PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
 PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
-PREFIX ml: <http://www.semanticweb.org/mnd14/ml/>
+PREFIX ml: <https://spec.industrialontologies.org/ontology/construct/>
 PREFIX bfo: <http://purl.obolibrary.org/obo/>
-PREFIX iof-core: <https://spec.industrialontologies.org/ontology/core/Core/>
+PREFIX iof-core: <https://spec.industrialontologies.org/ontology/construct/>
 PREFIX owl: <http://www.w3.org/2002/07/owl#>
 SELECT DISTINCT
     (STRAFTER(STR(?pipeline), "#") AS ?pipeline_name)
@@ -124,9 +124,9 @@ WHERE {
     OPTIONAL { ?pipeline ml:hasDataOutput ?pipeline_data_output_iri }
     OPTIONAL {
         {
-            ?pipeline bfo:BFO_0000117*/(bfo:BFO_0000057 | ml:executes) ?pipeline_associated_model_iri
+            ?pipeline bfo:BFO_0000117*/bfo:BFO_0000057 ?pipeline_associated_model_iri
         } UNION {
-            ?pipeline bfo:BFO_0000063+/(bfo:BFO_0000057 | ml:executes) ?pipeline_associated_model_iri
+            ?pipeline bfo:BFO_0000063+/bfo:BFO_0000057 ?pipeline_associated_model_iri
         }
     }
 }
@@ -192,7 +192,7 @@ class FindPipelinesQueryBuilder(QueryBuilder):
                 + replacement_string_for_specific_dataset,
             )
         else:
-            replacement_string_for_model_association = "{?pipeline bfo:BFO_0000117*/(bfo:BFO_0000057 | ml:executes) ?model}\nUNION\n{?pipeline bfo:BFO_0000063+/(bfo:BFO_0000057 | ml:executes) ?model}\n"
+            replacement_string_for_model_association = "{?pipeline bfo:BFO_0000117*/bfo:BFO_0000057 ?model}\nUNION\n{?pipeline bfo:BFO_0000063+/bfo:BFO_0000057 ?model}\n"
             replacement_string_for_specific_model = "?model rdf:type/rdfs:subClassOf* ml:MachineLearningModel.\n"
             
 
@@ -303,7 +303,7 @@ async def get_pipeline_types(request: Request) -> JSONResponse:
     query = """
     PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
     PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
-    PREFIX ml: <http://www.semanticweb.org/mnd14/ml/>
+    PREFIX ml: <https://spec.industrialontologies.org/ontology/construct/>
 
     SELECT DISTINCT ?pipeline_type
     WHERE {

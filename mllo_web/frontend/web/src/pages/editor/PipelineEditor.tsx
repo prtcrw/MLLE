@@ -539,7 +539,7 @@ const PipelineEditor: React.FC = () => {
             title,
             kind: 'operation',
             iri: pipelineName
-                ? `http://www.semanticweb.org/mnd14/ml/${pipelineName}#${nextId}`
+                ? `https://spec.industrialontologies.org/ontology/construct/${pipelineName}#${nextId}`
                 : `urn:mllo:pipeline:${nextId}`,
             summary: 'New pipeline component. Connect it into the workflow and update its note in the inspector.',
             rules: [],

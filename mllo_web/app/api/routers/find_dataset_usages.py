@@ -60,11 +60,11 @@ def _build_dataset_role_constraint(dataset_role: dict[str, bool]) -> str:
 
 
 FIND_DATASET_USAGES_QUERY = """
-PREFIX ml: <http://www.semanticweb.org/mnd14/ml/>
+PREFIX ml: <https://spec.industrialontologies.org/ontology/construct/>
 PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
 PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
 PREFIX bfo: <http://purl.obolibrary.org/obo/>
-PREFIX iof-core: <https://spec.industrialontologies.org/ontology/core/Core/>
+PREFIX iof-core: <https://spec.industrialontologies.org/ontology/construct/>
 PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>
 PREFIX owl: <http://www.w3.org/2002/07/owl#>
 
@@ -87,7 +87,7 @@ WHERE {
             (GROUP_CONCAT(DISTINCT ?property_info; separator=";") AS ?property_infos)
         WHERE {
             ?ml_process ml:hasDataInput/ml:informationContentEntityDerivedFrom* ?dataset.
-            ?ml_process (bfo:BFO_0000057 | ml:executes) ?model_name.
+            ?ml_process bfo:BFO_0000057 ?model_name.
             #DATASET_FILTER
 
             OPTIONAL {
@@ -119,7 +119,7 @@ WHERE {
     #MODEL_TYPE_FILTER
 
     OPTIONAL {
-        ?ml_process bfo:BFO_0000222/iof-core:hasValueExpressionAtAllTimes/iof-core:hasDateTimeValue ?ml_input_timestamp
+        ?ml_process bfo:BFO_0000222/iof-core:hasValueExpressionAtAllTimes/iof-core:hasDateTimeInstantValue ?ml_input_timestamp
     }
 
     {
@@ -322,7 +322,7 @@ async def get_query_iri(request: Request, iri: str):
 
 
 MODEL_TYPES_QUERY = """
-PREFIX ml: <http://www.semanticweb.org/mnd14/ml/>
+PREFIX ml: <https://spec.industrialontologies.org/ontology/construct/>
 PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
 PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
 

@@ -10,11 +10,10 @@ HIDDEN_IRIS = {
 
 HIDDEN_NAMESPACES = (
     "http://purl.obolibrary.org/obo/BFO_",
-    "https://spec.industrialontologies.org/ontology/core/Core/",
 )
 
 ALWAYS_KEEP_NAMESPACES = (
-    "http://www.semanticweb.org/mnd14/ml/",
+    "https://spec.industrialontologies.org/ontology/construct/",
     "http://purl.org/dc/terms/",
     "http://www.w3.org/ns/prov#",
 )

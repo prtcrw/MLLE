@@ -41,12 +41,12 @@ If you do not create a `.env` file, or if `.env` does not set the SPARQL backend
 ```env
 SPARQL_BACKEND=graphdb
 GRAPHDB_URL=http://localhost:7200
-GRAPHDB_DEFAULT_REPO=mllo
-GRAPHDB_ENDPOINT=http://localhost:7200/repositories/mllo
+GRAPHDB_DEFAULT_REPO=mllo5
+GRAPHDB_ENDPOINT=http://localhost:7200/repositories/mllo5
 GRAPHDB_AUTH_TYPE=none
 ```
 
-The default GraphDB repository is `mllo`. Create or import an `mllo` repository in GraphDB and load the MLLO ontology/data there, or change `GRAPHDB_DEFAULT_REPO` to match your local MLLO repository name.
+The default GraphDB repository is `mllo5`. Create or import an `mllo5` repository in GraphDB and load the MLLO ontology/data there, or change `GRAPHDB_DEFAULT_REPO` to match your local MLLO repository name.
 
 For MOBI:
 
@@ -63,14 +63,14 @@ For GraphDB:
 ```env
 SPARQL_BACKEND=graphdb
 GRAPHDB_URL=http://localhost:7200
-GRAPHDB_DEFAULT_REPO=mllo4
+GRAPHDB_DEFAULT_REPO=mllo5
 GRAPHDB_AUTH_TYPE=none
 ```
 
 You can also set `GRAPHDB_ENDPOINT` directly if you want to use a full repository endpoint, for example:
 
 ```env
-GRAPHDB_ENDPOINT=http://localhost:7200/repositories/mllo4
+GRAPHDB_ENDPOINT=http://localhost:7200/repositories/mllo5
 ```
 
 The default app server settings are:
@@ -241,7 +241,7 @@ uv run python -m unittest tests.nlq.test_regressions
 Point the NLQ tests at a specific GraphDB repository:
 
 ```bash
-MLLO_NLQ_TEST_REPO=mllo4 uv run python -m unittest tests.nlq.test_regressions
+MLLO_NLQ_TEST_REPO=mllo5 uv run python -m unittest tests.nlq.test_regressions
 ```
 
 Run frontend checks:

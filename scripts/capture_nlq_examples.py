@@ -46,7 +46,7 @@ async def _run() -> list[dict[str, Any]]:
             start_idx = len(captured_calls)
             item: dict[str, Any] = {"question": question}
             try:
-                result = await execute_nlq(question, repo="mllo4", answer_mode="auto")
+                result = await execute_nlq(question, repo="mllo5", answer_mode="auto")
                 payload = result.model_dump()
                 item["ok"] = True
                 item["intent"] = payload["intent"]

@@ -4,11 +4,11 @@ from mllo_web.core.sparql.common import QueryBuilder, config, inject_explicit_gr
 
 
 QUERY = """
-PREFIX ml: <http://www.semanticweb.org/mnd14/ml/>
+PREFIX ml: <https://spec.industrialontologies.org/ontology/construct/>
 PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
 PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
 PREFIX bfo: <http://purl.obolibrary.org/obo/>
-PREFIX iof-core: <https://spec.industrialontologies.org/ontology/core/Core/>
+PREFIX iof-core: <https://spec.industrialontologies.org/ontology/construct/>
 PREFIX owl: <http://www.w3.org/2002/07/owl#>
 SELECT DISTINCT (GROUP_CONCAT(DISTINCT ?datap_pair; separator="\\n") AS ?dataproperty_value_pairs)
                 (GROUP_CONCAT(DISTINCT ?annotp_pair; separator="\\n") AS ?annotationproperty_value_pairs)

@@ -81,7 +81,7 @@ def _build_existing_pipelines_query(search_term: str | None = None) -> str:
     query = f"""
 PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
 PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
-PREFIX ml: <http://www.semanticweb.org/mnd14/ml/>
+PREFIX ml: <https://spec.industrialontologies.org/ontology/construct/>
 SELECT DISTINCT (STRAFTER(STR(?pipeline), "#") AS ?pipeline_name)
 WHERE {{
   ?pipeline rdf:type ?pipelineType .
@@ -107,14 +107,13 @@ VALIDATION_EXPECTATIONS: dict[str, list[str]] = {
     "PreprocessedDataset": ["MLModel"],
 }
 
-MLLO_NAMESPACE = "http://www.semanticweb.org/mnd14/ml/"
+MLLO_NAMESPACE = "https://spec.industrialontologies.org/ontology/construct/"
 RELATION_LABEL_FALLBACKS = {
     "http://purl.obolibrary.org/obo/BFO_0000117": "has pipeline component",
     "http://purl.obolibrary.org/obo/BFO_0000063": "has predecessor relation",
     "http://purl.obolibrary.org/obo/BFO_0000057": "has participant",
-    "http://www.semanticweb.org/mnd14/ml/hasDataInput": "has data input",
-    "http://www.semanticweb.org/mnd14/ml/hasDataOutput": "has data output",
-    "http://www.semanticweb.org/mnd14/ml/executes": "executes",
+    "https://spec.industrialontologies.org/ontology/construct/hasDataInput": "has data input",
+    "https://spec.industrialontologies.org/ontology/construct/hasDataOutput": "has data output",
 }
 
 
@@ -195,10 +194,10 @@ def _build_graph_query(pipeline_name: str) -> str:
     query = f"""
 PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
 PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
-PREFIX ml: <http://www.semanticweb.org/mnd14/ml/>
+PREFIX ml: <https://spec.industrialontologies.org/ontology/construct/>
 PREFIX bfo: <http://purl.obolibrary.org/obo/>
-PREFIX iof-core: <https://spec.industrialontologies.org/ontology/core/Core/>
-PREFIX ann: <https://spec.industrialontologies.org/ontology/core/meta/AnnotationVocabulary/>
+PREFIX iof-core: <https://spec.industrialontologies.org/ontology/construct/>
+PREFIX ann: <https://spec.industrialontologies.org/ontology/annotation/>
 SELECT DISTINCT ?pipeline ?resource ?resourceType ?resourceTypeLabel ?resourceTypeDefinition ?input ?inputType ?inputTypeDefinition ?output ?outputType ?outputTypeDefinition ?model ?modelType ?modelTypeDefinition ?predecessor
 WHERE {{
   ?pipeline rdf:type ?pipelineType .
@@ -221,9 +220,9 @@ WHERE {{
   }}
   OPTIONAL {{
     {{
-      ?pipeline bfo:BFO_0000117*/(bfo:BFO_0000057 | ml:executes) ?model
+      ?pipeline bfo:BFO_0000117*/bfo:BFO_0000057 ?model
     }} UNION {{
-      ?pipeline bfo:BFO_0000063+/(bfo:BFO_0000057 | ml:executes) ?model
+      ?pipeline bfo:BFO_0000063+/bfo:BFO_0000057 ?model
     }}
     ?model rdf:type/rdfs:subClassOf* ml:MachineLearningModel .
     OPTIONAL {{
@@ -551,16 +550,16 @@ def _build_source_metadata(
 
         ontology_relations: list[str] = []
         if node.kind == "input":
-            ontology_relations.append(f"Mapped through {_relation_label('http://www.semanticweb.org/mnd14/ml/hasDataInput')} from the pipeline instance.")
+            ontology_relations.append(f"Mapped through {_relation_label('https://spec.industrialontologies.org/ontology/construct/hasDataInput')} from the pipeline instance.")
         elif node.kind == "output":
-            ontology_relations.append(f"Mapped through {_relation_label('http://www.semanticweb.org/mnd14/ml/hasDataOutput')} from the pipeline instance.")
+            ontology_relations.append(f"Mapped through {_relation_label('https://spec.industrialontologies.org/ontology/construct/hasDataOutput')} from the pipeline instance.")
         elif node.kind == "operation":
             ontology_relations.append(f"Mapped as a pipeline component through {_relation_label('http://purl.obolibrary.org/obo/BFO_0000117')}.")
             if previous_node is not None:
                 ontology_relations.append(f"Mapped to predecessor/successor ordering through {_relation_label('http://purl.obolibrary.org/obo/BFO_0000063')}.")
         elif node.kind == "model":
             ontology_relations.append(
-                f"Mapped through the model execution path using {_relation_label('http://www.semanticweb.org/mnd14/ml/executes')} and {_relation_label('http://purl.obolibrary.org/obo/BFO_0000057')}."
+                f"Mapped through the model execution path using {_relation_label('http://purl.obolibrary.org/obo/BFO_0000057')}."
             )
 
         class_iri = node_class_map.get(node.id)

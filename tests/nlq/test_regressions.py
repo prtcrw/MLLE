@@ -8,7 +8,7 @@ from mllo_web.app.api.services.settings_model import MLLESettings, load_settings
 from mllo_web.core.workflows.nlq import execute_nlq
 
 
-TEST_REPO = os.getenv("MLLO_NLQ_TEST_REPO", "mllo4")
+TEST_REPO = os.getenv("MLLO_NLQ_TEST_REPO", "mllo5")
 TEST_PROVIDER = os.getenv("MLLO_NLQ_TEST_PROVIDER", "").strip()
 TEST_BASE_URL = os.getenv("MLLO_NLQ_TEST_BASE_URL", "").strip()
 TEST_MODEL = os.getenv("MLLO_NLQ_TEST_MODEL", "").strip()

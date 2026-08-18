@@ -33,7 +33,7 @@ def _count_query(prefixes: str, where_body: str) -> str:
 
 
 MODEL_COUNT_QUERY = _count_query("""
-PREFIX ml: <http://www.semanticweb.org/mnd14/ml/>
+PREFIX ml: <https://spec.industrialontologies.org/ontology/construct/>
 PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
 PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
 """, """
@@ -48,7 +48,7 @@ PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
 """)
 
 PIPELINE_COUNT_QUERY = _count_query("""
-PREFIX ml: <http://www.semanticweb.org/mnd14/ml/>
+PREFIX ml: <https://spec.industrialontologies.org/ontology/construct/>
 PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
 PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
 """, """
@@ -63,7 +63,7 @@ UNION
 """)
 
 DEPLOYED_MODEL_COUNT_QUERY = _count_query("""
-PREFIX ml: <http://www.semanticweb.org/mnd14/ml/>
+PREFIX ml: <https://spec.industrialontologies.org/ontology/construct/>
 PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
 PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
 PREFIX bfo: <http://purl.obolibrary.org/obo/>

@@ -39,14 +39,14 @@ def build_performance_query_from_spec(spec: dict[str, Any]) -> str:
     if spec["threshold_op"] and spec["threshold_value"]:
         threshold_clause = f"FILTER(xsd:decimal(?model_performance_value) {spec['threshold_op']} {spec['threshold_value']})"
     return f"""
-PREFIX ml: <http://www.semanticweb.org/mnd14/ml/>
+PREFIX ml: <https://spec.industrialontologies.org/ontology/construct/>
 PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
 PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
 PREFIX bfo: <http://purl.obolibrary.org/obo/>
-PREFIX iof-core: <https://spec.industrialontologies.org/ontology/core/Core/>
+PREFIX iof-core: <https://spec.industrialontologies.org/ontology/construct/>
 PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>
 SELECT DISTINCT ?model_name ?ml_process ?model_performance_metric ?model_performance_value WHERE {{
-    ?ml_process (ml:executes|bfo:BFO_0000057) ?model_name .
+    ?ml_process bfo:BFO_0000057 ?model_name .
     ?model_name rdf:type/rdfs:subClassOf* ml:MachineLearningModel .
     ?model_performance_assessment ml:hasDataInput ?model_output .
     ?ml_process ml:hasDataOutput ?model_output .
@@ -78,7 +78,7 @@ def build_model_dataset_query(process_iris: list[str], *, dataset_kind: str = "t
     escaped_processes = " ".join(f"<{p}>" for p in process_iris if p)
     dataset_class = "ml:TestDataSet" if dataset_kind == "test" else "ml:MachineLearningDataSet"
     return f"""
-PREFIX ml: <http://www.semanticweb.org/mnd14/ml/>
+PREFIX ml: <https://spec.industrialontologies.org/ontology/construct/>
 PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
 PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
 PREFIX bfo: <http://purl.obolibrary.org/obo/>
@@ -96,13 +96,13 @@ LIMIT 200
 def build_model_pipeline_query(model_iris: list[str]) -> str:
     escaped_models = " ".join(f"<{model}>" for model in model_iris if model)
     return f"""
-PREFIX ml: <http://www.semanticweb.org/mnd14/ml/>
+PREFIX ml: <https://spec.industrialontologies.org/ontology/construct/>
 PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
 PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
 PREFIX bfo: <http://purl.obolibrary.org/obo/>
 SELECT DISTINCT ?model_name ?pipeline WHERE {{
     VALUES ?model_name {{ {escaped_models} }}
-    ?pipeline bfo:BFO_0000117*/(bfo:BFO_0000057 | ml:executes) ?model_name .
+    ?pipeline bfo:BFO_0000117*/bfo:BFO_0000057 ?model_name .
 }}
 LIMIT 200
 """

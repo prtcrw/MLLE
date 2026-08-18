@@ -19,7 +19,7 @@ class GraphDBClient:
     def __init__(
         self,
         base_url: str = "http://localhost:7200",
-        default_repo: str = "mllo4",
+        default_repo: str = "mllo5",
         repo_allowlist: list[str] | None = None,
     ):
         self.base_url = base_url.rstrip("/")

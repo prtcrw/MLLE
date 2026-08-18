@@ -9,9 +9,9 @@ from mllo_web.core.sparql.common import QueryBuilder, config, inject_explicit_gr
 QUERY = """
 PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
 PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
-PREFIX ml: <http://www.semanticweb.org/mnd14/ml/>
+PREFIX ml: <https://spec.industrialontologies.org/ontology/construct/>
 PREFIX bfo: <http://purl.obolibrary.org/obo/>
-PREFIX iof-core: <https://spec.industrialontologies.org/ontology/core/Core/>
+PREFIX iof-core: <https://spec.industrialontologies.org/ontology/construct/>
 SELECT DISTINCT
     (STRAFTER(STR(?pipeline), "#") AS ?pipeline_name)
     ?pipeline_type
@@ -52,11 +52,11 @@ WHERE {
     OPTIONAL { ?pipeline ml:hasDataOutput ?pipeline_data_output_iri }
     OPTIONAL {
         {
-            ?pipeline bfo:BFO_0000117*/(bfo:BFO_0000057 | ml:executes) ?pipeline_associated_model_iri
+            ?pipeline bfo:BFO_0000117*/bfo:BFO_0000057 ?pipeline_associated_model_iri
         }
         UNION
         {
-            ?pipeline bfo:BFO_0000063+/(bfo:BFO_0000057 | ml:executes) ?pipeline_associated_model_iri
+            ?pipeline bfo:BFO_0000063+/bfo:BFO_0000057 ?pipeline_associated_model_iri
         }
         ?pipeline_associated_model_iri rdf:type/rdfs:subClassOf* ml:MachineLearningModel
     }
@@ -66,9 +66,9 @@ WHERE {
 COMPARE_QUERY = """
 PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
 PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
-PREFIX ml: <http://www.semanticweb.org/mnd14/ml/>
+PREFIX ml: <https://spec.industrialontologies.org/ontology/construct/>
 PREFIX bfo: <http://purl.obolibrary.org/obo/>
-PREFIX iof-core: <https://spec.industrialontologies.org/ontology/core/Core/>
+PREFIX iof-core: <https://spec.industrialontologies.org/ontology/construct/>
 PREFIX owl: <http://www.w3.org/2002/07/owl#>
 SELECT DISTINCT
     (STRAFTER(STR(?pipeline), "#") AS ?pipeline_name)
@@ -98,9 +98,9 @@ WHERE {
     OPTIONAL { ?pipeline ml:hasDataOutput ?pipeline_data_output_iri }
     OPTIONAL {
         {
-            ?pipeline bfo:BFO_0000117*/(bfo:BFO_0000057 | ml:executes) ?pipeline_associated_model_iri
+            ?pipeline bfo:BFO_0000117*/bfo:BFO_0000057 ?pipeline_associated_model_iri
         } UNION {
-            ?pipeline bfo:BFO_0000063+/(bfo:BFO_0000057 | ml:executes) ?pipeline_associated_model_iri
+            ?pipeline bfo:BFO_0000063+/bfo:BFO_0000057 ?pipeline_associated_model_iri
         }
     }
 }
@@ -154,8 +154,8 @@ class FindPipelinesQueryBuilder(QueryBuilder):
                 replacement_string += f'FILTER(CONTAINS(STRAFTER(STR(?dataset),"#"),"{self.pipeline_constraint}"))\n'
             query = query.replace("#dataset_or_ml_filter", replacement_string)
         else:
-            replacement_string = "{?pipeline bfo:BFO_0000117*/(bfo:BFO_0000057 | ml:executes) ?model}\nUNION\n"
-            replacement_string += "{?pipeline bfo:BFO_0000063+/(bfo:BFO_0000057 | ml:executes) ?model}\n"
+            replacement_string = "{?pipeline bfo:BFO_0000117*/bfo:BFO_0000057 ?model}\nUNION\n"
+            replacement_string += "{?pipeline bfo:BFO_0000063+/bfo:BFO_0000057 ?model}\n"
             replacement_string += "?model rdf:type/rdfs:subClassOf* ml:MachineLearningModel.\n"
             if self.pipeline_constraint:
                 replacement_string += f'FILTER(CONTAINS(STRAFTER(STR(?model),"#"),"{self.pipeline_constraint}"))\n'

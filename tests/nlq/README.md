@@ -28,7 +28,7 @@ uv run python -m unittest tests.nlq.test_regressions
 If needed, override the GraphDB repo with:
 
 ```bash
-MLLO_NLQ_TEST_REPO=mllo4 uv run python -m unittest tests.nlq.test_regressions
+MLLO_NLQ_TEST_REPO=mllo5 uv run python -m unittest tests.nlq.test_regressions
 ```
 
 If you want to force the tests to use an LM Studio model instead of the saved app settings:

@@ -56,9 +56,9 @@ def build_ontology_context(
         "rdfs": "http://www.w3.org/2000/01/rdf-schema#",
         "owl": "http://www.w3.org/2002/07/owl#",
         "xsd": "http://www.w3.org/2001/XMLSchema#",
-        "ml": "http://www.semanticweb.org/mnd14/ml/",
+        "ml": "https://spec.industrialontologies.org/ontology/construct/",
         "bfo": "http://purl.obolibrary.org/obo/",
-        "iof-core": "https://spec.industrialontologies.org/ontology/core/Core/",
+        "iof-core": "https://spec.industrialontologies.org/ontology/construct/",
     }
     for row in prefix_rows:
         prefix = (row.get("prefix") or "").strip()

@@ -42,7 +42,7 @@ class AppConfig(BaseSettings):
         description="Base URL for GraphDB."
     )
     graphdb_default_repo: str = Field(
-        default="mllo",
+        default="mllo5",
         description="Default GraphDB repository."
     )
     graphdb_endpoint: str | None = Field(

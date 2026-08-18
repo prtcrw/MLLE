@@ -34,11 +34,11 @@ def _inject_explicit_graph(query: str) -> str:
 
 
 FIND_MODELS_QUERY = """
-PREFIX ml: <http://www.semanticweb.org/mnd14/ml/>
+PREFIX ml: <https://spec.industrialontologies.org/ontology/construct/>
 PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
 PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
 PREFIX bfo: <http://purl.obolibrary.org/obo/>
-PREFIX iof-core: <https://spec.industrialontologies.org/ontology/core/Core/>
+PREFIX iof-core: <https://spec.industrialontologies.org/ontology/construct/>
 PREFIX owl: <http://www.w3.org/2002/07/owl#>
 
 SELECT DISTINCT
@@ -75,7 +75,7 @@ WHERE {
     }
 
     OPTIONAL {
-        ?process (ml:executes | bfo:BFO_0000057) ?model .
+        ?process bfo:BFO_0000057 ?model .
         OPTIONAL {
             ?process ml:hasDataInput ?input_dataset .
             ?input_dataset ml:informationContentEntityDerivedFrom* ?linked_dataset .
@@ -88,7 +88,7 @@ WHERE {
             ?linked_pipeline rdf:type/rdfs:subClassOf* ml:MachineLearningModelDevelopmentPipeline .
         }
         OPTIONAL {
-            ?process bfo:BFO_0000222/iof-core:hasValueExpressionAtAllTimes/iof-core:hasDateTimeValue ?process_timestamp .
+            ?process bfo:BFO_0000222/iof-core:hasValueExpressionAtAllTimes/iof-core:hasDateTimeInstantValue ?process_timestamp .
         }
         OPTIONAL {
             ?process ml:hasDataOutput ?process_output .
@@ -114,13 +114,13 @@ WHERE {
         ?deployed_state bfo:BFO_0000117 ?model_execution .
         ?model_execution rdf:type/rdfs:subClassOf* ml:ModelExecution .
         OPTIONAL {
-            ?model_execution bfo:BFO_0000224/iof-core:hasValueExpressionAtAllTimes/iof-core:hasDateTimeValue ?execution_timestamp .
+            ?model_execution bfo:BFO_0000224/iof-core:hasValueExpressionAtAllTimes/iof-core:hasDateTimeInstantValue ?execution_timestamp .
         }
         OPTIONAL {
             ?ml_training ^bfo:BFO_0000117*/bfo:BFO_0000063 ?model_execution .
             ?ml_training rdf:type/rdfs:subClassOf* ml:MachineLearningTraining .
             OPTIONAL {
-                ?ml_training bfo:BFO_0000224/iof-core:hasValueExpressionAtAllTimes/iof-core:hasDateTimeValue ?training_timestamp .
+                ?ml_training bfo:BFO_0000224/iof-core:hasValueExpressionAtAllTimes/iof-core:hasDateTimeInstantValue ?training_timestamp .
             }
         }
     }
@@ -137,11 +137,11 @@ WHERE {
 
 
 ANALYZE_DEPLOYED_MODELS_QUERY = """
-PREFIX ml: <http://www.semanticweb.org/mnd14/ml/>
+PREFIX ml: <https://spec.industrialontologies.org/ontology/construct/>
 PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
 PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
 PREFIX bfo: <http://purl.obolibrary.org/obo/>
-PREFIX iof-core: <https://spec.industrialontologies.org/ontology/core/Core/>
+PREFIX iof-core: <https://spec.industrialontologies.org/ontology/construct/>
 SELECT DISTINCT
     ?model_name
     ?model_deployed_on_system
@@ -162,7 +162,7 @@ WHERE {
     OPTIONAL {
         ?deployed_state bfo:BFO_0000117 ?model_execution.
         ?model_execution rdf:type/rdfs:subClassOf* ml:ModelExecution.
-        ?model_execution (ml:executes|bfo:BFO_0000057) ?model_name.
+        ?model_execution bfo:BFO_0000057 ?model_name.
         OPTIONAL { ?model_execution ml:hasDataInput ?model_input. }
         OPTIONAL {
             ?model_execution ml:hasDataOutput ?model_output.
@@ -182,13 +182,13 @@ WHERE {
             }
         }
         OPTIONAL {
-            ?model_execution bfo:BFO_0000224/iof-core:hasValueExpressionAtAllTimes/iof-core:hasDateTimeValue ?model_execution_timestamp.
+            ?model_execution bfo:BFO_0000224/iof-core:hasValueExpressionAtAllTimes/iof-core:hasDateTimeInstantValue ?model_execution_timestamp.
         }
         OPTIONAL {
             ?ml_training ^bfo:BFO_0000117*/bfo:BFO_0000063 ?model_execution.
             ?ml_training rdf:type/rdfs:subClassOf* ml:MachineLearningTraining.
             OPTIONAL {
-                ?ml_training bfo:BFO_0000224/iof-core:hasValueExpressionAtAllTimes/iof-core:hasDateTimeValue ?model_training_timestamp.
+                ?ml_training bfo:BFO_0000224/iof-core:hasValueExpressionAtAllTimes/iof-core:hasDateTimeInstantValue ?model_training_timestamp.
             }
         }
     }
@@ -206,7 +206,7 @@ GROUP BY
 
 
 MODEL_TYPES_QUERY = """
-PREFIX ml: <http://www.semanticweb.org/mnd14/ml/>
+PREFIX ml: <https://spec.industrialontologies.org/ontology/construct/>
 PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
 PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
 

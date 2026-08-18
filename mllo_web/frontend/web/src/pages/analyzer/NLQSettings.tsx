@@ -223,7 +223,7 @@ export const SettingsGraphDbPage: React.FC = () => {
                                 .map((item) => item.trim())
                                 .filter(Boolean),
                         } : current)}
-                        placeholder="mllo3, mllo_test"
+                        placeholder="mllo5, mllo_test"
                     />
                     <small>Leave blank to allow every repository the backend returns.</small>
                 </label>

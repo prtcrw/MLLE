@@ -85,14 +85,14 @@ def build_dataset_model_query(dataset_iris: list[str], *, dataset_kind: str = "a
     }
 """
     return f"""
-PREFIX ml: <http://www.semanticweb.org/mnd14/ml/>
+PREFIX ml: <https://spec.industrialontologies.org/ontology/construct/>
 PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
 PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
 PREFIX bfo: <http://purl.obolibrary.org/obo/>
 SELECT DISTINCT ?dataset ?dataset_role ?model_name WHERE {{
     VALUES ?dataset {{ {escaped_datasets} }}
     ?ml_process ml:hasDataInput ?dataset .
-    ?ml_process (ml:executes|bfo:BFO_0000057) ?model_name .
+    ?ml_process bfo:BFO_0000057 ?model_name .
     ?model_name rdf:type/rdfs:subClassOf* ml:MachineLearningModel .
     {dataset_filter}
 }}
@@ -145,7 +145,7 @@ def choose_resolved_artifact(rows: list[dict[str, Any]], artifact_name: str) -> 
         grouped.values(),
         key=lambda item: (
             0 if any("dataset" in label.lower() or "data set" in label.lower() for label in item["type_labels"]) else 1,
-            0 if any("http://www.semanticweb.org/mnd14/ml/" in type_iri for type_iri in item["types"]) else 1,
+            0 if any("https://spec.industrialontologies.org/ontology/construct/" in type_iri for type_iri in item["types"]) else 1,
             item["label"],
         ),
     )
@@ -157,7 +157,7 @@ def build_lineage_step_query(dataset_iris: list[str], *, direction: str) -> str:
     escaped = " ".join(f"<{iri}>" for iri in dataset_iris if iri)
     if direction == "downstream":
         return f"""
-PREFIX ml: <http://www.semanticweb.org/mnd14/ml/>
+PREFIX ml: <https://spec.industrialontologies.org/ontology/construct/>
 PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
 PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
 SELECT DISTINCT ?current_dataset ?process ?process_type_label ?neighbor_dataset ?neighbor_dataset_type_label WHERE {{
@@ -176,7 +176,7 @@ SELECT DISTINCT ?current_dataset ?process ?process_type_label ?neighbor_dataset 
 LIMIT 500
 """
     return f"""
-PREFIX ml: <http://www.semanticweb.org/mnd14/ml/>
+PREFIX ml: <https://spec.industrialontologies.org/ontology/construct/>
 PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
 PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
 SELECT DISTINCT ?current_dataset ?process ?process_type_label ?neighbor_dataset ?neighbor_dataset_type_label WHERE {{

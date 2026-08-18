@@ -14,7 +14,7 @@ from mllo_web.core.graph.runtime import (
     run_raw_query as _run_raw_query,
 )
 
-MLLO_NAMESPACE = "http://www.semanticweb.org/mnd14/ml/"
+MLLO_NAMESPACE = "https://spec.industrialontologies.org/ontology/construct/"
 
 GRAPH_NATIVE_PREFIXES = """
 PREFIX rdf:  <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
@@ -41,14 +41,14 @@ UPSTREAM_LINEAGE_PREDICATES = {
     "http://www.w3.org/ns/prov#wasGeneratedBy",
     "http://www.w3.org/ns/prov#used",
     "http://www.w3.org/2000/01/rdf-schema#isDefinedBy",
-    "http://www.semanticweb.org/mnd14/ml/informationContentEntityDerivedFrom",
+    "https://spec.industrialontologies.org/ontology/construct/informationContentEntityDerivedFrom",
 }
 DOWNSTREAM_LINEAGE_PREDICATES = {
     "http://www.w3.org/ns/prov#generated",
     "http://www.w3.org/ns/prov#wasDerivedFrom",
     "http://www.w3.org/ns/prov#wasGeneratedBy",
     "http://www.w3.org/ns/prov#used",
-    "http://www.semanticweb.org/mnd14/ml/informationContentEntityDerivedFrom",
+    "https://spec.industrialontologies.org/ontology/construct/informationContentEntityDerivedFrom",
 }
 
 
@@ -87,10 +87,7 @@ def _is_hidden_or_schema_type(value: str | None) -> bool:
         return False
     if value in HIDDEN_OR_SCHEMA_TYPES:
         return True
-    return (
-        value.startswith("http://purl.obolibrary.org/obo/BFO_")
-        or value.startswith("https://spec.industrialontologies.org/ontology/core/Core/")
-    )
+    return value.startswith("http://purl.obolibrary.org/obo/BFO_")
 
 
 def _local_name(value: str | None) -> str | None:
@@ -250,7 +247,6 @@ SELECT ?class (SAMPLE(?label) AS ?label) (COUNT(DISTINCT ?instance) AS ?count) W
     rdf:Property
   ))
   FILTER(!STRSTARTS(STR(?class), "http://purl.obolibrary.org/obo/BFO_"))
-  FILTER(!STRSTARTS(STR(?class), "https://spec.industrialontologies.org/ontology/core/Core/"))
   FILTER NOT EXISTS {{ ?instance a owl:Class }}
   FILTER NOT EXISTS {{ ?instance a rdfs:Class }}
   FILTER NOT EXISTS {{ ?instance a owl:ObjectProperty }}
@@ -807,7 +803,6 @@ SELECT ?class (SAMPLE(?classLabel) AS ?classLabel) (COUNT(DISTINCT ?instance) AS
     owl:ObjectProperty, owl:DatatypeProperty, owl:AnnotationProperty, rdfs:Class, rdf:List, rdf:Property
   ))
   FILTER(!STRSTARTS(STR(?class), "http://purl.obolibrary.org/obo/BFO_"))
-  FILTER(!STRSTARTS(STR(?class), "https://spec.industrialontologies.org/ontology/core/Core/"))
   FILTER NOT EXISTS {{ ?instance a owl:Class }}
   FILTER NOT EXISTS {{ ?instance a rdfs:Class }}
   FILTER NOT EXISTS {{ ?instance a owl:ObjectProperty }}

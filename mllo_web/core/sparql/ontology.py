@@ -29,7 +29,7 @@ def resolve_explore_category_target(category_name: str) -> str:
 def build_explore_category_query(category_name: str) -> str:
     target = resolve_explore_category_target(category_name)
     return f"""
-PREFIX ml: <http://www.semanticweb.org/mnd14/ml/>
+PREFIX ml: <https://spec.industrialontologies.org/ontology/construct/>
 PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
 PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
 SELECT DISTINCT ?entity ?entity_type ?label

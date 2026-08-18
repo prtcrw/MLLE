@@ -41,16 +41,16 @@ def _inject_explicit_graph(query: str) -> str:
         count=1,
     )
 QUERY = """
-PREFIX ml: <http://www.semanticweb.org/mnd14/ml/>
+PREFIX ml: <https://spec.industrialontologies.org/ontology/construct/>
 PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
 PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
 PREFIX bfo: <http://purl.obolibrary.org/obo/>
-PREFIX iof-core: <https://spec.industrialontologies.org/ontology/core/Core/>
+PREFIX iof-core: <https://spec.industrialontologies.org/ontology/construct/>
 SELECT DISTINCT 
     #variables
 WHERE {
     {
-        ?ml_process ml:executes | bfo:BFO_0000057 ?model.
+        ?ml_process bfo:BFO_0000057 ?model.
         OPTIONAL { ?dataset rdfs:label ?dataset_label }
         #DATASET_SEARCH_FILTER
         ?model rdf:type ?model_type_iri.
@@ -64,7 +64,7 @@ WHERE {
         #DATASETTYPE_CONSTRAINT
         ?dataset rdf:type ?dataset_type.
         OPTIONAL {
-            ?ml_process bfo:BFO_0000222/iof-core:hasValueExpressionAtAllTimes/iof-core:hasDateTimeValue ?ml_input_timestamp
+            ?ml_process bfo:BFO_0000222/iof-core:hasValueExpressionAtAllTimes/iof-core:hasDateTimeInstantValue ?ml_input_timestamp
         }
         OPTIONAL {
             ?dataset ml:informationContentEntityDerivedFrom ?dataset_source
