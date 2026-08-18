@@ -23,7 +23,7 @@ SELECT DISTINCT
     #variables
 WHERE {
     {
-        ?ml_process bfo:BFO_0000057 ?model.
+        ?ml_process (ml:executed | bfo:BFO_0000057) ?model.
         OPTIONAL { ?dataset rdfs:label ?dataset_label }
         #DATASET_SEARCH_FILTER
         ?model rdf:type ?model_type_iri.
@@ -184,4 +184,3 @@ class FindDatasetsQueryBuilder(QueryBuilder):
         if config.sparql_backend == "graphdb":
             query = inject_explicit_graph(query)
         return query
-

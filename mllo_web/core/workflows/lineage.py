@@ -92,7 +92,7 @@ PREFIX bfo: <http://purl.obolibrary.org/obo/>
 SELECT DISTINCT ?dataset ?dataset_role ?model_name WHERE {{
     VALUES ?dataset {{ {escaped_datasets} }}
     ?ml_process ml:hasDataInput ?dataset .
-    ?ml_process bfo:BFO_0000057 ?model_name .
+    ?ml_process (ml:executed | bfo:BFO_0000057) ?model_name .
     ?model_name rdf:type/rdfs:subClassOf* ml:MachineLearningModel .
     {dataset_filter}
 }}

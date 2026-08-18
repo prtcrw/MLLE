@@ -44,7 +44,7 @@ WHERE {
         }
     }
     OPTIONAL {
-        ?process bfo:BFO_0000057 ?model .
+        ?process (ml:executed | bfo:BFO_0000057) ?model .
         OPTIONAL {
             ?process ml:hasDataInput ?input_dataset .
             ?input_dataset ml:informationContentEntityDerivedFrom* ?linked_dataset .
@@ -123,7 +123,7 @@ WHERE {
     OPTIONAL {
         ?deployed_state bfo:BFO_0000117 ?model_execution.
         ?model_execution rdf:type/rdfs:subClassOf* ml:ModelExecution.
-        ?model_execution bfo:BFO_0000057 ?model_name.
+        ?model_execution (ml:executed | bfo:BFO_0000057) ?model_name.
         OPTIONAL { ?model_execution ml:hasDataInput ?model_input. }
         OPTIONAL {
             ?model_execution ml:hasDataOutput ?model_output.

@@ -114,6 +114,7 @@ RELATION_LABEL_FALLBACKS = {
     "http://purl.obolibrary.org/obo/BFO_0000057": "has participant",
     "https://spec.industrialontologies.org/ontology/construct/hasDataInput": "has data input",
     "https://spec.industrialontologies.org/ontology/construct/hasDataOutput": "has data output",
+    "https://spec.industrialontologies.org/ontology/construct/executed": "executed",
 }
 
 
@@ -220,9 +221,9 @@ WHERE {{
   }}
   OPTIONAL {{
     {{
-      ?pipeline bfo:BFO_0000117*/bfo:BFO_0000057 ?model
+      ?pipeline bfo:BFO_0000117*/(ml:executed | bfo:BFO_0000057) ?model
     }} UNION {{
-      ?pipeline bfo:BFO_0000063+/bfo:BFO_0000057 ?model
+      ?pipeline bfo:BFO_0000063+/(ml:executed | bfo:BFO_0000057) ?model
     }}
     ?model rdf:type/rdfs:subClassOf* ml:MachineLearningModel .
     OPTIONAL {{
@@ -559,7 +560,7 @@ def _build_source_metadata(
                 ontology_relations.append(f"Mapped to predecessor/successor ordering through {_relation_label('http://purl.obolibrary.org/obo/BFO_0000063')}.")
         elif node.kind == "model":
             ontology_relations.append(
-                f"Mapped through the model execution path using {_relation_label('http://purl.obolibrary.org/obo/BFO_0000057')}."
+                f"Mapped through the model execution path using {_relation_label('https://spec.industrialontologies.org/ontology/construct/executed')} or {_relation_label('http://purl.obolibrary.org/obo/BFO_0000057')}."
             )
 
         class_iri = node_class_map.get(node.id)

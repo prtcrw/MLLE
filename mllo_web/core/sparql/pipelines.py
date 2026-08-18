@@ -52,11 +52,11 @@ WHERE {
     OPTIONAL { ?pipeline ml:hasDataOutput ?pipeline_data_output_iri }
     OPTIONAL {
         {
-            ?pipeline bfo:BFO_0000117*/bfo:BFO_0000057 ?pipeline_associated_model_iri
+            ?pipeline bfo:BFO_0000117*/(ml:executed | bfo:BFO_0000057) ?pipeline_associated_model_iri
         }
         UNION
         {
-            ?pipeline bfo:BFO_0000063+/bfo:BFO_0000057 ?pipeline_associated_model_iri
+            ?pipeline bfo:BFO_0000063+/(ml:executed | bfo:BFO_0000057) ?pipeline_associated_model_iri
         }
         ?pipeline_associated_model_iri rdf:type/rdfs:subClassOf* ml:MachineLearningModel
     }
@@ -98,9 +98,9 @@ WHERE {
     OPTIONAL { ?pipeline ml:hasDataOutput ?pipeline_data_output_iri }
     OPTIONAL {
         {
-            ?pipeline bfo:BFO_0000117*/bfo:BFO_0000057 ?pipeline_associated_model_iri
+            ?pipeline bfo:BFO_0000117*/(ml:executed | bfo:BFO_0000057) ?pipeline_associated_model_iri
         } UNION {
-            ?pipeline bfo:BFO_0000063+/bfo:BFO_0000057 ?pipeline_associated_model_iri
+            ?pipeline bfo:BFO_0000063+/(ml:executed | bfo:BFO_0000057) ?pipeline_associated_model_iri
         }
     }
 }
@@ -149,13 +149,13 @@ class FindPipelinesQueryBuilder(QueryBuilder):
 
         if self.toggle_constraint:
             replacement_string = "?pipeline ml:hasDataInput| ml:hasDataOutput ?dataset.\n"
-            replacement_string += "?dataset rdf:type/rdfs:subClassOf* <http://purl.obolibrary.org/obo/IAO_0000100>.\n"
+            replacement_string += "?dataset rdf:type/rdfs:subClassOf* ml:DataSet.\n"
             if self.pipeline_constraint:
                 replacement_string += f'FILTER(CONTAINS(STRAFTER(STR(?dataset),"#"),"{self.pipeline_constraint}"))\n'
             query = query.replace("#dataset_or_ml_filter", replacement_string)
         else:
-            replacement_string = "{?pipeline bfo:BFO_0000117*/bfo:BFO_0000057 ?model}\nUNION\n"
-            replacement_string += "{?pipeline bfo:BFO_0000063+/bfo:BFO_0000057 ?model}\n"
+            replacement_string = "{?pipeline bfo:BFO_0000117*/(ml:executed | bfo:BFO_0000057) ?model}\nUNION\n"
+            replacement_string += "{?pipeline bfo:BFO_0000063+/(ml:executed | bfo:BFO_0000057) ?model}\n"
             replacement_string += "?model rdf:type/rdfs:subClassOf* ml:MachineLearningModel.\n"
             if self.pipeline_constraint:
                 replacement_string += f'FILTER(CONTAINS(STRAFTER(STR(?model),"#"),"{self.pipeline_constraint}"))\n'
@@ -166,4 +166,3 @@ class FindPipelinesQueryBuilder(QueryBuilder):
         if config.sparql_backend == "graphdb":
             query = inject_explicit_graph(query)
         return query
-

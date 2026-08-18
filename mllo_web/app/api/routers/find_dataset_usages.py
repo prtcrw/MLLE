@@ -87,7 +87,7 @@ WHERE {
             (GROUP_CONCAT(DISTINCT ?property_info; separator=";") AS ?property_infos)
         WHERE {
             ?ml_process ml:hasDataInput/ml:informationContentEntityDerivedFrom* ?dataset.
-            ?ml_process bfo:BFO_0000057 ?model_name.
+            ?ml_process (ml:executed | bfo:BFO_0000057) ?model_name.
             #DATASET_FILTER
 
             OPTIONAL {

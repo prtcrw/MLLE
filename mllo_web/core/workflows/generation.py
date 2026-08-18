@@ -12,13 +12,15 @@ SYSTEM_MESSAGE = (
     "You are an expert Semantic Web engineer specialising in the MLLO (Machine Learning Lifecycle Ontology).\n"
     "Generate ONLY valid SPARQL that strictly follows the provided ontology schema and example queries.\n\n"
     "ENTITY DEFINITIONS in MLLO:\n"
-    "- DATASET: an entity used as input to an ML process via ml:hasDataInput.\n"
-    "- MODEL: a MachineLearningModel linked from an ML process via bfo:BFO_0000057.\n"
+    "- DATASET: an entity used as input to an ML process via ?process ml:hasDataInput ?dataset.\n"
+    "- MODEL: a MachineLearningModel linked from an ML process via ?process (ml:executed | bfo:BFO_0000057) ?model.\n"
     "- PIPELINE: a DataProcessingPipeline or MachineLearningModelDevelopmentPipeline with components via bfo:BFO_0000117.\n"
     "- ML PROCESS: the central node linking models, datasets, inputs, and outputs.\n\n"
     "KEY PATTERNS:\n"
-    "- ML processes link to models via: bfo:BFO_0000057\n"
-    "- ML processes link to datasets via: ml:hasDataInput / ml:hasDataOutput\n"
+    "- ML processes link to models via: ?process (ml:executed | bfo:BFO_0000057) ?model\n"
+    "- ML processes consume datasets via: ?process ml:hasDataInput ?dataset\n"
+    "- ML processes produce datasets via: ?process ml:hasDataOutput ?dataset\n"
+    "- Never reverse hasDataInput or hasDataOutput: the process is the subject and the dataset is the object.\n"
     "- Individuals are linked to classes via: ?individual rdf:type ?class\n"
     "- Include subclass hierarchy with rdf:type/rdfs:subClassOf* or rdfs:subClassOf*\n"
     "- Use property paths as shown in the examples\n\n"
@@ -36,7 +38,40 @@ REPAIR_MESSAGE = (
     "Fix it strictly using the provided ontology vocabulary and return ONLY corrected SPARQL."
 )
 
-EXAMPLE_QUERIES = "=== EXAMPLE QUERIES ==="
+EXAMPLE_QUERIES = """=== EXAMPLE QUERIES ===
+
+# Datasets consumed by processes that execute a model
+SELECT DISTINCT ?dataset WHERE {
+  ?process (ml:executed | bfo:BFO_0000057) ?model .
+  ?process ml:hasDataInput ?dataset .
+  ?model rdf:type/rdfs:subClassOf* ml:MachineLearningModel .
+}
+LIMIT 100
+
+# Datasets produced downstream from a model output
+SELECT DISTINCT ?dataset WHERE {
+  ?model_process ml:executed ?model ;
+                 ml:hasDataOutput ?model_output .
+  ?downstream_process ml:hasDataInput ?model_output ;
+                      ml:hasDataOutput ?dataset .
+}
+LIMIT 100
+
+# Models and pipelines that share a dataset
+SELECT DISTINCT ?model ?pipeline ?dataset WHERE {
+  ?model_process (ml:executed | bfo:BFO_0000057) ?model ;
+                 ml:hasDataInput ?dataset .
+  ?pipeline (ml:hasDataInput | ml:hasDataOutput) ?dataset .
+}
+LIMIT 100
+
+# Model outputs later consumed by another process
+SELECT DISTINCT ?output_dataset WHERE {
+  ?model_process ml:executed ?model ;
+                 ml:hasDataOutput ?output_dataset .
+  ?next_process ml:hasDataInput ?output_dataset .
+}
+LIMIT 100"""
 
 
 def extract_sparql(raw: str) -> str:

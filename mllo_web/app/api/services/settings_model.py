@@ -7,6 +7,10 @@ from typing import Literal
 
 from pydantic import BaseModel, Field, model_validator
 
+
+DEFAULT_GRAPHDB_REPO = "mllo5"
+LEGACY_GRAPHDB_REPOS = {"mllo3", "mllo4"}
+
 try:
     from platformdirs import user_data_dir
 except ImportError:
@@ -91,7 +95,7 @@ class MLLESettings(BaseModel):
         ),
     })
     graphdb_url: str = Field(default_factory=lambda: os.getenv("GRAPHDB_URL", "http://localhost:7200"))
-    graphdb_default_repo: str = Field(default_factory=lambda: os.getenv("GRAPHDB_DEFAULT_REPO", "mllo5"))
+    graphdb_default_repo: str = Field(default_factory=lambda: os.getenv("GRAPHDB_DEFAULT_REPO", DEFAULT_GRAPHDB_REPO))
     graphdb_repo_allowlist: list[str] | None = Field(default_factory=_env_allowlist)
     answer_mode: Literal["exact", "conceptual", "auto"] = "auto"
     enable_nlq_logging: bool = False
@@ -128,13 +132,27 @@ def _deep_merge(base: dict, override: dict) -> dict:
     return merged
 
 
+def _migrate_legacy_graphdb_repo(raw: dict) -> dict:
+    if raw.get("graphdb_default_repo") not in LEGACY_GRAPHDB_REPOS:
+        return raw
+
+    migrated = dict(raw)
+    migrated["graphdb_default_repo"] = DEFAULT_GRAPHDB_REPO
+    allowlist = migrated.get("graphdb_repo_allowlist")
+    if isinstance(allowlist, list):
+        migrated["graphdb_repo_allowlist"] = list(
+            dict.fromkeys(DEFAULT_GRAPHDB_REPO if repo in LEGACY_GRAPHDB_REPOS else repo for repo in allowlist)
+        )
+    return migrated
+
+
 def load_settings() -> MLLESettings:
     defaults = MLLESettings()
     path = get_settings_path()
     if not path.exists():
         return defaults
 
-    raw = json.loads(path.read_text(encoding="utf-8"))
+    raw = _migrate_legacy_graphdb_repo(json.loads(path.read_text(encoding="utf-8")))
     merged = _deep_merge(defaults.model_dump(), raw)
     return MLLESettings.model_validate(merged)
 

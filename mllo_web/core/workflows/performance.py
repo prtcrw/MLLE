@@ -46,7 +46,7 @@ PREFIX bfo: <http://purl.obolibrary.org/obo/>
 PREFIX iof-core: <https://spec.industrialontologies.org/ontology/construct/>
 PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>
 SELECT DISTINCT ?model_name ?ml_process ?model_performance_metric ?model_performance_value WHERE {{
-    ?ml_process bfo:BFO_0000057 ?model_name .
+    ?ml_process (ml:executed | bfo:BFO_0000057) ?model_name .
     ?model_name rdf:type/rdfs:subClassOf* ml:MachineLearningModel .
     ?model_performance_assessment ml:hasDataInput ?model_output .
     ?ml_process ml:hasDataOutput ?model_output .
@@ -102,7 +102,7 @@ PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
 PREFIX bfo: <http://purl.obolibrary.org/obo/>
 SELECT DISTINCT ?model_name ?pipeline WHERE {{
     VALUES ?model_name {{ {escaped_models} }}
-    ?pipeline bfo:BFO_0000117*/bfo:BFO_0000057 ?model_name .
+    ?pipeline bfo:BFO_0000117*/(ml:executed | bfo:BFO_0000057) ?model_name .
 }}
 LIMIT 200
 """

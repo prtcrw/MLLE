@@ -44,7 +44,7 @@ DATASET_COUNT_QUERY = _count_query("""
 PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
 PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
 """, """
-?item rdf:type/rdfs:subClassOf* <http://purl.obolibrary.org/obo/IAO_0000100> .
+?item rdf:type/rdfs:subClassOf* ml:DataSet .
 """)
 
 PIPELINE_COUNT_QUERY = _count_query("""

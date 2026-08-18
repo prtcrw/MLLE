@@ -78,11 +78,11 @@ WHERE {
     }
     OPTIONAL {
         {
-            ?pipeline bfo:BFO_0000117*/bfo:BFO_0000057 ?pipeline_associated_model_iri
+            ?pipeline bfo:BFO_0000117*/(ml:executed | bfo:BFO_0000057) ?pipeline_associated_model_iri
         }
         UNION
         {
-            ?pipeline bfo:BFO_0000063+/bfo:BFO_0000057 ?pipeline_associated_model_iri
+            ?pipeline bfo:BFO_0000063+/(ml:executed | bfo:BFO_0000057) ?pipeline_associated_model_iri
         }
 	?pipeline_associated_model_iri rdf:type/rdfs:subClassOf* ml:MachineLearningModel
     }
@@ -124,9 +124,9 @@ WHERE {
     OPTIONAL { ?pipeline ml:hasDataOutput ?pipeline_data_output_iri }
     OPTIONAL {
         {
-            ?pipeline bfo:BFO_0000117*/bfo:BFO_0000057 ?pipeline_associated_model_iri
+            ?pipeline bfo:BFO_0000117*/(ml:executed | bfo:BFO_0000057) ?pipeline_associated_model_iri
         } UNION {
-            ?pipeline bfo:BFO_0000063+/bfo:BFO_0000057 ?pipeline_associated_model_iri
+            ?pipeline bfo:BFO_0000063+/(ml:executed | bfo:BFO_0000057) ?pipeline_associated_model_iri
         }
     }
 }
@@ -177,7 +177,7 @@ class FindPipelinesQueryBuilder(QueryBuilder):
 
         if self.toggle_constraint:
             replacement_string_for_dataset_association = "?pipeline ml:hasDataInput| ml:hasDataOutput ?dataset.\n"
-            replacement_string_for_specific_dataset = "?dataset rdf:type/rdfs:subClassOf* <http://purl.obolibrary.org/obo/IAO_0000100>.\n"
+            replacement_string_for_specific_dataset = "?dataset rdf:type/rdfs:subClassOf* ml:DataSet.\n"
 
             if (
                 self.pipeline_constraint is not None
@@ -192,7 +192,7 @@ class FindPipelinesQueryBuilder(QueryBuilder):
                 + replacement_string_for_specific_dataset,
             )
         else:
-            replacement_string_for_model_association = "{?pipeline bfo:BFO_0000117*/bfo:BFO_0000057 ?model}\nUNION\n{?pipeline bfo:BFO_0000063+/bfo:BFO_0000057 ?model}\n"
+            replacement_string_for_model_association = "{?pipeline bfo:BFO_0000117*/(ml:executed | bfo:BFO_0000057) ?model}\nUNION\n{?pipeline bfo:BFO_0000063+/(ml:executed | bfo:BFO_0000057) ?model}\n"
             replacement_string_for_specific_model = "?model rdf:type/rdfs:subClassOf* ml:MachineLearningModel.\n"
             
 
